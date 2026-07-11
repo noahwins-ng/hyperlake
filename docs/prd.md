@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.2 — OQ-1 (source/region/window) and OQ-6 (timeline) remain; freezes after the Phase-1 spike |
+| **Status** | Draft v0.3 — OQ-1 (source/region/window), OQ-6 (timeline), OQ-7 (bronze drift posture) remain; freezes after the Phase-1 spike |
 | **Owner** | noahwins-ng |
 | **Created** | 2026-07-09 |
 | **Repo** | public (portfolio) |
@@ -113,7 +113,8 @@ Explicitly out of scope — reject in review if it creeps in:
 
 ### Data model (draft — freezes at the end of the Phase-1 spike)
 
-- **Bronze — `trades_raw`** (plain Parquet, partitioned `coin=<market>/dt=<utc-date>`): the
+- **Bronze — `trades_raw`** (plain Parquet, partitioned `coin=<market>/dt=<utc-date>`, where
+  `dt` is derived from the **exchange event time**, not arrival time — see NFR-5): the
   raw event as received, plus lineage columns `source` (`ws` | `backfill`), `ingested_at`,
   `session_id`. Backfill and stream write the identical layout.
 - **Silver — `trades`** (Iceberg): one row per trade, exactly-once. Typed columns: `tid`
@@ -163,7 +164,9 @@ Contract: **at-least-once into bronze, exactly-once at silver** (dedup on `tid`)
 ### Non-functional
 
 - **NFR-1 Cost:** hard budget $15/month during active development; AWS Budgets alarm at $10
-  provisioned by Terraform on day one.
+  provisioned by Terraform on day one. The alarm is a **lagging backstop** (Budgets data
+  refreshes on a multi-hour delay, typically 8–12 h) — the primary guardrails are the
+  scripted `session-down` (FR-8) and the post-destroy checklist (FR-6).
 - **NFR-2 No bill-surprise services:** NAT Gateway, MWAA, MSK provisioned, OpenSearch, and
   QuickSight are banned. Fargate runs with a public IP in a public subnet.
 - **NFR-3 Security:** no long-lived AWS keys in the repo; GitHub Actions uses OIDC; secrets
@@ -171,6 +174,9 @@ Contract: **at-least-once into bronze, exactly-once at silver** (dedup on `tid`)
 - **NFR-4 Reproducibility:** a stranger with an AWS account must be able to reproduce the
   stack from the README alone.
 - **NFR-5 Timestamps:** UTC everywhere in storage; rendering concerns don't exist (no UI).
+  Partitioning (`dt=`) and every gold time window derive **exclusively from exchange event
+  time (`time`)**, never `ingested_at`/arrival time — otherwise the streamed hour and the
+  backfilled hour disagree at bucket boundaries and G3 reconciliation shows phantom gaps.
 - **NFR-6 Process/code hygiene:** conventional commits; PRD → ADRs for every significant
   decision (this file's open questions each terminate in an ADR).
 - **NFR-7 Terraform state bootstrap:** a small documented one-time `bootstrap/` step (local
@@ -211,7 +217,7 @@ exhausted) — the budget alarm (NFR-1) is the sole guardrail.
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | Teardown misses a billable resource | Silent monthly burn | Everything in one Terraform state; budget alarm; post-destroy checklist (FR-6) |
-| WS feed schema drift / undocumented changes | Broken ingester mid-demo | Bronze stores raw payloads; schema enforcement deferred to silver; contract tests |
+| WS feed schema drift / undocumented changes | Broken ingester mid-demo | Bronze stores raw payloads; schema enforcement deferred to silver; contract tests. Note: naive Firehose→Parquet contradicts this (drifted records die at conversion) — resolved by OQ-7 |
 | Archive format differs from WS format | Convergence complexity explodes | Prototype both readers in Phase 1 spike before freezing the bronze schema (OQ-1) |
 | Kinesis/Fargate left running after a session | ~$30+/month | Session start/stop is a scripted pair; destroy is part of the demo script, not an afterthought |
 | Free-tier credit assumptions wrong | Unplanned spend | Budget alarm at $10 is independent of credits |
@@ -259,8 +265,24 @@ Each resolves to an ADR before its dependent phase starts.
   The deploy region co-locates with the chosen bucket, so source and region are one
   decision. Spike criteria: **measure per-day volume for the watchlist** (prices the FR-2
   backfill window — currently unknown), schema fit vs. the WS trade format, HIP-3 market
-  coverage (watchlist includes HIP-3 indices), transfer cost. *(Blocks Phase 1.)*
+  coverage (watchlist includes HIP-3 indices), transfer cost. One criterion is a hard
+  **pass/fail gate: trade-identity parity** — the archive must carry the same `tid` the WS
+  feed emits for the same trade. The silver exactly-once contract and the G3 replay
+  reconciliation both dedup on `tid`; if the archive lacks it or uses a different identity,
+  the dedup key reopens (composite keys like `coin,time,px,sz,side` collide on simultaneous
+  identical trades) and G3 must be re-scoped **before** the bronze schema freezes.
+  *(Blocks Phase 1.)*
 - **OQ-4 — Demo artifact:** recorded video vs. scripted live run vs. both. *(Blocks Phase 4.)*
+- **OQ-7 — Bronze drift posture:** the risk table defers schema enforcement to silver
+  ("bronze stores raw payloads"), but Firehose's native Parquet conversion validates
+  against a fixed Glue schema — a drifted record fails conversion and lands in `errors/`,
+  making bronze the de-facto enforcement point and silently starving silver mid-demo.
+  Leading option: an **ingester-owned envelope** — the ingester emits best-effort typed
+  columns plus a `raw_payload` JSON string column, so the Firehose schema is owned by our
+  ingester rather than by Hyperliquid, and source drift degrades to null typed fields
+  instead of lost records (backfill Lambda writes the same envelope). Alternative:
+  Firehose lands raw JSON and a Lambda does the Parquet conversion. Resolve as an ADR.
+  *(Blocks Phase 2.)*
 - **OQ-6 — Timeline:** target date for README-complete (job-hunt driven?). Until answered,
   assume no hard deadline and size phases at ~1–2 focused weekends each (beginner-AWS pace).
 
