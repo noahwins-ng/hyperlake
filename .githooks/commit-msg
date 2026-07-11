@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Enforce the commit convention from workflow-profile.yaml (vcs.commit_format).
+# Enable with: git config core.hooksPath .githooks   (flow-init does this).
+# flow-init tunes QNT-[0-9]+ to the project's tracker prefix (tracker.identifier_regex).
+set -euo pipefail
+
+msg=$(head -1 "$1")
+
+# <ID>: type(scope): description   — OR meta work (docs:/chore:) with no issue id.
+id_regex='QNT-[0-9]+'                                   # e.g. [A-Z]+-[0-9]+
+types='feat|fix|refactor|test|docs|chore'
+pattern="^((${id_regex}: )?(${types})(\(.+\))?: .+|(docs|chore): .+)"
+
+if ! printf '%s' "$msg" | grep -qE "$pattern"; then
+  echo "✗ Commit message doesn't match the convention:" >&2
+  echo "    <ID>: type(scope): description" >&2
+  echo "    (or 'docs: …' / 'chore: …' for meta work with no issue)" >&2
+  echo "  got: $msg" >&2
+  exit 1
+fi

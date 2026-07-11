@@ -1,0 +1,128 @@
+# Workflow profile — hyperlake. Read by the flow suite (ship-issue, session-check,
+# cycle-start/end, sync-plan, change-scope, retro, ...). The skills' spine never changes;
+# this file is the only thing that changes between projects.
+# Convention: an empty ("") value means "this project has no such concept — skip that step".
+#
+# STATUS: pre-build (PRD draft v0.2, no code yet). verify.* and deploy gate probes are
+# intentionally empty — fill via flow-tailor after Phase 0 lands the Python/Terraform toolchain.
+
+project:
+  name: "Hyperlake"
+  default_branch: main
+
+tracker:
+  # Native-first: the harness's Linear MCP tools when present; otherwise the shell adapter
+  # (needs LINEAR_API_KEY).
+  kind: linear
+  identifier_regex: "QNT-\\d+"        # Quant team — shared with sibling projects
+  identifier_example: "QNT-305"
+  adapter: "adapters/linear.sh"
+  get_issue:       "{adapter} issue get {id}"
+  set_in_progress: "{adapter} issue status {id} 'In Progress'"
+  set_in_review:   "{adapter} issue status {id} 'In Review'"
+  set_done:        "{adapter} issue status {id} 'Done'"
+  add_comment:     "{adapter} issue comment {id}"
+  next_issue:      ""
+  branch_from_issue: "branchName"
+  branch_template:   "user/{id_lower}-{slug}"
+
+vcs:
+  commit_format: "{id}: {type}({scope}): {description}"   # {type} in feat|fix|refactor|test|docs|chore
+  wip_commit:    "{id}: {type}({scope}): wip - {description}"
+  commit_hook_note: "Enforced by .githooks/commit-msg — plain '{id}: wip:' is rejected; type(scope) required. Meta work may use bare 'docs:'/'chore:'."
+  pr_title:  "{id}: {title}"
+  pr_body_closes: "Closes {id}"
+  pr_footer: ""                     # no tool-generated footers, ever
+
+verify:
+  # TO FILL (flow-tailor, after Phase 0 scaffolds the toolchain). Planned shape per PRD FR-9:
+  # lint/format = ruff, types = pyright, test = pytest + dbt-duckdb build (offline, mirrors CI),
+  # plus terraform fmt/validate.
+  lint:   ""
+  format: ""
+  types:  ""
+  test:   ""
+  test_note: ""
+  test_targeted: ""
+  security: ""
+
+deploy:
+  # Serverless-ephemeral topology (terraform apply/destroy per demo session) — there is no
+  # long-lived "prod host". Gate probes must be derived by flow-tailor once the Terraform
+  # stack exists (e.g. deployed_sha via a resource tag or SSM parameter stamped at apply;
+  # health via an Athena smoke query). Empty gates are reported as profile-skipped, not silent.
+  ci_status:    "gh pr checks {pr} --watch"
+  merge:        "gh pr merge {pr} --squash --delete-branch"
+  deployed_sha: ""
+  runtime_id:   ""
+  health:       ""
+  rollback:     ""
+
+docs:
+  plan:          "docs/project-plan.md"
+  spec:          "docs/project-requirement.md"   # anchored to docs/prd.md (source PRD)
+  patterns:      ""                              # none yet; add when code patterns emerge
+  architecture:  "docs/architecture/system-overview.md"
+  decisions_dir: "docs/decisions"
+  adr_template:  "docs/decisions/TEMPLATE.md"
+  adr_index:     "docs/INDEX.md"
+  retros_dir:    "docs/retros"
+  ac_templates:  "docs/AC-templates.md"
+
+architecture_rules: |
+  # Seeded from docs/prd.md (settled decisions + non-goals); refine via flow-tailor.
+  - No trading, signals, or execution anywhere — market data engineering only.
+  - Bronze is plain Parquet (Hive partitions); Iceberg exists only at silver/gold and is
+    written exclusively by dbt-athena. No other Iceberg writer may appear in the codebase.
+  - Backfill is plain-Python Lambda — no Glue Spark ETL.
+  - Banned services (cost): NAT Gateway, MWAA, MSK provisioned, OpenSearch, QuickSight.
+    Fargate runs with a public IP in a public subnet — no VPC plumbing beyond that.
+  - Ingestion contract: at-least-once into bronze, exactly-once at silver (dedup on tid).
+  - All timestamps UTC in storage.
+  - Every AWS resource is Terraform-managed and tagged project=hyperlake; nothing hand-created.
+  - No long-lived AWS keys in the repo or CI — GitHub Actions uses OIDC.
+  - Watchlist is config-driven — no hardcoded market lists in code.
+
+ac_execution_keywords:
+  - populated
+  - backfill
+  - "no duplicates"
+  - returns
+  - queryable
+  - reconciles
+  - deployed
+  - destroyed        # teardown ACs must be executed, not eyeballed
+  - "in athena"
+  - visible
+  - healthy
+
+review:
+  fresh_eyes_agent: "flow:flow-code-reviewer"
+
+cadence:
+  team:    "Quant"                 # Linear team (shared with sibling projects)
+  project: "Hyperlake"             # Linear project — created by flow-plan-project
+  active_cycle:   "{adapter} cycle active '{team}'"
+  status_update:  "{adapter} project status-update '{project}'"
+
+taxonomy:
+  team_id: ""                      # fill from list_teams when flow-plan-project runs
+  labels:
+    - infra
+    - ingestion
+    - lakehouse
+    - docs
+  ops_milestone: "Ops & Reliability"
+  perpetual_milestones:
+    - "Ops & Reliability"
+  health_on_track_min: 0.50
+  health_at_risk_min:  0.25
+
+audit:
+  # No long-lived server exists (serverless-ephemeral) — server-audit is disabled by design.
+  # A cost/teardown audit variant may replace it later (see PRD FR-6/FR-7).
+  host:            ""
+  compose_file:    ""
+  repo_path:       ""
+  health_url:      ""
+  expected_min_health_partition_free_pct: 20
