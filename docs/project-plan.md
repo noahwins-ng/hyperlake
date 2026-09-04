@@ -15,7 +15,7 @@ is what a reader who opens the repo cold uses to understand what was built and w
 
 Goal: cost guardrails and the toolchain exist before any data resource does.
 
-- [ ] QNT-444: chore(repo): Python + Terraform toolchain, CI skeleton, Makefile
+- [x] QNT-444: chore(repo): Python + Terraform toolchain, CI skeleton, Makefile
   - uv/pyproject, ruff, pyright, pytest; `make lint types test tf-check`; `ci.yml` on every PR, no AWS creds
   - fills `workflow-profile.yaml` `verify.*`
 - [ ] QNT-445: feat(infra): Terraform bootstrap — state backend, OIDC role, budget alarm, cost allocation tag

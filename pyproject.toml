@@ -1,0 +1,40 @@
+[project]
+name = "hyperlake"
+version = "0.1.0"
+description = "Streaming lakehouse for Hyperliquid market data — market data engineering only."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "websockets>=13",
+    "boto3>=1.34",
+    "lz4>=4.3",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6",
+    "pyright>=1.1",
+    "pytest>=8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hyperlake"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pyright]
+include = ["src", "scripts", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
