@@ -3,8 +3,10 @@
 # this file is the only thing that changes between projects.
 # Convention: an empty ("") value means "this project has no such concept — skip that step".
 #
-# STATUS: pre-build (PRD draft v0.2, no code yet). verify.* and deploy gate probes are
-# intentionally empty — fill via flow-tailor after Phase 0 lands the Python/Terraform toolchain.
+# STATUS: pre-build (PRD v1.0 frozen 2026-09-05; QNT-444 toolchain branch open, no commits yet).
+# verify.* and deploy gate probes are intentionally empty — see the TO-DERIVE comments below for
+# which ticket unblocks each. architecture_rules / ac_execution_keywords / docs.ac_templates were
+# re-derived 2026-09-05 (flow-tailor) from the frozen PRD — these don't need code to exist.
 
 project:
   name: "Hyperlake"
@@ -48,14 +50,21 @@ verify:
 
 deploy:
   # Serverless-ephemeral topology (terraform apply/destroy per demo session) — there is no
-  # long-lived "prod host". Gate probes must be derived by flow-tailor once the Terraform
-  # stack exists (e.g. deployed_sha via a resource tag or SSM parameter stamped at apply;
-  # health via an Athena smoke query). Empty gates are reported as profile-skipped, not silent.
+  # long-lived "prod host". "Deployed" here means "a live session is up"; identity/health are
+  # per-session, not per-merge — the closest analogue to deployed_sha is the commit SHA baked
+  # into that session's ingester image and recorded in sessions/<id>.json.
   ci_status:    "gh pr checks {pr} --watch"
   merge:        "gh pr merge {pr} --squash --delete-branch"
+  # TO-DERIVE(after QNT-457: Fargate ingester tagged by commit SHA): read the image tag/digest
+  # off the running ECS task, or the sessions/<id>.json manifest once session-up writes it.
   deployed_sha: ""
+  # TO-DERIVE(after QNT-457): ECS task ARN or equivalent for the live session's ingester.
   runtime_id:   ""
+  # TO-DERIVE(after QNT-450: persistent layer + Athena workgroup exist): one cheap real query,
+  # e.g. `SELECT count(*) FROM bronze.trades_raw LIMIT 1` via the Athena workgroup.
   health:       ""
+  # Permanently empty, not deferred: ephemeral apply/destroy has no rollback concept — a bad
+  # session is destroyed and re-applied, never rolled back in place.
   rollback:     ""
 
 docs:
@@ -70,18 +79,27 @@ docs:
   ac_templates:  "docs/AC-templates.md"
 
 architecture_rules: |
-  # Seeded from docs/prd.md (settled decisions + non-goals); refine via flow-tailor.
+  # derived: PRD v1.0 (frozen 2026-09-05) settled decisions + non-goals + CLAUDE.md invariants;
+  # re-derived by flow-tailor 2026-09-05. No code exists yet to check these against — each is
+  # provable the first time a matching file (infra/, dbt/, src/hyperlake/) lands.
   - No trading, signals, or execution anywhere — market data engineering only.
+  - Ephemeral by design: no 24/7 operation; < $2/demo session, < $2/month idle (PRD G4).
+    session-down, the session reaper, and the post-destroy audit are the enforcement — the
+    AWS Budgets alarm is only a lagging backstop, never the primary guard.
   - Bronze is plain Parquet (Hive partitions); Iceberg exists only at silver/gold and is
     written exclusively by dbt-athena. No other Iceberg writer may appear in the codebase.
   - Backfill is plain-Python Lambda — no Glue Spark ETL.
   - Banned services (cost): NAT Gateway, MWAA, MSK provisioned, OpenSearch, QuickSight.
     Fargate runs with a public IP in a public subnet — no VPC plumbing beyond that.
-  - Ingestion contract: at-least-once into bronze, exactly-once at silver (dedup on tid).
-  - All timestamps UTC in storage.
+  - Ingestion contract: at-least-once into bronze, exactly-once at silver (merge on tid,
+    archive row outranks feed row on update — source_rank in ADR-005).
+  - Event time everywhere: all timestamps UTC in storage; partition dt= and every gold window
+    derive from exchange event time, never arrival/ingested_at.
   - Every AWS resource is Terraform-managed and tagged project=hyperlake; nothing hand-created.
   - No long-lived AWS keys in the repo or CI — GitHub Actions uses OIDC.
-  - Watchlist is config-driven — no hardcoded market lists in code.
+  - Watchlist is config-driven (config/watchlist.yaml) — no hardcoded market lists in code.
+    HIP-3 markets keep their exact name in the coin column (xyz:SP500); the partition value
+    is normalised ':' -> '_' by one shared helper, never ad hoc per call site.
 
 ac_execution_keywords:
   - populated
