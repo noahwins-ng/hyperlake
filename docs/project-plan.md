@@ -31,7 +31,7 @@ Goal: cost guardrails and the toolchain exist before any data resource does.
 
 Goal: archive → Lambda backfill → bronze Parquet → silver Iceberg via `dbt-run` → queryable in Athena.
 
-- [ ] QNT-448: test(spike): close OQ-1 — tid parity between WS capture and official hour file, ADR-005
+- [x] QNT-448: test(spike): close OQ-1 — tid parity between WS capture and official hour file, ADR-005
   - the last OQ-1 gate; freezes the bronze data model; blocks the rest of Phase 1
 - [ ] QNT-449: feat(core): shared hyperlake package — envelope schema, watchlist config, partition-name helper
   - `config/watchlist.yaml`; envelope pyarrow/Glue schema; `xyz:SP500` → `xyz_SP500`; `dt` from event time
