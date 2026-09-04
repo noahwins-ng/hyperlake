@@ -8,16 +8,87 @@ is what a reader who opens the repo cold uses to understand what was built and w
 > Item format: `- [ ] <ISSUE-ID>: <short title>` with optional sub-bullets for deliverables or a
 > `**Triggered by:**` note explaining why the ticket exists.
 
-## Phase 0 — <name>
+> Linear project: [Hyperlake](https://linear.app/noahwins/project/hyperlake-5268252e90c5) (team Quant).
+> Seeded 2026-09-04 by flow-plan-project from [`prd.md`](prd.md) v0.8. Cycle 1 = cycle #21.
 
-- [ ] <ISSUE-ID>: <short title>
-  - <deliverable or context sub-bullet>
-- [ ] <ISSUE-ID>: <short title>
+### Phase 0 — Scaffold
 
-## Phase 1 — <name>
+Goal: cost guardrails and the toolchain exist before any data resource does.
 
-- [ ] <ISSUE-ID>: <short title>
+- [ ] QNT-444: chore(repo): Python + Terraform toolchain, CI skeleton, Makefile
+  - uv/pyproject, ruff, pyright, pytest; `make lint types test tf-check`; `ci.yml` on every PR, no AWS creds
+  - fills `workflow-profile.yaml` `verify.*`
+- [ ] QNT-445: feat(infra): Terraform bootstrap — state backend, OIDC role, budget alarm, cost allocation tag
+  - `infra/bootstrap/` (local state): S3 state bucket, DynamoDB lock, GitHub OIDC role, Budgets $10 alarm + $15 create-deny action
+  - `project` cost allocation tag activated; `infra/main/` root on S3 backend with `persistent/` + `ephemeral/` split
+  - `docs/guides/bootstrap.md`
+- [ ] QNT-446: feat(dbt): two-target dbt project skeleton compiling on DuckDB in CI
+  - `duckdb` / `athena` targets, one materialization macro (ADR-002), placeholder model + gold-safe fixture
+- [ ] QNT-447: feat(costs): costs/ log schema and make cost-backfill
+  - `costs/sessions.csv` with `cost_estimate` / `cost_actual` / `pending|final`; Cost Explorer backfill by tag
 
-## Ops & Reliability  <!-- perpetual milestone: hardening that cuts across phases -->
+### Phase 1 — Lakehouse (batch)
 
-- [ ] <ISSUE-ID>: <short title>
+Goal: archive → Lambda backfill → bronze Parquet → silver Iceberg via `dbt-run` → queryable in Athena.
+
+- [ ] QNT-448: test(spike): close OQ-1 — tid parity between WS capture and official hour file, ADR-005
+  - the last OQ-1 gate; freezes the bronze data model; blocks the rest of Phase 1
+- [ ] QNT-449: feat(core): shared hyperlake package — envelope schema, watchlist config, partition-name helper
+  - `config/watchlist.yaml`; envelope pyarrow/Glue schema; `xyz:SP500` → `xyz_SP500`; `dt` from event time
+- [ ] QNT-450: feat(infra): persistent layer — data bucket, Glue database, bronze trades_raw with partition projection, Athena workgroup
+- [ ] QNT-451: feat(backfill): Lambda hour-file reader — stream LZ4, filter watchlist, collapse fills, write bronze at deterministic key
+  - H/H+1 boundary rule, fill-pair collapse, `coin=/dt=/source=backfill/hour=H.parquet` idempotent keys
+- [ ] QNT-452: feat(backfill): Step Functions fan-out over hour list + make backfill, 1-day sample timed
+  - Map state, retry/catch; G1 one-day timing; 30-day backfill cost recorded
+- [ ] QNT-453: feat(dbt): silver trades — Iceberg incremental merge on tid with source precedence and first_seen_source
+  - `source_rank` (backfill wins), `dt` lookback, insert-only `first_seen_source`; sample queries for bronze + silver
+- [ ] QNT-454: feat(ci): dbt-run workflow with run_key completion contract, iceberg-maintain target
+  - ADR-001 runtime; `scripts/gh_run.sh` (run_key, 20-min timeout, loud failure); `make iceberg-maintain`
+
+### Phase 2 — Streaming
+
+Goal: Fargate ingester → Kinesis → Firehose → the same bronze; scripted session lifecycle with manifest; bounded blast radius.
+
+- [ ] QNT-455: feat(spike): Kinesis + Firehose Parquet landing spike — envelope schema, dynamic partitioning, destroy
+  - Phase 2 learning spike; ADR-004 go/no-go
+- [ ] QNT-456: feat(ingester): Python WebSocket ingester — trades subscription, envelope, PutRecords, reconnect with gap recording, self-exit
+- [ ] QNT-457: feat(infra): Fargate ingester service + Firehose in the ephemeral layer, G2 measured
+  - default VPC, public IP, egress-only SG; image tagged by commit SHA; emission→bronze < 3 min
+- [ ] QNT-458: feat(session): make session-up / session-down with committed manifest and cost_estimate
+  - `sessions/<id>.json`; Firehose drain wait; `dbt-run` + `iceberg-maintain`; costs row `pending`
+- [ ] QNT-459: feat(session): session reaper — one-time EventBridge Scheduler + Lambda, drift-tolerant apply/destroy verified
+
+### Phase 3 — Convergence + transforms
+
+Goal: G3 proven at bronze, gaps healed, seam tested on Athena, gold marts with data-quality gates.
+
+- [ ] QNT-460: feat(dbt): recon_trades over bronze with gap-aware G3 tests
+  - `ws_only = 0`; every `backfill_only` inside a manifest gap (ADR-003)
+- [ ] QNT-461: feat(session): make heal — backfill unhealed gap hours + trailing hour, re-run dbt-run, flip healed
+- [ ] QNT-462: test(dbt): Athena seam test — seam_test schema, tag:seam, runs on every push to main
+- [ ] QNT-463: feat(dbt): gold marts — ohlcv_1m/1h/1d, volume_daily, liquidations_daily with OHLCV invariant tests
+- [ ] QNT-464: test(dbt): silver contract tests — schema, freshness, volume; gold gated on silver tests
+  - includes `make dbt-demo-fail` for the demo
+- [ ] QNT-465: feat(backfill): Reservoir fallback reader via column mapping, layout-pinned and loud on drift
+- [ ] QNT-466: test(e2e): G3 replay on a live session — stream, heal, recon passes, manifest committed
+  - the phase's demoable state; first fully populated manifest
+
+### Phase 4 — Presentation
+
+Goal: a hiring manager can absorb the project in ten minutes; a stranger can reproduce it.
+
+- [ ] QNT-467: docs(readme): README with architecture diagram, per-layer sample queries, and bootstrap path
+  - carries the timed G1 (< 15 min) reproduction; fills `architecture/system-overview.md`
+- [ ] QNT-468: docs(demo): demo runbook with timings — session-up → stream → heal → recon → query
+- [ ] QNT-469: docs(demo): recorded demo following the runbook + cost report
+- [ ] QNT-470: feat(dbt): dbt docs generated in CI and published to GitHub Pages
+
+### Ops & Reliability  <!-- perpetual milestone: hardening that cuts across phases -->
+
+- [ ] QNT-471: chore(ops): post-destroy audit — list any live project=hyperlake billable resources and fail loudly
+  - wired as the last step of `session-down`
+
+## Parking lot (no tickets — reopen the PRD before building)
+
+Schema-evolution demo · L2 order book / funding / HyperEVM · all-markets scope · S3 Tables / MSK variant ·
+always-on dashboard · Step Functions → dbt dispatch (ADR-001 stretch).

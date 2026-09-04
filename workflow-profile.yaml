@@ -106,7 +106,7 @@ cadence:
   status_update:  "{adapter} project status-update '{project}'"
 
 taxonomy:
-  team_id: ""                      # fill from list_teams when flow-plan-project runs
+  team_id: "6da338db-71b2-4d14-9519-8a19231e1ccd"   # Quant (filled by flow-plan-project 2026-09-04)
   labels:
     - infra
     - ingestion
