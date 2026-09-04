@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.8 — ops gaps settled (Athena seam test, workflow completion contract, estimate-vs-actual cost reporting, session reaper built). v0.7: seam gaps closed (gap-aware G3 test, merge source precedence, idempotent backfill keys, `make heal`, partition projection + name normalisation). OQ-1 narrowed to the `tid`-parity check only; region, volume, grain, HIP-3 coverage and backfill cost measured in the [2026-09-04 desk spike](spikes/2026-09-04-oq1-archive-desk-spike.md). Freezes once `tid` parity passes. (v0.5 same day: G3 proof at bronze, G1/G2 re-scoped, dbt runtime + FR-9 split, ADR-001..004) |
+| **Status** | **v1.0 — frozen 2026-09-05.** OQ-1 closed by [ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md) (`tid` parity gate passed 1,986/1,986). Draft history: v0.4–v0.8 on 2026-09-04 (G3 proof at bronze, dbt runtime, seam + ops gaps, measured archives, ADR-001..004). Changes from here go through `flow-change-scope` + an ADR. |
 | **Owner** | noahwins-ng |
 | **Created** | 2026-07-09 |
 | **Repo** | public (portfolio) |
@@ -174,7 +174,7 @@ Explicitly out of scope — reject in review if it creeps in:
   persistent layer (S3 data + catalog) separated from the ephemeral layer (compute, streams)
   so data can survive teardown when desired.
 
-### Data model (draft — freezes when OQ-1's `tid` parity check passes)
+### Data model (frozen 2026-09-05, ADR-005)
 
 - **Bronze — `trades_raw`** (plain Parquet, partitioned `coin=<market, colon→underscore>/dt=<utc-date>`, where
   `dt` is derived from the **exchange event time**, not arrival time — see NFR-5): an
@@ -336,7 +336,7 @@ Contract: **at-least-once into bronze, exactly-once at silver** (dedup on `tid`)
 | Phase | Deliverable | Proves |
 |-------|-------------|--------|
 | **0 — Scaffold** | Repo, Terraform bootstrap (state, budget alarm, OIDC, **cost allocation tag activated**), CI skeleton (two-target dbt project compiles), `costs/` log with the `cost_estimate` / `cost_actual` schema and `make cost-backfill` | Cost guardrails exist before any resource does |
-| **1 — Lakehouse (batch)** | Close OQ-1 (`tid` parity check, ~1 evening — sizing/grain/region already measured in the [2026-09-04 spike](spikes/2026-09-04-oq1-archive-desk-spike.md)) → Lambda backfill (per hour file) → bronze Parquet → silver Iceberg via dbt (`dbt-run` workflow) → Athena queries | Lakehouse fundamentals, requester-pays handling |
+| **1 — Lakehouse (batch)** | Lambda backfill (per hour file, taker-fill collapse; source/identity fixed by [ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md)) → bronze Parquet → silver Iceberg via dbt (`dbt-run` workflow) → Athena queries. Stretch: Reservoir fallback reader | Lakehouse fundamentals, requester-pays handling |
 | **2 — Streaming** | Fargate ingester → Kinesis → Firehose → same bronze; `session-up`/`session-down` with manifest; **session reaper** (Scheduler + Lambda) and ingester self-exit | Streaming ingestion, live demo capability, bounded blast radius |
 | **3 — Convergence + transforms** | dbt silver/gold, dedup at the seam, data quality tests | The actual hard problem; the interview talking point |
 | **4 — Presentation** | README + diagram, **demo runbook** (`docs/demo-runbook.md`: session-up → stream → heal → recon → query, with timings), recorded demo following the runbook, cost report, dbt docs | Legibility to the hiring audience |
@@ -399,7 +399,7 @@ dated otherwise.
 | Tracker | Linear (Quant team); process private, repo public | — |
 | Watchlist (OQ-3) | BTC, ETH, HYPE + `xyz:SP500`, `xyz:XYZ100` (HIP-3); config-driven; **measured ~1.1 M trades/day, ~17/s** (2026-09-04) | Phase 1 |
 | Region (2026-09-04, from OQ-1 spike) | **ap-northeast-1** — both archive buckets live there; in-region S3→Lambda transfer is free | Phase 0 |
-| Backfill source (provisional, 2026-09-04) | official `hl-mainnet-node-data` primary (~1 h lag, WS-identical fields); Reservoir fallback via column mapping — final on `tid` parity pass | OQ-1 ADR |
+| Backfill source + trade identity (OQ-1, 2026-09-05) | official `hl-mainnet-node-data` primary (~1 h lag, WS-identical fields); Reservoir fallback via column mapping; **dedup key `tid`** — gate passed 1,986/1,986; taker (`crossed`) fill is canonical | [ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md) |
 | Ingester language | Python | — |
 | License (OQ-5, 2026-07-10) | MIT | — |
 | Catalog (OQ-2, 2026-07-10) | Glue catalog; S3 Tables parked — beginner fluency + dbt-athena maturity | Phase 1 |
@@ -417,36 +417,12 @@ dated otherwise.
 
 ## 11. Open questions
 
-Resolves to an ADR before its dependent phase starts.
-
-- **OQ-1 — Backfill source (region + volume + grain now measured):** desk spike on
-  2026-09-04 ([spike note](spikes/2026-09-04-oq1-archive-desk-spike.md)) settled most
-  criteria without AWS infra:
-
-  | Criterion | Official `hl-mainnet-node-data` | Reservoir `hydromancer-reservoir` |
-  |---|---|---|
-  | Region | ap-northeast-1 | ap-northeast-1 → **region decided either way** |
-  | Freshness lag | ~1 h → G3 replay fits inside one demo session | 10–34 h → G3 needs a pre-chosen historical window |
-  | Schema fit vs WS | field names identical; envelope is pass-through | renamed/typed (`trade_id`, `price`, `size`, `timestamp`) → mapping layer |
-  | HIP-3 coverage | `xyz:SP500`, `xyz:XYZ100` present | present (xyz from 2025-10-13) |
-  | Grain | fill-level, 2 rows/`tid`, ~2 % singles → collapse rule required | fill-level, exactly 2 rows/`trade_id` → collapse rule required |
-  | 30-day backfill cost | ~$1 Lambda, 33 GB read | ~$0.15 Lambda, 22 GB read |
-  | Format effort | stream-decode LZ4 + JSON lines | Parquet, trivial |
-  | Provenance / drift | first-party | third-party; layout reorganised recently (`_pre_hip4_unification_backup/`) |
-
-  **Provisional decision:** official bucket **primary**, Reservoir **fallback** behind a
-  column-mapping layer. Freshness is the deciding factor — it makes the G3 demo
-  self-contained. Volume for FR-2's 30-day window is confirmed affordable (< $2).
-
-  **Remaining hard gate — `tid` parity (pass/fail):** capture ≥ 1 min of WS trades at
-  hour `H`, wait for `hourly/YYYYMMDD/H.lz4` (~`H+2:05` UTC), assert every captured `tid`
-  appears with identical `coin, px, sz, side, time`. Both sides carry `tid` and `hash` of
-  the same shape, so failure is unlikely but not yet excluded. If it fails, **plan B is
-  `hash`** (the L1 transaction hash, present on both the feed and both archives) combined
-  with `coin, side, px, sz` — far less collision-prone than a time-based composite key,
-  though one order filling against several resting orders shares a `hash`, so it must be
-  validated the same way. Only if both fail does G3 get re-scoped **before** the bronze
-  schema freezes. Passing closes OQ-1 with an ADR. *(Blocks Phase 1 build, not the Phase 0 scaffold; ~1 evening.)*
+None. OQ-1 (the last) closed on 2026-09-05 via
+[ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md); the measurement trail
+is in the [2026-09-04 spike note](spikes/2026-09-04-oq1-archive-desk-spike.md) and the gate
+is reproducible with `scripts/spike/`. The `hash`-based identity remains documented there
+as plan B should `tid` semantics change upstream. New questions reopen the PRD through
+`flow-change-scope` and terminate in an ADR (NFR-6).
 
 ## 12. Parking lot
 

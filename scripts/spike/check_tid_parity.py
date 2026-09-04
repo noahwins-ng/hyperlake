@@ -75,15 +75,19 @@ def fetch(s3, key: str, cache_dir: str | None) -> bytes:
 
 
 def index_archive(blob: bytes, wanted: set[int]) -> dict[int, dict]:
-    """Return {tid: fill} for wanted tids only (first fill seen wins; px/sz/side/time agree
-    across the maker/taker pair for a given tid)."""
+    """Return {tid: fill} for wanted tids only, preferring the **taker** fill
+    (`crossed = true`). The maker/taker pair shares px/sz/time but has opposite `side`;
+    the WS `trades` feed reports the taker's side. (This is the PRD's bronze collapse
+    rule: keep the crossed fill as the canonical row.)"""
     found: dict[int, dict] = {}
     with lz4.frame.open(io.BytesIO(blob), mode="rt") as f:
         for line in f:
             block = json.loads(line)
             for _user, fill in block["events"]:
                 tid = fill.get("tid")
-                if tid in wanted and tid not in found:
+                if tid not in wanted:
+                    continue
+                if tid not in found or (fill.get("crossed") and not found[tid].get("crossed")):
                     found[tid] = fill
     return found
 

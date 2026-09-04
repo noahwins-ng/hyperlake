@@ -91,8 +91,23 @@ Requester-pays GET/LIST requests are negligible at these object counts.
 5. Liquidation marts are **backfill-only** — the feed carries no flag.
 6. Watchlist estimate becomes ~1.1 M trades/day; idle storage estimate drops to < 5 GB.
 
-## Remaining gate step
+## Gate result (2026-09-05) — PASS
 
-Capture ≥ 1 min of WS trades at hour `H`, wait for `hourly/YYYYMMDD/H.lz4` (~`H+2:05`
-UTC), assert every captured `tid` appears in the file with identical `coin, px, sz, side,
-time`. Pass → OQ-1 closes with an ADR; fail → dedup key reopens per the PRD.
+`scripts/spike/capture_ws_trades.py --seconds 90` at 15:05 UTC 2026-09-04 → 1,986 trades
+(BTC 680, ETH 797, HYPE 323, xyz:SP500 114, xyz:XYZ100 72).
+`scripts/spike/check_tid_parity.py` against `hourly/20260904/15.lz4` (55 MB):
+
+| matched | mismatched | missing |
+|---|---|---|
+| **1,986** | 0 | 0 |
+
+Two facts learned on the way:
+
+- The first run reported 548 `side` mismatches — all because the indexer kept the
+  **maker** fill. The pair shares `px, sz, time` but has opposite `side`; the WS feed
+  reports the **taker's** side (`crossed = true`). Preferring the crossed fill gives a
+  100 % match. This confirms the PRD's collapse rule exactly.
+- The WS `trades` subscription replays ~6 s of recent trades on connect (first trade
+  received predated the connect timestamp).
+
+OQ-1 closed by [ADR-005](../decisions/ADR-005-backfill-source-and-trade-identity.md).
