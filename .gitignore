@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# OQ-1 spike throwaways (scripts/spike/README.md)
+capture.jsonl
+.spike-cache/
+
+# Terraform (Phase 0 onward)
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!example.tfvars
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# OS / editor
+.DS_Store
