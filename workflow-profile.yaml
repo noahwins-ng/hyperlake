@@ -37,14 +37,13 @@ vcs:
   pr_footer: ""                     # no tool-generated footers, ever
 
 verify:
-  # TO FILL (flow-tailor, after Phase 0 scaffolds the toolchain). Planned shape per PRD FR-9:
-  # lint/format = ruff, types = pyright, test = pytest + dbt-duckdb build (offline, mirrors CI),
-  # plus terraform fmt/validate.
-  lint:   ""
-  format: ""
-  types:  ""
-  test:   ""
-  test_note: ""
+  # Filled by QNT-444 (toolchain/CI skeleton). test/tf-check will grow a dbt-duckdb build once
+  # QNT-446 lands the dbt skeleton — not yet, so `make test` is pytest-only for now.
+  lint:   "make lint"
+  format: "make format"
+  types:  "make types"
+  test:   "make test"
+  test_note: "pytest only until QNT-446 adds `dbt build --target duckdb` to the test target"
   test_targeted: ""
   security: ""
 

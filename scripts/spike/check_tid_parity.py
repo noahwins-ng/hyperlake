@@ -16,6 +16,7 @@ Usage:
 Exit code 0 = gate passes, 1 = at least one captured tid missing or mismatched,
 2 = an hour file has not landed yet (no verdict; re-run later).
 """
+
 import argparse
 import io
 import json
@@ -29,7 +30,7 @@ import lz4.frame
 BUCKET = "hl-mainnet-node-data"
 PREFIX = "node_fills_by_block/hourly"
 COMPARE_KEYS = ("coin", "px", "sz", "side", "time")
-BOUNDARY_SLACK_S = 300   # trades this close to the hour end may sit in the next hour file
+BOUNDARY_SLACK_S = 300  # trades this close to the hour end may sit in the next hour file
 
 
 def load_capture(path: str) -> tuple[list[dict], dict]:
@@ -56,7 +57,7 @@ def hour_keys_for(trades: list[dict]) -> list[str]:
     for t in trades:
         secs = t["time"] / 1000
         hours.add(time.strftime("%Y%m%d/%H", time.gmtime(secs)))
-        if secs % 3600 >= 3600 - BOUNDARY_SLACK_S:      # near the top of the hour
+        if secs % 3600 >= 3600 - BOUNDARY_SLACK_S:  # near the top of the hour
             hours.add(time.strftime("%Y%m%d/%H", time.gmtime(secs + 3600)))
     return [f"{PREFIX}/{h}.lz4" for h in sorted(hours)]
 
@@ -93,7 +94,9 @@ def index_archive(blob: bytes, wanted: set[int]) -> dict[int, dict]:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--capture", required=True)
     p.add_argument("--profile", default=None, help="AWS profile (default: env/default chain)")
     p.add_argument("--cache", default=None, help="dir to cache downloaded hour files")
@@ -102,7 +105,10 @@ def main() -> None:
     trades, header = load_capture(a.capture)
     by_tid = {t["tid"]: t for t in trades}
     keys = hour_keys_for(trades)
-    print(f"captured {len(trades)} trades ({len(by_tid)} distinct tid) across {len(keys)} archive hour(s)")
+    print(
+        f"captured {len(trades)} trades ({len(by_tid)} distinct tid) "
+        f"across {len(keys)} archive hour(s)"
+    )
 
     session = boto3.Session(profile_name=a.profile) if a.profile else boto3.Session()
     s3 = session.client("s3", region_name="ap-northeast-1")
@@ -126,7 +132,9 @@ def main() -> None:
     mismatched = []
     for tid, fill in found.items():
         ws = by_tid[tid]
-        diffs = {k: (ws.get(k), fill.get(k)) for k in COMPARE_KEYS if str(ws.get(k)) != str(fill.get(k))}
+        diffs = {
+            k: (ws.get(k), fill.get(k)) for k in COMPARE_KEYS if str(ws.get(k)) != str(fill.get(k))
+        }
         if diffs:
             mismatched.append((tid, diffs))
 

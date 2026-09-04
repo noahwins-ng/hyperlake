@@ -8,6 +8,7 @@ Usage:
     python capture_ws_trades.py --seconds 90 --out capture.jsonl
     python capture_ws_trades.py --coins BTC ETH xyz:SP500 --seconds 60 --out capture.jsonl
 """
+
 import argparse
 import asyncio
 import json
@@ -25,16 +26,22 @@ async def capture(coins: list[str], seconds: int, out_path: str) -> None:
     with open(out_path, "w") as out:
         async with websockets.connect(WS_URL, max_size=None) as ws:
             for coin in coins:
-                await ws.send(json.dumps(
-                    {"method": "subscribe", "subscription": {"type": "trades", "coin": coin}}
-                ))
-            out.write(json.dumps({"_header": True, "started_ms": started_ms,
-                                  "coins": coins, "seconds": seconds}) + "\n")
+                await ws.send(
+                    json.dumps(
+                        {"method": "subscribe", "subscription": {"type": "trades", "coin": coin}}
+                    )
+                )
+            out.write(
+                json.dumps(
+                    {"_header": True, "started_ms": started_ms, "coins": coins, "seconds": seconds}
+                )
+                + "\n"
+            )
             deadline = time.time() + seconds
             while time.time() < deadline:
                 try:
                     raw = await asyncio.wait_for(ws.recv(), timeout=5)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
                 msg = json.loads(raw)
                 if msg.get("channel") != "trades":
@@ -42,8 +49,10 @@ async def capture(coins: list[str], seconds: int, out_path: str) -> None:
                 for trade in msg["data"]:
                     counts[trade["coin"]] = counts.get(trade["coin"], 0) + 1
                     out.write(json.dumps(trade) + "\n")
-            out.write(json.dumps({"_footer": True, "ended_ms": int(time.time() * 1000),
-                                  "counts": counts}) + "\n")
+            out.write(
+                json.dumps({"_footer": True, "ended_ms": int(time.time() * 1000), "counts": counts})
+                + "\n"
+            )
     total = sum(counts.values())
     print(f"captured {total} trades over {seconds}s -> {out_path}")
     for coin, n in counts.items():
@@ -54,7 +63,9 @@ async def capture(coins: list[str], seconds: int, out_path: str) -> None:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--coins", nargs="+", default=DEFAULT_COINS)
     p.add_argument("--seconds", type=int, default=90)
     p.add_argument("--out", required=True)

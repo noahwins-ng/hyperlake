@@ -7,13 +7,13 @@ OQ-1 was measured on 2026-09-04 — see `docs/spikes/2026-09-04-oq1-archive-desk
 ## Run it (one evening)
 
 ```bash
-python -m venv .venv && .venv/bin/pip install -r scripts/spike/requirements.txt
+uv sync
 
 # 1. Capture ~90 s of live trades for the watchlist (any hour H).
-.venv/bin/python scripts/spike/capture_ws_trades.py --seconds 90 --out capture.jsonl
+uv run scripts/spike/capture_ws_trades.py --seconds 90 --out capture.jsonl
 
 # 2. Wait until ~H+2:05 UTC (hour file lands ~1 h after the hour closes), then:
-.venv/bin/python scripts/spike/check_tid_parity.py --capture capture.jsonl --cache .spike-cache
+uv run scripts/spike/check_tid_parity.py --capture capture.jsonl --cache .spike-cache
 ```
 
 Needs AWS credentials with `s3:GetObject` on `hl-mainnet-node-data` (requester-pays;
