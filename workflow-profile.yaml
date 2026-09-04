@@ -37,14 +37,21 @@ vcs:
   pr_footer: ""                     # no tool-generated footers, ever
 
 verify:
-  # Filled by QNT-444 (toolchain/CI skeleton). test/tf-check will grow a dbt-duckdb build once
-  # QNT-446 lands the dbt skeleton — not yet, so `make test` is pytest-only for now.
+  # derived: QNT-444 toolchain (Makefile/pyproject.toml/ci.yml); mirrors ci.yml's `checks` job
+  # step-for-step. Proven 2026-09-05 (this venv): lint/format/types/test all exit 0 clean.
+  # test/tf-check will grow a dbt-duckdb build once QNT-446 lands the dbt skeleton — not yet,
+  # so `make test` is pytest-only for now.
   lint:   "make lint"
   format: "make format"
   types:  "make types"
   test:   "make test"
   test_note: "pytest only until QNT-446 adds `dbt build --target duckdb` to the test target"
-  test_targeted: ""
+  # derived + proven 2026-09-05: `uv run pytest {path}` (single package, no monorepo split);
+  # ran against tests/test_smoke.py, 1 passed.
+  test_targeted: "uv run pytest {path}"
+  # Empty, not a guess: no CVE/audit tool is wired as a synchronous gate (no pip-audit/uv audit
+  # in the Makefile or ci.yml). dependabot.yml exists but is passive (opens PRs), not a `make`
+  # target this profile can invoke. TO-DERIVE if/when a security scan step is added to ci.yml.
   security: ""
 
 deploy:
