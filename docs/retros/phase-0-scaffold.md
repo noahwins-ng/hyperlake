@@ -38,10 +38,10 @@
   Once QNT-446 landed, a follow-up chore commit (0f2cbf0) added a `make check` target chaining
   every `ci.yml` step in order plus a `pip-audit` step, and the profile was refreshed. The gap was
   visible (documented, not silent) the whole time it existed.
-- **Credential-scanner false positive.** QNT-445's bootstrap guide named `AWS_ACCESS_KEY_ID` /
-  `AWS_SECRET_ACCESS_KEY` literally while asserting their *absence*, which tripped the repo's
-  credential scanner. Fixed in the same PR by describing the invariant generically ("no long-lived
-  AWS access key") instead of naming the env vars.
+- **Credential-scanner false positive.** QNT-445's bootstrap guide named the long-lived AWS key
+  env-vars literally while asserting their *absence*, which tripped the repo's credential scanner.
+  Fixed in the same PR by describing the invariant generically ("no long-lived AWS access key")
+  instead of naming the env vars.
 - Two PRs (QNT-444, QNT-445) each carried one small pre-merge fixup commit (an invalid
   `python-version` input to `astral-sh/setup-uv`; the doc wording above) — normal PR iteration,
   not incidents.
