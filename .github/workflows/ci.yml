@@ -32,6 +32,9 @@ jobs:
       - name: Test
         run: make test
 
+      - name: Dependency audit
+        run: make audit
+
       - name: dbt build (duckdb)
         run: make dbt-build
 

@@ -9,3 +9,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "terraform"
+    directories:
+      - "/infra/bootstrap"
+      - "/infra/main"
+    schedule:
+      interval: "weekly"

@@ -1,8 +1,8 @@
 # Ops Runbook
 
-Grep-first failure-mode catalog — the index into hard-won operational muscle memory. When prod
-breaks, grep here first. `flow-investigator` and `flow-server-audit` read this. Every reliability
-ticket should add or extend an entry.
+Grep-first failure-mode catalog — the index into hard-won operational muscle memory. When
+something breaks, grep here first. `flow-investigator` reads this. Every reliability ticket
+should add or extend an entry.
 
 Each entry follows the same shape:
 
@@ -17,16 +17,48 @@ Each entry follows the same shape:
 
 ---
 
-<!-- Add real entries as incidents happen. Starter examples of the kind of thing that belongs here: -->
+## `terraform apply` in `infra/bootstrap` fails on `aws_ce_cost_allocation_tag.project`
 
-## Deploy reports success but prod runs stale code
-- **Symptom:** CD green, but behavior doesn't match the merged commit.
-- **Diagnosis:** compare `profile.deploy.deployed_sha` to the merge commit; check for drift on the host.
-- **Response:** investigate the drift, re-trigger the deploy.
-- **Prevention:** CD hard gate 1 (prod SHA == merge) — see `.github/workflows/cd.yml`.
+- **Symptom:** first-ever bootstrap apply errors on the cost allocation tag: the key `project`
+  is "not found" / not activatable, while every other resource created fine.
+- **Diagnosis:** `aws ce list-cost-allocation-tags --tag-keys project` returns nothing. AWS only
+  lists a tag once it has appeared in billing data, which lags actual tagging by up to 24 h
+  (PRD FR-7).
+- **Response:** nothing to fix. Re-run `terraform apply` the next day; it converges. Until then
+  `make cost-backfill` (QNT-447) cannot filter by tag.
+- **Prevention:** accepted risk — documented in `infra/bootstrap/cost_tag.tf` and
+  `docs/guides/bootstrap.md`; the resource is idempotent so the retry is safe.
 
-## Service is "up" but not serving
-- **Symptom:** container/process running, health check failing or requests hanging.
-- **Diagnosis:** `profile.deploy.health`; `profile.deploy.runtime_id` (did the process load the code?).
-- **Response:** restart per your platform; check for a load-time error.
-- **Prevention:** CD hard gate 2 (runtime-load) + a post-deploy smoke check.
+## Archive hour file not landed (`check_tid_parity.py` exits 2, or a backfill hour is missing)
+
+- **Symptom:** `NOT READY: N hour file(s) missing; re-run later. No verdict.` from the spike
+  gate, or a backfill invocation reports `NoSuchKey` on
+  `s3://hl-mainnet-node-data/node_fills_by_block/hourly/YYYYMMDD/H.lz4`.
+- **Diagnosis:** `aws s3api head-object --bucket hl-mainnet-node-data --request-payer requester
+  --key node_fills_by_block/hourly/YYYYMMDD/H.lz4`. Hour `H` lands ~2 min after hour `H+1`
+  closes (~1 h lag, measured 2026-09-04). A trade near the top of the hour may sit in `H+1`
+  because files are cut by block *arrival* time.
+- **Response:** wait for the lag and retry. If still absent after 24 h, that hour goes to the
+  Reservoir fallback reader (QNT-465).
+- **Prevention:** `make heal` (QNT-461) HEADs every hour object before starting a Map execution
+  and exits non-zero listing the not-yet-landed hours instead of running a partial backfill.
+
+## `git push` refused: "Direct push to main refused"
+
+- **Symptom:** `.githooks/pre-push` blocks the push; `error: failed to push some refs`.
+- **Diagnosis:** you are pushing to `refs/heads/main`. The repo is private on GitHub Free, so
+  there is no server-side branch protection; the hook is the local substitute.
+- **Response:** ticket work → open a PR (`gh pr create`, then `gh pr merge --squash
+  --delete-branch`). Meta `docs:`/`chore:` commits → `ALLOW_MAIN_PUSH=1 git push`.
+- **Prevention:** by design. Fresh clones need `git config core.hooksPath .githooks` or the
+  hook does not run at all.
+
+## `make check` green locally, `ci.yml` red
+
+- **Symptom:** the local gate passes but the same commit fails in Actions.
+- **Diagnosis:** `make check` runs exactly the `ci.yml` steps in the same order; a divergence is
+  almost always a missing `uv sync` (stale local venv) or a Terraform provider not cached
+  locally. Compare `uv lock --check` and `terraform -chdir=<dir> init -backend=false`.
+- **Response:** `uv sync --all-groups`, re-run `make check`.
+- **Prevention:** `workflow-profile.yaml` `verify.test` points at `make check`, so the ship
+  pipeline's sanity gate and CI cannot drift apart without editing both files.

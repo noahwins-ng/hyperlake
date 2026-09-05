@@ -3,10 +3,10 @@
 # this file is the only thing that changes between projects.
 # Convention: an empty ("") value means "this project has no such concept — skip that step".
 #
-# STATUS: pre-build (PRD v1.0 frozen 2026-09-05; QNT-444 toolchain branch open, no commits yet).
-# verify.* and deploy gate probes are intentionally empty — see the TO-DERIVE comments below for
-# which ticket unblocks each. architecture_rules / ac_execution_keywords / docs.ac_templates were
-# re-derived 2026-09-05 (flow-tailor) from the frozen PRD — these don't need code to exist.
+# STATUS: Phase 0 landing (PRD v1.0 frozen 2026-09-05; QNT-444/445/446 merged, QNT-447 open).
+# verify.* is derived and proven; deploy gate probes are intentionally empty — see the TO-DERIVE
+# comments below for which ticket unblocks each. architecture_rules / ac_execution_keywords /
+# docs.ac_templates were re-derived 2026-09-05 (flow-tailor) from the frozen PRD.
 
 project:
   name: "Hyperlake"
@@ -37,22 +37,20 @@ vcs:
   pr_footer: ""                     # no tool-generated footers, ever
 
 verify:
-  # derived: QNT-444 toolchain (Makefile/pyproject.toml/ci.yml); mirrors ci.yml's `checks` job
-  # step-for-step. Proven 2026-09-05 (this venv): lint/format/types/test all exit 0 clean.
-  # test/tf-check will grow a dbt-duckdb build once QNT-446 lands the dbt skeleton — not yet,
-  # so `make test` is pytest-only for now.
+  # derived: QNT-444/446 toolchain (Makefile/pyproject.toml/ci.yml). `make check` chains every
+  # ci.yml step in order (lint format types test audit dbt-build tf-check) and is the one
+  # sanity gate; the individual targets exist for targeted re-runs. Proven 2026-09-05.
   lint:   "make lint"
   format: "make format"
   types:  "make types"
-  test:   "make test"
-  test_note: "pytest only until QNT-446 adds `dbt build --target duckdb` to the test target"
+  test:   "make check"
+  test_note: "`make check` = the full offline CI gate incl. `dbt build --target duckdb` and terraform validate; `make test` alone is pytest"
   # derived + proven 2026-09-05: `uv run pytest {path}` (single package, no monorepo split);
   # ran against tests/test_smoke.py, 1 passed.
   test_targeted: "uv run pytest {path}"
-  # Empty, not a guess: no CVE/audit tool is wired as a synchronous gate (no pip-audit/uv audit
-  # in the Makefile or ci.yml). dependabot.yml exists but is passive (opens PRs), not a `make`
-  # target this profile can invoke. TO-DERIVE if/when a security scan step is added to ci.yml.
-  security: ""
+  # pip-audit over the exported uv lock (all groups), also a ci.yml step. dependabot.yml stays
+  # the passive complement (opens bump PRs; terraform providers included).
+  security: "make audit"
 
 deploy:
   # Serverless-ephemeral topology (terraform apply/destroy per demo session) — there is no

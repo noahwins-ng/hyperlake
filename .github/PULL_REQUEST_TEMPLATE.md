@@ -9,5 +9,5 @@ Closes __ISSUE__
 
 ## Verification
 - [ ] Lint / Format / Types / Test pass
-- [ ] Security: no committed secrets; dependency audit clean (if deps changed)
-- [ ] Docs / CHANGELOG updated (if user-facing)
+- [ ] Security: no committed secrets; `make audit` clean (if deps changed)
+- [ ] Docs updated — plan / architecture overview / runbook (if behaviour or process changed)
