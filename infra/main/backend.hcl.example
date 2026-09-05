@@ -1,0 +1,5 @@
+## Copy to backend.hcl (gitignored) and fill in with infra/bootstrap's outputs:
+##   terraform -chdir=infra/bootstrap output -raw state_bucket
+##   terraform -chdir=infra/bootstrap output -raw state_lock_table
+bucket         = "hyperlake-tfstate-<ACCOUNT_ID>"
+dynamodb_table = "hyperlake-tfstate-lock"
