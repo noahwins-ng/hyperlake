@@ -10,4 +10,5 @@ backfill converging into Iceberg tables on AWS serverless, reproducible in one
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Hyperlake is an independent portfolio project and is not affiliated with,
+endorsed by, or connected to Hyperliquid or Hyperliquid Labs.

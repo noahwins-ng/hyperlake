@@ -21,6 +21,10 @@ Apply when the diff touches `infra/**`, `sessions/**`, the session-lifecycle `Ma
 - `session-down` actually destroys what it created — verified by a follow-up `terraform plan`
   (or the post-destroy audit, QNT-471), not assumed from the script exiting 0.
 - Cost guardrail intact: the session's `cost_estimate` is written to `costs/sessions.csv`.
+- Every CloudWatch log group the change's Lambda / Fargate / Firehose resources will write to is
+  declared in Terraform with `retention_in_days <= 14`. Implicitly created log groups are not in
+  state, survive `destroy`, and grow forever — the one leak the post-destroy audit (QNT-471)
+  would otherwise find only by accident.
 
 ## CI / dbt-run workflow changes
 
