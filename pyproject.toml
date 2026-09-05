@@ -12,7 +12,7 @@ dependencies = [
 
 [dependency-groups]
 dbt = [
-    "dbt-athena-community>=1.9,<1.10",
+    "dbt-athena-community>=1.11.0,<1.12",
     "dbt-duckdb>=1.9,<1.10",
 ]
 dev = [
