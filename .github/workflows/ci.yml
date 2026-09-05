@@ -32,6 +32,9 @@ jobs:
       - name: Test
         run: make test
 
+      - name: dbt build (duckdb)
+        run: make dbt-build
+
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false

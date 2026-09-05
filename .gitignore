@@ -19,6 +19,9 @@ infra/main/backend.hcl
 dbt/target/
 dbt/dbt_packages/
 dbt/logs/
+dbt/*.duckdb
+dbt/*.duckdb.wal
+dbt/.user.yml
 
 # OS / editor
 .DS_Store

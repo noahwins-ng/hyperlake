@@ -1,4 +1,4 @@
-.PHONY: lint format types test tf-check
+.PHONY: lint format types test tf-check dbt-build
 
 lint:
 	uv run ruff check .
@@ -11,6 +11,11 @@ types:
 
 test:
 	uv run pytest
+
+# `--group dbt` makes `uv run` install the dbt group on the fly, so this needs no separate
+# `uv sync --group dbt` step — relies on that uv auto-sync behavior.
+dbt-build:
+	cd dbt && uv run --group dbt dbt build --profiles-dir . --target duckdb
 
 tf-check:
 	@if find . -name '*.tf' -not -path './.terraform/*' | grep -q .; then \

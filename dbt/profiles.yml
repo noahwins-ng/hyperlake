@@ -1,0 +1,18 @@
+# Two dbt targets (ADR-002): `duckdb` for local dev + CI, `athena` for the real Iceberg
+# seam. Athena fields are env-driven and default to placeholders that let
+# `dbt compile --target athena` succeed with no AWS connection.
+hyperlake:
+  target: "{{ env_var('DBT_TARGET', 'duckdb') }}"
+  outputs:
+    duckdb:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', 'dev.duckdb') }}"
+      threads: 4
+    athena:
+      type: athena
+      s3_staging_dir: "{{ env_var('DBT_ATHENA_S3_STAGING_DIR', 's3://hyperlake-athena-results-placeholder/') }}"
+      region_name: "{{ env_var('AWS_REGION', 'ap-northeast-1') }}"
+      database: awsdatacatalog
+      schema: "{{ env_var('DBT_ATHENA_SCHEMA', 'silver') }}"
+      work_group: "{{ env_var('DBT_ATHENA_WORKGROUP', 'primary') }}"
+      threads: 4
