@@ -20,7 +20,7 @@ Goal: cost guardrails and the toolchain exist before any data resource does.
   - fills `workflow-profile.yaml` `verify.*`
 - [x] QNT-445: feat(infra): Terraform bootstrap — state backend, OIDC role, budget alarm, cost allocation tag
   - `infra/bootstrap/` (local state): S3 state bucket, DynamoDB lock, GitHub OIDC role, Budgets $10 alarm + $15 create-deny action
-  - `project` cost allocation tag activation triggered (pending ≤24h AWS billing propagation — re-apply to finish); `infra/main/` root on S3 backend with `persistent/` + `ephemeral/` split
+  - `project` cost allocation tag Active; `infra/main/` root on S3 backend with `persistent/` + `ephemeral/` split
   - `docs/guides/bootstrap.md`
 - [x] QNT-446: feat(dbt): two-target dbt project skeleton compiling on DuckDB in CI
   - `duckdb` / `athena` targets, one materialization macro (ADR-002), placeholder model + gold-safe fixture
