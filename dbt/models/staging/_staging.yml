@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: fixtures
+    schema: main
+    tables:
+      - name: trades_sample
+        description: >
+          Tiny synthetic (gold-safe) sample of trade-shaped rows, committed at
+          dbt/fixtures/trades_sample.parquet, used to prove the duckdb/athena seam.
+        meta:
+          external_location: "fixtures/trades_sample.parquet"
+
+models:
+  - name: stg_trades_sample
+    description: >
+      Placeholder staging model proving the two-target seam (ADR-002). Not part of the
+      real medallion pipeline — silver lands in QNT-453.
+    columns:
+      - name: tid
+        tests:
+          - not_null

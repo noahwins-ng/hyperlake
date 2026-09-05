@@ -22,7 +22,7 @@ Goal: cost guardrails and the toolchain exist before any data resource does.
   - `infra/bootstrap/` (local state): S3 state bucket, DynamoDB lock, GitHub OIDC role, Budgets $10 alarm + $15 create-deny action
   - `project` cost allocation tag activation triggered (pending ≤24h AWS billing propagation — re-apply to finish); `infra/main/` root on S3 backend with `persistent/` + `ephemeral/` split
   - `docs/guides/bootstrap.md`
-- [ ] QNT-446: feat(dbt): two-target dbt project skeleton compiling on DuckDB in CI
+- [x] QNT-446: feat(dbt): two-target dbt project skeleton compiling on DuckDB in CI
   - `duckdb` / `athena` targets, one materialization macro (ADR-002), placeholder model + gold-safe fixture
 - [ ] QNT-447: feat(costs): costs/ log schema and make cost-backfill
   - `costs/sessions.csv` with `cost_estimate` / `cost_actual` / `pending|final`; Cost Explorer backfill by tag
