@@ -52,8 +52,8 @@ works. Run once per AWS account; `infra/main` and every later phase depend on it
    gh workflow run verify-oidc.yml
    gh run watch
    ```
-   AC3 proof: the run's `aws sts get-caller-identity` step succeeds; no `AWS_ACCESS_KEY_ID` /
-   `AWS_SECRET_ACCESS_KEY` exists anywhere in the repo (`ci.yml`'s own check enforces this).
+   AC3 proof: the run's `aws sts get-caller-identity` step succeeds; no long-lived AWS access key
+   exists anywhere in the repo (`ci.yml`'s own check enforces this).
 
 5. **Cost allocation tag activation (up to 24h).** `terraform apply` in step 1 also tries to
    activate `project` as a cost allocation tag. AWS only lists a tag as activatable once it has
