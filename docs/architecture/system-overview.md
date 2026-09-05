@@ -3,9 +3,9 @@
 How the system actually works *now*. Kept current by `change-scope` (on scope changes) and `retro`
 (against what actually shipped). If this drifts from reality it is worse than nothing.
 
-> **As of 2026-09-05 (Phase 0, QNT-444..446 shipped):** only the toolchain, the Terraform
-> bootstrap, and a dbt skeleton exist. No data path has been built. The target design is in
-> [`docs/prd.md`](../prd.md) §5; this file describes only what is deployed or runnable today.
+> **As of 2026-09-06 (Phase 0 complete, QNT-444..447 shipped):** only the toolchain, the Terraform
+> bootstrap, a dbt skeleton, and the cost log exist. No data path has been built. The target design
+> is in [`docs/prd.md`](../prd.md) §5; this file describes only what is deployed or runnable today.
 
 ## Architecture
 
@@ -24,13 +24,17 @@ developer laptop ──► infra/bootstrap  (terraform, LOCAL state)
                         └─ ephemeral/    .gitkeep — compute + streams land in Phase 1–2
 
 GitHub Actions
-  ci.yml          on PR + push main, ZERO AWS creds: ruff · pyright · pytest · dbt build --target duckdb
-                  · terraform fmt/validate · grep for long-lived AWS keys
+  ci.yml          on PR + push main, ZERO AWS creds: ruff · pyright · pytest · pip-audit
+                  · dbt build --target duckdb · terraform fmt/validate · grep for long-lived AWS keys
+                  (`make check` mirrors this exact step order for local runs)
   verify-oidc.yml workflow_dispatch: assume the OIDC role, `sts get-caller-identity` — proves NFR-3
 
 dbt/              two targets (ADR-002): duckdb (local/CI) · athena (env-driven, compiles offline)
                   one macro `materialization_for_target` owns the seam
                   one placeholder model stg_trades_sample over a committed gold-safe fixture
+
+costs/            sessions.csv log (cost_estimate_usd / cost_actual_usd / cost_status) + `make
+                  cost-backfill` (Cost Explorer, filtered by the `project` tag) — no sessions run yet
 ```
 
 ## Components / layers
@@ -42,7 +46,8 @@ dbt/              two targets (ADR-002): duckdb (local/CI) · athena (env-driven
 | `dbt/` | two-target project, materialization macro, placeholder staging model | compiles + builds on duckdb in CI (QNT-446) |
 | `src/hyperlake/` | shared package (envelope, watchlist, partition helper) | empty `__init__.py`; lands in QNT-449 |
 | `scripts/spike/` | OQ-1 tid-parity gate (`capture_ws_trades.py`, `check_tid_parity.py`) | run once, gate passed 2026-09-05 (ADR-005) |
-| CI (`ci.yml`) | offline gate, no cloud dependency | green |
+| `costs/` | session cost log schema + Cost Explorer backfill script | schema + `make cost-backfill` land (QNT-447); empty log, no sessions yet |
+| CI (`ci.yml`) | offline gate, no cloud dependency, incl. `pip-audit` | green |
 
 ## Data stores
 
