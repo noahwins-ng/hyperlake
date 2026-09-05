@@ -125,7 +125,7 @@ docs/                 prd.md (source PRD) · project-requirement.md (spec) · pr
   retros/             one per completed milestone
   AC-templates.md     implicit AC per diff-path trigger (skeleton; flow-tailor re-derives)
 scripts/spike/        OQ-1 tid-parity gate (capture_ws_trades.py, check_tid_parity.py)
-.githooks/commit-msg  enforces the commit convention
+.githooks/            commit-msg enforces the commit convention; pre-push refuses direct pushes to main
 workflow-profile.yaml the flow suite's project profile — the only per-project config
 ```
 
@@ -151,6 +151,9 @@ sessions/             one manifest JSON per demo session
   `QNT-123: type(scope): description`, `type` ∈ `feat|fix|refactor|test|docs|chore`.
   WIP: `QNT-123: type(scope): wip - description`. Meta work with no issue may use bare
   `docs: …` / `chore: …`. Plain `QNT-123: wip:` is rejected.
+- `.githooks/pre-push` refuses direct pushes to `main` (the repo is private on GitHub Free, so
+  branch protection is unavailable). Ticket work goes through a PR; meta `docs:`/`chore:`
+  commits push with `ALLOW_MAIN_PUSH=1 git push`.
 - PR title `QNT-123: <title>`; body contains `Closes QNT-123`; no tool-generated footers, ever.
   Every execution AC in the PR needs a Command + Output receipt (see `.github/PULL_REQUEST_TEMPLATE.md`).
 - Tracker: Linear, team Quant, project **Hyperlake**. Issue IDs match `QNT-\d+`.

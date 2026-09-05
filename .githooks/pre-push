@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Refuse direct pushes to main. The repo is private on GitHub Free, so branch protection
+# is unavailable; this is the local substitute. Ticket work goes through a PR
+# (`gh pr merge --squash --delete-branch`). Meta docs:/chore: commits that CLAUDE.md
+# allows straight on main must opt in explicitly:
+#     ALLOW_MAIN_PUSH=1 git push
+# Enable with: git config core.hooksPath .githooks
+set -euo pipefail
+
+[[ "${ALLOW_MAIN_PUSH:-}" == "1" ]] && exit 0
+
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [[ "$remote_ref" == "refs/heads/main" ]]; then
+    echo "✗ Direct push to main refused. Open a PR, or for meta docs:/chore: work:" >&2
+    echo "    ALLOW_MAIN_PUSH=1 git push" >&2
+    exit 1
+  fi
+done
