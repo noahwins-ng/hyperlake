@@ -43,6 +43,19 @@ Each entry follows the same shape:
 - **Prevention:** `make heal` (QNT-461) HEADs every hour object before starting a Map execution
   and exits non-zero listing the not-yet-landed hours instead of running a partial backfill.
 
+## `make cost-backfill` reports `0 row(s) backfilled` when a `pending` row should have filled
+
+- **Symptom:** a session's `costs/sessions.csv` row is more than a day old but stays
+  `cost_status=pending` after running `make cost-backfill`.
+- **Diagnosis:** the target only queries rows whose `end` is > 24h old (`BACKFILL_DELAY` in
+  `scripts/cost_backfill.py`), and only sums cost tagged `project=hyperlake`
+  (`aws ce list-cost-allocation-tags --tag-keys project` — must show `Status: Active`, see the
+  bootstrap entry above). A `$0.00` result after backfill is a valid outcome (idle cost), not a bug.
+- **Response:** confirm the row's `end` timestamp and the tag's activation status; re-run once
+  both hold.
+- **Prevention:** `costs/README.md` documents the schema and the 24h delay; `--dry-run` previews
+  the query without writing the file.
+
 ## `git push` refused: "Direct push to main refused"
 
 - **Symptom:** `.githooks/pre-push` blocks the push; `error: failed to push some refs`.

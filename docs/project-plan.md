@@ -24,7 +24,7 @@ Goal: cost guardrails and the toolchain exist before any data resource does.
   - `docs/guides/bootstrap.md`
 - [x] QNT-446: feat(dbt): two-target dbt project skeleton compiling on DuckDB in CI
   - `duckdb` / `athena` targets, one materialization macro (ADR-002), placeholder model + gold-safe fixture
-- [ ] QNT-447: feat(costs): costs/ log schema and make cost-backfill
+- [x] QNT-447: feat(costs): costs/ log schema and make cost-backfill
   - `costs/sessions.csv` with `cost_estimate` / `cost_actual` / `pending|final`; Cost Explorer backfill by tag
 
 ### Phase 1 — Lakehouse (batch)
