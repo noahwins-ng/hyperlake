@@ -13,6 +13,7 @@ capture.jsonl
 *.tfstate.backup
 *.tfvars
 !example.tfvars
+infra/main/backend.hcl
 
 # dbt
 dbt/target/
