@@ -71,3 +71,8 @@ streams, ECS services/tasks, or Lambda functions. It never deletes or stops anyt
 running — Budgets data lags actual spend by 8–12h, so acting on it destructively would be acting
 on stale information. Stopping an already-running session is `session-down`'s and the session
 reaper's job (NFR-1), not the budget action's.
+
+It also only binds the **GitHub Actions role**. `make session-up` runs `terraform apply` under
+your own local credentials, which the deny policy never touches — deliberately, so an
+over-budget month can never lock you out of `terraform destroy`. The bound on a forgotten
+local session is the reaper, not this action.

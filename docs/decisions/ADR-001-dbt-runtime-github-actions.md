@@ -19,7 +19,9 @@ assumes the existing OIDC role and runs `dbt build --target athena`. Local scrip
 (`make session-down`, the backfill runner) trigger it with `gh workflow run`.
 
 Step Functions is scoped to the **backfill Lambda fan-out only** (one invocation per
-coin × day). No dbt container is hosted in Lambda or Fargate.
+archive hour file — [ADR-005](ADR-005-backfill-source-and-trade-identity.md); originally
+written as coin × day before the 2026-09-04 spike). No dbt container is hosted in Lambda or
+Fargate.
 
 Stretch, Phase 4 only if time remains: a Step Functions state fires the same workflow via
 repository dispatch, so the orchestration diagram shows the full chain without hosting dbt
