@@ -1,0 +1,10 @@
+# Markets the ingester and backfill Lambda watch. Config-driven per CLAUDE.md — no market
+# symbol may be hardcoded in code outside this file and tests.
+# HIP-3 markets keep their exact exchange name here (colon separator); the partition value
+# normalises ':' -> '_' via hyperlake.partitions.coin_partition_value.
+markets:
+  - BTC
+  - ETH
+  - HYPE
+  - "xyz:SP500"
+  - "xyz:XYZ100"
