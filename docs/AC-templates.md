@@ -6,9 +6,10 @@ the issue author didn't list them. Referenced by `profile.docs.ac_templates`.
 
 <!-- derived: flow-tailor 2026-09-05, from PRD v1.0's dangerous surfaces + architecture_rules —
      replaces the deployed-service skeleton (no long-lived host here; the risk is cost blast
-     radius, silent dedup/partition breakage, and stale reproducibility claims). Trigger paths
-     don't all exist yet (Phase 0-2 tickets land them); each group is proven the first time a
-     diff actually matches it. Re-check after QNT-444/445/450 land. -->
+     radius, silent dedup/partition breakage, and stale reproducibility claims). Re-checked
+     2026-09-06 (flow-tailor, post-QNT-449/450): infra/**, dbt/models/staging/**, and
+     src/hyperlake/** now exist for real, so those three groups are live triggers, not
+     forward-declared ones. `sessions/**` and `dbt-run.yml` (QNT-454/458) still don't exist. -->
 
 ## Terraform / session-lifecycle changes
 

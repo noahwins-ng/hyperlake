@@ -3,10 +3,10 @@
 # this file is the only thing that changes between projects.
 # Convention: an empty ("") value means "this project has no such concept — skip that step".
 #
-# STATUS: Phase 0 landing (PRD v1.0 frozen 2026-09-05; QNT-444/445/446 merged, QNT-447 open).
-# verify.* is derived and proven; deploy gate probes are intentionally empty — see the TO-DERIVE
-# comments below for which ticket unblocks each. architecture_rules / ac_execution_keywords /
-# docs.ac_templates were re-derived 2026-09-05 (flow-tailor) from the frozen PRD.
+# STATUS: Phase 0 done (QNT-444..447); Phase 1 through QNT-450 (persistent layer: data bucket,
+# Glue catalog, Athena workgroup — live in ap-northeast-1). QNT-451..454 (backfill Lambda, silver
+# merge) still open. verify.* and deploy.health are derived and proven; deploy.deployed_sha/
+# runtime_id stay empty until QNT-457 gives the ingester something to identify.
 
 project:
   name: "Hyperlake"
@@ -64,9 +64,27 @@ deploy:
   deployed_sha: ""
   # TO-DERIVE(after QNT-457): ECS task ARN or equivalent for the live session's ingester.
   runtime_id:   ""
-  # TO-DERIVE(after QNT-450: persistent layer + Athena workgroup exist): one cheap real query,
-  # e.g. `SELECT count(*) FROM bronze.trades_raw LIMIT 1` via the Athena workgroup.
-  health:       ""
+  # derived + proven 2026-09-06: QNT-450's persistent layer is live in ap-northeast-1 (verified
+  # via `terraform state list` against the S3 backend: aws_s3_bucket.data, aws_glue_catalog_
+  # database.bronze, aws_glue_catalog_table.trades_raw, aws_athena_workgroup.hyperlake all
+  # present). Ran this exact probe: query ede4c2dd-005e-4f12-9fda-ddd32dcaaa1d SUCCEEDED,
+  # DataScannedInBytes=0 (empty table — QNT-451 backfill hasn't landed rows yet), n=0. The probe
+  # itself is proven end-to-end (Terraform -> Glue catalog -> Athena workgroup all wired); it'll
+  # start asserting real freshness once bronze has data.
+  health: |
+    qid=$(aws athena start-query-execution --region ap-northeast-1 --work-group hyperlake \
+      --query-execution-context Database=bronze \
+      --query-string "SELECT count(*) FROM bronze.trades_raw" \
+      --query QueryExecutionId --output text)
+    while true; do
+      s=$(aws athena get-query-execution --region ap-northeast-1 --query-execution-id "$qid" \
+        --query QueryExecution.Status.State --output text)
+      [ "$s" = SUCCEEDED ] && break
+      [ "$s" = FAILED ] && exit 1
+      sleep 1
+    done
+    aws athena get-query-results --region ap-northeast-1 --query-execution-id "$qid" \
+      --query 'ResultSet.Rows[1].Data[0].VarCharValue' --output text
   # Permanently empty, not deferred: ephemeral apply/destroy has no rollback concept — a bad
   # session is destroyed and re-applied, never rolled back in place.
   rollback:     ""
