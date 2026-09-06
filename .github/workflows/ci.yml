@@ -45,6 +45,25 @@ jobs:
       - name: Terraform check
         run: make tf-check
 
+      # Greps .tf source rather than a live `terraform plan` JSON: CI has no AWS credentials
+      # (offline gate), and every banned resource type is unconditionally forbidden, so a
+      # static source grep gives the same guarantee without needing a real plan.
+      - name: Banned AWS services check
+        run: |
+          BANNED='aws_nat_gateway|aws_mwaa_environment|aws_msk_cluster|aws_opensearch_domain|aws_elasticsearch_domain|aws_quicksight_'
+          if grep -rEn --include='*.tf' --exclude-dir=.terraform "$BANNED" infra/; then
+            echo "banned AWS service resource type found under infra/ — see CLAUDE.md architecture rules" >&2
+            exit 1
+          fi
+
+      - name: Watchlist stays config-driven
+        run: |
+          uv run python -c "from hyperlake.watchlist import load_watchlist; print(chr(10).join(load_watchlist()))" > /tmp/watchlist_markets.txt
+          if grep -rFwnf /tmp/watchlist_markets.txt --include='*.tf' --exclude-dir=.terraform infra/; then
+            echo "watchlist market literal found under infra/** — must come from yamldecode(config/watchlist.yaml), never typed into .tf" >&2
+            exit 1
+          fi
+
       - name: No long-lived AWS credentials
         run: |
           # Pattern built from parts so this step doesn't match its own source line.

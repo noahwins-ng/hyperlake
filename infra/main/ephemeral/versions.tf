@@ -1,3 +1,7 @@
+# Empty on purpose (QNT-450 scope: persistent layer only). Compute + streams land in a
+# later ticket. This root exists now so the persistent stack's destroy-safety (AC4) is
+# provable: destroying this root has nothing to destroy and never touches persistent's
+# separate state.
 terraform {
   required_version = ">= 1.9"
 
@@ -8,11 +12,8 @@ terraform {
     }
   }
 
-  # bucket + dynamodb_table are account-specific (embed the account ID) and
-  # come from infra/bootstrap's outputs, so they're supplied at init time via
-  # -backend-config rather than hardcoded here. See docs/guides/bootstrap.md.
   backend "s3" {
-    key     = "main/terraform.tfstate"
+    key     = "ephemeral/terraform.tfstate"
     region  = "ap-northeast-1"
     encrypt = true
   }

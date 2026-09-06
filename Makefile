@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build cost-backfill
+.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -30,6 +30,17 @@ dbt-build:
 # (costs/README.md). Needs AWS credentials; not part of `check`/CI.
 cost-backfill:
 	uv run python scripts/cost_backfill.py
+
+# Persistent layer (S3 data bucket + Glue catalog + Athena workgroup) -- survives
+# session teardown, so destroy is confirmation-guarded.
+tf-apply-persistent:
+	cd infra/main/persistent && terraform init -backend-config=../backend.hcl -input=false && terraform apply
+
+tf-destroy-persistent:
+	@printf '%s' "Destroy the persistent stack (data bucket + Glue catalog + Athena workgroup)? [y/N] "; \
+	read ans; \
+	[ "$$ans" = "y" ] || (echo "aborted"; exit 1)
+	cd infra/main/persistent && terraform init -backend-config=../backend.hcl -input=false && terraform destroy
 
 tf-check:
 	@if find . -name '*.tf' -not -path './.terraform/*' | grep -q .; then \
