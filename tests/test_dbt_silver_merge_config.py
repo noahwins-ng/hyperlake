@@ -14,9 +14,22 @@ DBT_DIR = REPO_ROOT / "dbt"
 
 def _dbt(command: str, *args: str) -> str:
     # Run with cwd=dbt/, matching `make dbt-build` — profiles.yml's duckdb path is relative
-    # and must resolve against the dbt project dir, not the repo root.
+    # and must resolve against the dbt project dir, not the repo root. `--no-populate-cache`
+    # skips dbt-athena's relation-cache warm-up, which otherwise calls `sts:GetCallerIdentity`
+    # even for a plain `compile` — CI has zero AWS credentials (CLAUDE.md Environment).
     result = subprocess.run(
-        ["uv", "run", "--group", "dbt", "dbt", command, "--profiles-dir", ".", *args],
+        [
+            "uv",
+            "run",
+            "--group",
+            "dbt",
+            "dbt",
+            "--no-populate-cache",
+            command,
+            "--profiles-dir",
+            ".",
+            *args,
+        ],
         check=True,
         capture_output=True,
         text=True,
