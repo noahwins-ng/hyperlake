@@ -35,7 +35,7 @@ Goal: archive → Lambda backfill → bronze Parquet → silver Iceberg via `dbt
   - the last OQ-1 gate; freezes the bronze data model; blocks the rest of Phase 1
 - [x] QNT-449: feat(core): shared hyperlake package — envelope schema, watchlist config, partition-name helper
   - `config/watchlist.yaml`; envelope pyarrow/Glue schema; `xyz:SP500` → `xyz_SP500`; `dt` from event time
-- [ ] QNT-450: feat(infra): persistent layer — data bucket, Glue database, bronze trades_raw with partition projection, Athena workgroup
+- [x] QNT-450: feat(infra): persistent layer — data bucket, Glue database, bronze trades_raw with partition projection, Athena workgroup
 - [ ] QNT-451: feat(backfill): Lambda hour-file reader — stream LZ4, filter watchlist, collapse fills, write bronze at deterministic key
   - H/H+1 boundary rule, fill-pair collapse, `coin=/dt=/source=backfill/hour=H.parquet` idempotent keys
 - [ ] QNT-452: feat(backfill): Step Functions fan-out over hour list + make backfill, 1-day sample timed
@@ -56,6 +56,10 @@ Goal: Fargate ingester → Kinesis → Firehose → the same bronze; scripted se
   - default VPC, public IP, egress-only SG; image tagged by commit SHA; emission→bronze < 3 min
 - [ ] QNT-458: feat(session): make session-up / session-down with committed manifest and cost_estimate
   - `sessions/<id>.json`; Firehose drain wait; `dbt-run` + `iceberg-maintain`; costs row `pending`
+  - `session-up` preflight: refuse to start if the latest manifest has no `session_down_at` /
+    isn't `reaped: true`, or `terraform state list` on the ephemeral layer shows the Kinesis
+    stream already present — guards against an overlapping/forgotten session outrunning the
+    reaper's 6h bound
 - [ ] QNT-459: feat(session): session reaper — one-time EventBridge Scheduler + Lambda, drift-tolerant apply/destroy verified
 
 ### Phase 3 — Convergence + transforms

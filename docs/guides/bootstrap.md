@@ -1,7 +1,7 @@
 # Bootstrap guide
 
 One-time setup (NFR-7) a stranger with an AWS account runs before anything else in this repo
-works. Run once per AWS account; `infra/main` and every later phase depend on its output.
+works. Run once per AWS account; every later phase depends on its output.
 
 ## Prerequisites
 
@@ -25,18 +25,24 @@ works. Run once per AWS account; `infra/main` and every later phase depend on it
 
    AC1 proof: a second `terraform plan` immediately after should report no changes.
 
-2. **Wire the S3 backend for `infra/main`:**
+2. **Wire the shared S3 backend config:**
    ```
    terraform output -raw state_bucket
    terraform output -raw state_lock_table
    ```
    Copy `infra/main/backend.hcl.example` to `infra/main/backend.hcl` (gitignored — the bucket
-   name embeds your account ID) and fill in those two values.
+   name embeds your account ID) and fill in those two values. `infra/main/persistent/` and
+   `infra/main/ephemeral/` are two independent Terraform roots (separate state, same bucket +
+   lock table, different `key`) — a plain `terraform destroy` in one can never reach the other.
+   Each declares its own `key` in its `backend "s3"` block, so `backend.hcl` only needs to
+   supply `bucket` + `dynamodb_table`:
    ```
-   cd ../main
-   terraform init -backend-config=backend.hcl
-   terraform plan
+   terraform -chdir=infra/main/persistent init -backend-config=../backend.hcl
+   terraform -chdir=infra/main/persistent plan
    ```
+   (`make tf-apply-persistent` / `make tf-destroy-persistent` wrap this for day-to-day use —
+   `docs/project-requirement.md` QNT-450.)
+
    AC2 proof: the plan output names the S3 backend and lock table; no `terraform.tfstate` file
    appears locally.
 
