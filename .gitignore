@@ -16,6 +16,7 @@ capture.jsonl
 *.tfvars
 !example.tfvars
 infra/main/backend.hcl
+infra/main/ephemeral/build/
 
 # dbt
 dbt/target/

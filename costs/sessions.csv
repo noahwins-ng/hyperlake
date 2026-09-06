@@ -1,1 +1,2 @@
 session_id,start,end,cost_estimate_usd,cost_actual_usd,cost_status,ce_query_date
+qnt-451-dev-20260906,2026-09-06T16:30:00Z,2026-09-06T16:35:00Z,0.01,,pending,

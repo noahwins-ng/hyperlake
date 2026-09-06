@@ -36,7 +36,7 @@ Goal: archive → Lambda backfill → bronze Parquet → silver Iceberg via `dbt
 - [x] QNT-449: feat(core): shared hyperlake package — envelope schema, watchlist config, partition-name helper
   - `config/watchlist.yaml`; envelope pyarrow/Glue schema; `xyz:SP500` → `xyz_SP500`; `dt` from event time
 - [x] QNT-450: feat(infra): persistent layer — data bucket, Glue database, bronze trades_raw with partition projection, Athena workgroup
-- [ ] QNT-451: feat(backfill): Lambda hour-file reader — stream LZ4, filter watchlist, collapse fills, write bronze at deterministic key
+- [x] QNT-451: feat(backfill): Lambda hour-file reader — stream LZ4, filter watchlist, collapse fills, write bronze at deterministic key
   - H/H+1 boundary rule, fill-pair collapse, `coin=/dt=/source=backfill/hour=H.parquet` idempotent keys
 - [ ] QNT-452: feat(backfill): Step Functions fan-out over hour list + make backfill, 1-day sample timed
   - Map state, retry/catch; G1 one-day timing; 30-day backfill cost recorded
