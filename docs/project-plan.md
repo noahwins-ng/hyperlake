@@ -33,7 +33,7 @@ Goal: archive → Lambda backfill → bronze Parquet → silver Iceberg via `dbt
 
 - [x] QNT-448: test(spike): close OQ-1 — tid parity between WS capture and official hour file, ADR-005
   - the last OQ-1 gate; freezes the bronze data model; blocks the rest of Phase 1
-- [ ] QNT-449: feat(core): shared hyperlake package — envelope schema, watchlist config, partition-name helper
+- [x] QNT-449: feat(core): shared hyperlake package — envelope schema, watchlist config, partition-name helper
   - `config/watchlist.yaml`; envelope pyarrow/Glue schema; `xyz:SP500` → `xyz_SP500`; `dt` from event time
 - [ ] QNT-450: feat(infra): persistent layer — data bucket, Glue database, bronze trades_raw with partition projection, Athena workgroup
 - [ ] QNT-451: feat(backfill): Lambda hour-file reader — stream LZ4, filter watchlist, collapse fills, write bronze at deterministic key
