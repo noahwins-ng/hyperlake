@@ -1,0 +1,59 @@
+{
+  "Comment": "Hyperlake backfill fan-out (QNT-452): one Lambda invocation per archive hour file, reused by make heal (QNT-461). Input: {\"hours\": [{\"date\": \"YYYYMMDD\", \"hour\": \"H\"}, ...]}.",
+  "StartAt": "BackfillHours",
+  "States": {
+    "BackfillHours": {
+      "Type": "Map",
+      "ItemsPath": "$.hours",
+      "MaxConcurrency": 10,
+      "ItemProcessor": {
+        "ProcessorConfig": { "Mode": "INLINE" },
+        "StartAt": "InvokeBackfillLambda",
+        "States": {
+          "InvokeBackfillLambda": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "${lambda_arn}",
+              "Payload.$": "$"
+            },
+            "TimeoutSeconds": 320,
+            "ResultSelector": {
+              "status": "ok",
+              "payload.$": "$.Payload"
+            },
+            "ResultPath": "$.result",
+            "Retry": [
+              {
+                "ErrorEquals": ["Lambda.TooManyRequestsException", "States.Timeout"],
+                "IntervalSeconds": 5,
+                "MaxAttempts": 3,
+                "BackoffRate": 2.0
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": ["States.ALL"],
+                "ResultPath": "$.error",
+                "Next": "MarkHourFailed"
+              }
+            ],
+            "End": true
+          },
+          "MarkHourFailed": {
+            "Type": "Pass",
+            "Parameters": {
+              "date.$": "$.date",
+              "hour.$": "$.hour",
+              "status": "failed",
+              "error.$": "$.error"
+            },
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.results",
+      "End": true
+    }
+  }
+}

@@ -38,7 +38,7 @@ Goal: archive → Lambda backfill → bronze Parquet → silver Iceberg via `dbt
 - [x] QNT-450: feat(infra): persistent layer — data bucket, Glue database, bronze trades_raw with partition projection, Athena workgroup
 - [x] QNT-451: feat(backfill): Lambda hour-file reader — stream LZ4, filter watchlist, collapse fills, write bronze at deterministic key
   - H/H+1 boundary rule, fill-pair collapse, `coin=/dt=/source=backfill/hour=H.parquet` idempotent keys
-- [ ] QNT-452: feat(backfill): Step Functions fan-out over hour list + make backfill, 1-day sample timed
+- [x] QNT-452: feat(backfill): Step Functions fan-out over hour list + make backfill, 1-day sample timed
   - Map state, retry/catch; G1 one-day timing; 30-day backfill cost recorded
 - [ ] QNT-453: feat(dbt): silver trades — Iceberg incremental merge on tid with source precedence and first_seen_source
   - `source_rank` (backfill wins), `dt` lookback, insert-only `first_seen_source`; sample queries for bronze + silver
