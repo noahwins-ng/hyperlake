@@ -13,3 +13,8 @@ target-path: "target"
 clean-targets:
   - target
   - dbt_packages
+
+vars:
+  # dt lookback for the silver merge (ADR-002); overridable per run (`--vars`) for the
+  # first post-backfill run and `make heal` (QNT-461).
+  silver_lookback_days: 2
