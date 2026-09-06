@@ -16,7 +16,7 @@ def _dbt(command: str, *args: str) -> str:
     # Run with cwd=dbt/, matching `make dbt-build` — profiles.yml's duckdb path is relative
     # and must resolve against the dbt project dir, not the repo root.
     result = subprocess.run(
-        ["uv", "run", "dbt", command, "--profiles-dir", ".", *args],
+        ["uv", "run", "--group", "dbt", "dbt", command, "--profiles-dir", ".", *args],
         check=True,
         capture_output=True,
         text=True,
