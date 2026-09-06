@@ -1,0 +1,59 @@
+version: 2
+
+sources:
+  - name: bronze
+    schema: bronze
+    tables:
+      - name: trades_raw
+        description: >
+          Bronze envelope (append-only, plain Parquet, Hive partitions coin=/dt=/source=).
+          On athena this is the real Glue table (QNT-450); on duckdb it resolves to the
+          committed fixture dbt/fixtures/bronze_trades_sample.parquet, which contains
+          duplicate `tid`s across `ws`/`backfill` sources to prove the dedup (QNT-453 AC1).
+        meta:
+          external_location: "fixtures/bronze_trades_sample.parquet"
+
+models:
+  - name: trades
+    description: >
+      Silver — one row per trade, exactly-once on `tid`. Iceberg incremental merge on
+      athena (ADR-002), bounded by `var('silver_lookback_days')`; plain table with
+      row_number dedup on duckdb. `backfill` outranks `ws` on update (ADR-005,
+      `source_rank`); `first_seen_source` is insert-only lineage (ADR-003).
+    columns:
+      - name: tid
+        description: Trade id — the dedup key.
+        tests:
+          - unique
+          - not_null
+      - name: coin
+        tests:
+          - not_null
+      - name: side
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["A", "B"]
+      - name: px
+        tests:
+          - not_null
+      - name: sz
+        tests:
+          - not_null
+      - name: time
+        tests:
+          - not_null
+      - name: source
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["ws", "backfill"]
+      - name: first_seen_source
+        tests:
+          - not_null
+      - name: source_rank
+        description: Gates the merge's `update_condition` — a null rank here would silently break precedence.
+        tests:
+          - not_null

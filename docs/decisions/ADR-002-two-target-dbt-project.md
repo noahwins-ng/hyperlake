@@ -19,7 +19,10 @@ The dbt project has **two explicit targets** with materialization switched by a 
 macro on `target.type`:
 
 - **`duckdb`** — silver is a plain `table`; dedup is
-  `qualify row_number() over (partition by tid order by ingested_at) = 1`.
+  `row_number() over (partition by tid order by source_rank desc, ingested_at desc) = 1`
+  *(amended 2026-09-06 — QNT-453: ordering by `ingested_at` alone could let a late `ws`
+  duplicate outrank an already-applied `backfill` row; `source_rank` first keeps duckdb and
+  athena agreeing on which row wins, per ADR-005's backfill-outranks-ws rule)*.
 - **`athena`** — silver is `incremental`, Iceberg, `merge` on `tid`, bounded by a
   config-driven `dt` lookback window (default 2 days) so the merge prunes partitions.
 
