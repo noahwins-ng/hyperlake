@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour
+.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -62,6 +62,14 @@ backfill-hour:
 	  --cli-binary-format raw-in-base64-out \
 	  --payload '{"date":"$(DATE)","hour":"$(HOUR)"}' \
 	  /tmp/backfill-hour-response.json && cat /tmp/backfill-hour-response.json
+
+# QNT-452: fan out the backfill Lambda over [FROM, TO] (inclusive, ISO dates) through
+# the Step Functions state machine; waits for completion and reports failed hours.
+backfill:
+	@test -n "$(FROM)" || (echo "usage: make backfill FROM=YYYY-MM-DD TO=YYYY-MM-DD"; exit 1)
+	@test -n "$(TO)" || (echo "usage: make backfill FROM=YYYY-MM-DD TO=YYYY-MM-DD"; exit 1)
+	uv run python scripts/backfill.py --from $(FROM) --to $(TO) \
+	  --state-machine-arn "$$(cd infra/main/ephemeral && terraform output -raw backfill_state_machine_arn)"
 
 tf-check:
 	@if find . -name '*.tf' -not -path './.terraform/*' | grep -q .; then \

@@ -56,6 +56,44 @@ Each entry follows the same shape:
 - **Prevention:** `costs/README.md` documents the schema and the 24h delay; `--dry-run` previews
   the query without writing the file.
 
+## Backfill Step Functions fan-out — measured wall time & cost (QNT-452)
+
+Measured against the live ephemeral stack (`hyperlake-backfill` state machine, Map
+`MaxConcurrency=10` over the backfill Lambda), 2026-09-06/07 in `ap-northeast-1`:
+
+| Run | `make backfill` | Hours run | Failed | Wall time | Lambda cost |
+|---|---|---|---|---|---|
+| 1-day (AC1/AC2) | `FROM=2026-09-03 TO=2026-09-03` | 25 (24 + trailing H+1) | 0 | 20.5 s | negligible |
+| 30-day (AC4) | `FROM=2026-08-05 TO=2026-09-03` | 721 (720 + trailing H+1) | 0 | 317.2 s (~5.3 min) | ~$0.10 |
+
+- **AC2 cross-check:** Athena `SELECT count(*) FROM bronze.trades_raw WHERE dt=DATE
+  '2026-09-03'` returned **1,110,546** — an exact match to the spike's Reservoir
+  watchlist figure (BTC 504,527 + HYPE 328,003 + ETH 195,708 + xyz:SP500 47,657 +
+  xyz:XYZ100 34,651 = 1,110,546 trades), i.e. 0% deviation, well inside the ±1% AC.
+- **AC4 cost source:** Cost Explorer's `project` tag lags billing data by up to 24h
+  (see the bootstrap entry above), so same-session cost was read from CloudWatch Logs
+  Insights instead: `filter @type="REPORT" | stats sum(@billedDuration) as
+  totalBilledMs, count() as invocations` over `/aws/lambda/hyperlake-backfill-official`
+  → 742 invocations, 3,139,807 ms total billed duration (25 + 721 = 746 expected from
+  the two runs; the query's 1h lookback window likely clipped a few of the 1-day run's
+  earliest REPORT lines — not a retry/duplicate-invocation signal, since both runs
+  independently reported 0 failed hours). At 2048 MB / $0.0000166667 per GB-s:
+  `3139.807 s × 2 GB × $0.0000166667/GB-s ≈ $0.105` compute + ~$0.0001 in requests ⇒
+  **≈ $0.10 total**, comfortably under the $2 AC4 ceiling.
+- **Task-level timeout:** the Map's `InvokeBackfillLambda` task carries
+  `"TimeoutSeconds": 320` (just above the Lambda's own 300s timeout) so its
+  `States.Timeout` Retry entry can actually fire on a real hang — ASL defaults an
+  unset Task timeout to 99999999s, which would otherwise make that Retry entry dead
+  code (caught in review).
+- **Teardown verified** (implicit Terraform/session-lifecycle AC,
+  `docs/AC-templates.md`): after the live runs, `terraform apply -destroy
+  -var tfstate_bucket=...` → `Apply complete! Resources: 0 added, 0 changed, 10
+  destroyed.`, followed by `terraform plan` → `Plan: 10 to add, 0 to change, 0 to
+  destroy.` — proving no lingering/drifted resource, matching the original 10-resource
+  set exactly. The ephemeral stack (state machine + backfill Lambda + IAM + the
+  disabled schedule) was destroyed immediately after each apply, per the
+  ephemeral-by-design rule.
+
 ## `git push` refused: "Direct push to main refused"
 
 - **Symptom:** `.githooks/pre-push` blocks the push; `error: failed to push some refs`.
