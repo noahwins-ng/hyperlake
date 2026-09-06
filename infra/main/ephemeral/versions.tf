@@ -1,7 +1,6 @@
-# Empty on purpose (QNT-450 scope: persistent layer only). Compute + streams land in a
-# later ticket. This root exists now so the persistent stack's destroy-safety (AC4) is
-# provable: destroying this root has nothing to destroy and never touches persistent's
-# separate state.
+# First real resources land here in QNT-451 (backfill Lambda). Fargate/Kinesis/Firehose
+# land in later tickets. This root exists separately from persistent/ so a session's
+# `terraform destroy` here never touches the persistent stack's own state.
 terraform {
   required_version = ">= 1.9"
 
@@ -9,6 +8,10 @@ terraform {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
+    }
+    external = {
+      source  = "hashicorp/external"
+      version = "~> 2.3"
     }
   }
 
