@@ -94,6 +94,24 @@ Measured against the live ephemeral stack (`hyperlake-backfill` state machine, M
   disabled schedule) was destroyed immediately after each apply, per the
   ephemeral-by-design rule.
 
+## `dbt-run` workflow fails, times out, or a caller can't tell which run is theirs
+
+- **Symptom:** `scripts/gh_run.sh` exits non-zero, or two callers dispatched around the same
+  time (`session-down` and a manual `make dbt-run`) can't tell which Actions run is which.
+- **Diagnosis:** the run URL is always printed by `gh_run.sh`, success or failure -- open it for
+  the `dbt build` step's log and the `run_results.json` artifact. `gh run list --workflow
+  dbt-run.yml` alone is not enough to disambiguate two nearly-simultaneous runs by eye; `gh_run.sh`
+  locates its run by matching `run_key` against `run-name` (never "latest"), which is what makes
+  the two cases distinguishable in the first place.
+- **Response:** re-run `make dbt-run` (or `make heal`); a fresh `run_key` gets a fresh run.
+- **Prevention (required status + failure notification, FR-8):** this repo is private on GitHub
+  Free, so there is no server-side branch-protection "required status check" to attach --
+  loudness comes from two other places instead: (1) `gh_run.sh` exits non-zero synchronously in
+  the caller's own terminal (`session-down`/`heal`/CI), so a failure can't pass silently, and
+  (2) GitHub's default email notification to the triggering actor on a failed workflow run,
+  which needs no branch protection to fire. Both are exercised by `tests/test_gh_run_script.py`'s
+  stubbed-`gh` failure/timeout cases and by AC2's real deliberately-failing run.
+
 ## `git push` refused: "Direct push to main refused"
 
 - **Symptom:** `.githooks/pre-push` blocks the push; `error: failed to push some refs`.

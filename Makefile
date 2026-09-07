@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill
+.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -70,6 +70,15 @@ backfill:
 	@test -n "$(TO)" || (echo "usage: make backfill FROM=YYYY-MM-DD TO=YYYY-MM-DD"; exit 1)
 	uv run python scripts/backfill.py --from $(FROM) --to $(TO) \
 	  --state-machine-arn "$$(cd infra/main/ephemeral && terraform output -raw backfill_state_machine_arn)"
+
+# QNT-454: dbt-run workflow via the shared run_key completion contract (scripts/gh_run.sh).
+# ARGS forwards extra workflow_dispatch inputs, e.g. `make dbt-run ARGS="-f select=trades"`.
+dbt-run:
+	./scripts/gh_run.sh "dbt-run-$$(date +%s)-$$$$" $(ARGS)
+
+# QNT-454: Athena OPTIMIZE + VACUUM on every Iceberg table (silver, and gold once it exists).
+iceberg-maintain:
+	uv run python scripts/iceberg_maintain.py
 
 tf-check:
 	@if find . -name '*.tf' -not -path './.terraform/*' | grep -q .; then \

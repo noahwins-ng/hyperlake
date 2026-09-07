@@ -1,0 +1,82 @@
+name: dbt-run
+
+# QNT-454: manual dispatch only, driven by scripts/gh_run.sh (session-down, heal, and the
+# backfill runner all call it the same way). The Athena seam test job (QNT-462) adds a
+# push-to-main trigger for one job in this workflow later -- out of scope here.
+on:
+  workflow_dispatch:
+    inputs:
+      run_key:
+        description: "Unique key gh_run.sh locates this run by (never 'latest' -- two dispatches can land seconds apart)"
+        required: true
+      select:
+        description: "dbt --select argument (default: full build)"
+        required: false
+        default: ""
+      target:
+        description: "dbt target"
+        required: false
+        default: "athena"
+
+# Makes the run locatable by run_key via `gh run list --json displayTitle` -- the whole
+# point of the completion contract (FR-8): "latest" is unsafe when two dispatches land
+# seconds apart. Bare run_key (not prefixed) so gh_run.sh can match it exactly rather than
+# by substring -- a prefix match would let one run_key that happens to be a substring of
+# another (e.g. "dbt-run-100" of "dbt-run-1005") resolve to the wrong run.
+run-name: "${{ inputs.run_key }}"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync --group dbt
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      # dbt treats a --select that matches no nodes as a silent no-op (exit 0), which would
+      # make a failing --select invisible to the run_key completion contract. Fail loud
+      # instead, matching this repo's no-silent-nothing pattern (envelope drift, gap healing).
+      - name: Resolve select
+        if: inputs.select != ''
+        working-directory: dbt
+        env:
+          TARGET: ${{ inputs.target }}
+          SELECT: ${{ inputs.select }}
+        run: |
+          matched=$(uv run --group dbt dbt ls --profiles-dir . --target "$TARGET" --select "$SELECT" --output name --quiet)
+          if [ -z "$matched" ]; then
+            echo "::error::--select '$SELECT' matched no nodes"
+            exit 1
+          fi
+
+      - name: dbt build
+        working-directory: dbt
+        env:
+          DBT_ATHENA_S3_STAGING_DIR: ${{ vars.DBT_ATHENA_S3_STAGING_DIR }}
+          DBT_ATHENA_WORKGROUP: hyperlake
+          TARGET: ${{ inputs.target }}
+          SELECT: ${{ inputs.select }}
+        run: |
+          uv run --group dbt dbt build --profiles-dir . --target "$TARGET" ${SELECT:+--select "$SELECT"}
+
+      - name: Upload run_results.json
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-run-results-${{ inputs.run_key }}
+          path: dbt/target/run_results.json
+          if-no-files-found: warn
