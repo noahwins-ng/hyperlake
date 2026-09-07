@@ -3,10 +3,11 @@
 # this file is the only thing that changes between projects.
 # Convention: an empty ("") value means "this project has no such concept — skip that step".
 #
-# STATUS: Phase 0 done (QNT-444..447); Phase 1 through QNT-450 (persistent layer: data bucket,
-# Glue catalog, Athena workgroup — live in ap-northeast-1). QNT-451..454 (backfill Lambda, silver
-# merge) still open. verify.* and deploy.health are derived and proven; deploy.deployed_sha/
-# runtime_id stay empty until QNT-457 gives the ingester something to identify.
+# STATUS: Phase 0 + Phase 1 done (QNT-444..454, +473 reactive fix, +474 ops ticket). Bronze/silver
+# are live in ap-northeast-1 with real backfilled data (27.1M bronze rows, 25.7M silver rows as of
+# 2026-09-07). Phase 2 (streaming: QNT-455..459) not started. verify.* and deploy.health are
+# derived and proven; deploy.deployed_sha/runtime_id stay empty until QNT-457 gives the ingester
+# something to identify.
 
 project:
   name: "Hyperlake"
@@ -64,13 +65,12 @@ deploy:
   deployed_sha: ""
   # TO-DERIVE(after QNT-457): ECS task ARN or equivalent for the live session's ingester.
   runtime_id:   ""
-  # derived + proven 2026-09-06: QNT-450's persistent layer is live in ap-northeast-1 (verified
-  # via `terraform state list` against the S3 backend: aws_s3_bucket.data, aws_glue_catalog_
-  # database.bronze, aws_glue_catalog_table.trades_raw, aws_athena_workgroup.hyperlake all
-  # present). Ran this exact probe: query ede4c2dd-005e-4f12-9fda-ddd32dcaaa1d SUCCEEDED,
-  # DataScannedInBytes=0 (empty table — QNT-451 backfill hasn't landed rows yet), n=0. The probe
-  # itself is proven end-to-end (Terraform -> Glue catalog -> Athena workgroup all wired); it'll
-  # start asserting real freshness once bronze has data.
+  # derived + proven 2026-09-06, re-proven 2026-09-07 post-QNT-451/452 backfill: query
+  # e41fab29-a10f-4062-93a5-49c722b999a3 SUCCEEDED, n=27,107,253 (bronze.trades_raw now holds the
+  # real 30-day backfill; matches the Phase 1 retro's silver count of 25,677,879 at the same
+  # order of magnitude, post-dedup). First proof (2026-09-06, query ede4c2dd-..., n=0) was against
+  # the empty table right after QNT-450 landed — this re-proof is the same command asserting real
+  # freshness, not just wiring.
   health: |
     qid=$(aws athena start-query-execution --region ap-northeast-1 --work-group hyperlake \
       --query-execution-context Database=bronze \
@@ -102,8 +102,10 @@ docs:
 
 architecture_rules: |
   # derived: PRD v1.0 (frozen 2026-09-05) settled decisions + non-goals + CLAUDE.md invariants;
-  # re-derived by flow-tailor 2026-09-05. No code exists yet to check these against — each is
-  # provable the first time a matching file (infra/, dbt/, src/hyperlake/) lands.
+  # re-derived by flow-tailor 2026-09-05, extended 2026-09-07 post-Phase-1-retro (QNT-473's real
+  # incident: the OIDC role's Glue policy silently never covered the real catalog for ~46h of
+  # build time because verification ran under a developer's own broad AWS credentials instead of
+  # the role — see docs/retros/phase-1-lakehouse.md and memory hyperlake-verify-oidc-credential-path).
   - No trading, signals, or execution anywhere — market data engineering only.
   - Ephemeral by design: no 24/7 operation; < $2/demo session, < $2/month idle (PRD G4).
     session-down, the session reaper, and the post-destroy audit are the enforcement — the
@@ -122,6 +124,9 @@ architecture_rules: |
   - Watchlist is config-driven (config/watchlist.yaml) — no hardcoded market lists in code.
     HIP-3 markets keep their exact name in the coin column (xyz:SP500); the partition value
     is normalised ':' -> '_' by one shared helper, never ad hoc per call site.
+  - IAM/OIDC role changes are verified by actually exercising the role (e.g. dispatch
+    `dbt-run.yml`), never accepted on a local/dev-credential `terraform apply` or `dbt build`
+    alone — QNT-473 sat wrong for ~46h of build time specifically because nothing did this.
 
 ac_execution_keywords:
   - populated

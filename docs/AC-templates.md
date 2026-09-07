@@ -7,9 +7,10 @@ the issue author didn't list them. Referenced by `profile.docs.ac_templates`.
 <!-- derived: flow-tailor 2026-09-05, from PRD v1.0's dangerous surfaces + architecture_rules —
      replaces the deployed-service skeleton (no long-lived host here; the risk is cost blast
      radius, silent dedup/partition breakage, and stale reproducibility claims). Re-checked
-     2026-09-06 (flow-tailor, post-QNT-449/450): infra/**, dbt/models/staging/**, and
-     src/hyperlake/** now exist for real, so those three groups are live triggers, not
-     forward-declared ones. `sessions/**` and `dbt-run.yml` (QNT-454/458) still don't exist. -->
+     2026-09-06 (post-QNT-449/450): infra/**, dbt/models/staging/**, and src/hyperlake/** now
+     exist for real. Re-checked 2026-09-07 (post-Phase-1 retro, QNT-473): added the IAM/OIDC
+     verification bullet to the Terraform group from a real incident, not a hypothetical — see
+     docs/retros/phase-1-lakehouse.md. `sessions/**` (QNT-458) still doesn't exist. -->
 
 ## Terraform / session-lifecycle changes
 
@@ -26,6 +27,10 @@ Apply when the diff touches `infra/**`, `sessions/**`, the session-lifecycle `Ma
   declared in Terraform with `retention_in_days <= 14`. Implicitly created log groups are not in
   state, survive `destroy`, and grow forever — the one leak the post-destroy audit (QNT-471)
   would otherwise find only by accident.
+- Any IAM/OIDC policy change (`aws_iam_role_policy`, `aws_iam_policy_document`) is verified by
+  actually exercising the role — dispatch `dbt-run.yml`, don't just `terraform apply`/`dbt build`
+  under a developer's own broad AWS credentials. QNT-473's Glue policy gap sat wrong for ~46h of
+  real build time specifically because nothing did this until the workflow first ran for real.
 
 ## CI / dbt-run workflow changes
 
