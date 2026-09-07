@@ -53,7 +53,7 @@ Goal: archive → Lambda backfill → bronze Parquet → silver Iceberg via `dbt
 
 Goal: Fargate ingester → Kinesis → Firehose → the same bronze; scripted session lifecycle with manifest; bounded blast radius.
 
-- [ ] QNT-455: feat(spike): Kinesis + Firehose Parquet landing spike — envelope schema, dynamic partitioning, destroy
+- [x] QNT-455: feat(spike): Kinesis + Firehose Parquet landing spike — envelope schema, dynamic partitioning, destroy
   - Phase 2 learning spike; ADR-004 go/no-go
 - [ ] QNT-456: feat(ingester): Python WebSocket ingester — trades subscription, envelope, PutRecords, reconnect with gap recording, self-exit
 - [ ] QNT-457: feat(infra): Fargate ingester service + Firehose in the ephemeral layer, G2 measured

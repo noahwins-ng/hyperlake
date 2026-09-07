@@ -49,3 +49,8 @@ wiring consuming disproportionate time against the weekend-pace budget.
   scripted `session-down` and post-destroy checklist exist chiefly for this.
 - The Glue schema for Firehose conversion is owned by the ingester envelope (OQ-7), so
   upstream drift never fails conversion.
+- Firehose's dynamic-partitioning JQ engine can't call `hyperlake.partitions.coin_partition_value`
+  directly, so the `':' -> '_'` normalisation is re-expressed as a JQ `gsub` in the delivery
+  stream's `MetadataExtractionQuery` (QNT-455 spike) — a second, necessarily-duplicated
+  implementation of the one-helper rule, not an ad hoc one. `infra/main/persistent/glue.tf`'s
+  `replace()` call for the same reason is the only other exception.
