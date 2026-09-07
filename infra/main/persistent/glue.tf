@@ -29,6 +29,14 @@ resource "aws_glue_catalog_database" "bronze" {
   name = "bronze"
 }
 
+# Written only by dbt-athena (ADR-002/CLAUDE.md: Iceberg exists only at silver/gold, no other
+# writer). Declared here anyway, not left hand-created, per "everything is Terraform" -- it
+# already existed live (created by an earlier developer-credentialed `dbt build --target
+# athena` run) and was imported into this state rather than recreated (QNT-473).
+resource "aws_glue_catalog_database" "silver" {
+  name = "silver"
+}
+
 # Partition projection (no crawler, no MSCK REPAIR): new objects under bronze/ are
 # queryable the moment they land (PRD Landing -> Partition registration).
 resource "aws_glue_catalog_table" "trades_raw" {
