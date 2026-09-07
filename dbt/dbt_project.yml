@@ -18,3 +18,12 @@ vars:
   # dt lookback for the silver merge (ADR-002); overridable per run (`--vars`) for the
   # first post-backfill run and `make heal` (QNT-461).
   silver_lookback_days: 2
+
+models:
+  hyperlake:
+    staging:
+      # stg_trades_sample proves the duckdb/athena compile seam (ADR-002) over a committed
+      # fixture -- it was never wired up with a real Glue-registered source table, so it
+      # only ever ran on duckdb. Disabled on athena rather than left to fail a real `dbt
+      # build --target athena` the first time one runs unscoped (QNT-473).
+      +enabled: "{{ target.type != 'athena' }}"

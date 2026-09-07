@@ -57,32 +57,59 @@ data "aws_iam_policy_document" "github_actions_permissions" {
 
   statement {
     sid = "GlueCatalog"
+    # Full read+write set per dbt-athena's documented IAM requirements
+    # (https://dbt-athena.github.io/docs/getting-started/prerequisites/iam-permissions) --
+    # Iceberg's merge/incremental strategy exercises the table-version and partition-batch
+    # actions beyond what a plain-table adapter would need.
     actions = [
       "glue:GetDatabase",
       "glue:GetDatabases",
+      "glue:CreateDatabase",
       "glue:GetTable",
       "glue:GetTables",
+      "glue:GetTableVersions",
       "glue:GetPartition",
       "glue:GetPartitions",
       "glue:BatchCreatePartition",
+      "glue:BatchUpdatePartition",
+      "glue:BatchDeletePartition",
+      "glue:BatchDeleteTable",
+      "glue:BatchDeleteTableVersion",
+      "glue:CreatePartition",
+      "glue:UpdatePartition",
+      "glue:DeletePartition",
       "glue:CreateTable",
       "glue:UpdateTable",
       "glue:DeleteTable",
+      "glue:DeleteTableVersion",
     ]
+    # Scoped to the real layer database names (infra/main/persistent/glue.tf, dbt schema
+    # default) -- "hyperlake*" was never a real prefix any Glue database used, so this
+    # statement never actually covered the catalog until this fix (QNT-473).
     resources = [
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:catalog",
-      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/hyperlake*",
-      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/hyperlake*/*",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/bronze",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/silver",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/gold",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/bronze/*",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/silver/*",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/gold/*",
     ]
   }
 
   statement {
     sid = "DataBuckets"
+    # Full read+write set per dbt-athena's documented IAM requirements (see GlueCatalog
+    # above) -- multipart-upload actions cover Iceberg's larger metadata/data file writes.
     actions = [
       "s3:GetObject",
       "s3:PutObject",
+      "s3:DeleteObject",
       "s3:ListBucket",
       "s3:GetBucketLocation",
+      "s3:ListBucketMultipartUploads",
+      "s3:ListMultipartUploadParts",
+      "s3:AbortMultipartUpload",
     ]
     resources = [
       "arn:aws:s3:::hyperlake-*",

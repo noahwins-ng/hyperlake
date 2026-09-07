@@ -44,6 +44,10 @@ Goal: archive → Lambda backfill → bronze Parquet → silver Iceberg via `dbt
   - `source_rank` (backfill wins), `dt` lookback, insert-only `first_seen_source`; sample queries for bronze + silver
 - [x] QNT-454: feat(ci): dbt-run workflow with run_key completion contract, iceberg-maintain target
   - ADR-001 runtime; `scripts/gh_run.sh` (run_key, 20-min timeout, loud failure); `make iceberg-maintain`
+- [x] QNT-473: fix(infra): OIDC role's Glue policy scoped to real db names, full dbt-athena IAM action set
+  - found while verifying QNT-454 AC4 — the OIDC role's Glue permissions never actually covered
+    bronze/silver/gold (scoped to an unused `hyperlake*` prefix); also imported the `silver` Glue
+    database into Terraform state (it existed live but was hand-created, never `terraform apply`d)
 
 ### Phase 2 — Streaming
 

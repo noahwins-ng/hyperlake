@@ -51,6 +51,19 @@ def _silver_trades_config(target: str) -> dict:
     return manifest["nodes"]["model.hyperlake.trades"]["config"]
 
 
+def test_stg_trades_sample_disabled_on_athena_only():
+    # QNT-473: stg_trades_sample proves the duckdb/athena compile seam over a fixture that
+    # was never wired to a real Glue table -- it must stay buildable on duckdb (CI) but
+    # excluded from a real `dbt build --target athena` (dbt_project.yml's `+enabled` gate).
+    _dbt("compile", "--target", "duckdb")
+    duckdb_manifest = json.loads((DBT_DIR / "target" / "manifest.json").read_text())
+    assert "model.hyperlake.stg_trades_sample" in duckdb_manifest["nodes"]
+
+    _dbt("compile", "--target", "athena")
+    athena_manifest = json.loads((DBT_DIR / "target" / "manifest.json").read_text())
+    assert "model.hyperlake.stg_trades_sample" not in athena_manifest["nodes"]
+
+
 def test_kind_table_compiles_to_table_on_both_targets():
     for target in ("duckdb", "athena"):
         config = _inline_config(target, "{{ materialization_for_target(kind='table') }}")
