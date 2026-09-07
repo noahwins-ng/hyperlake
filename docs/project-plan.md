@@ -42,7 +42,7 @@ Goal: archive → Lambda backfill → bronze Parquet → silver Iceberg via `dbt
   - Map state, retry/catch; G1 one-day timing; 30-day backfill cost recorded
 - [x] QNT-453: feat(dbt): silver trades — Iceberg incremental merge on tid with source precedence and first_seen_source
   - `source_rank` (backfill wins), `dt` lookback, insert-only `first_seen_source`; sample queries for bronze + silver
-- [ ] QNT-454: feat(ci): dbt-run workflow with run_key completion contract, iceberg-maintain target
+- [x] QNT-454: feat(ci): dbt-run workflow with run_key completion contract, iceberg-maintain target
   - ADR-001 runtime; `scripts/gh_run.sh` (run_key, 20-min timeout, loud failure); `make iceberg-maintain`
 
 ### Phase 2 — Streaming
