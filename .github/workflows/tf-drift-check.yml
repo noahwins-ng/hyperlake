@@ -1,0 +1,39 @@
+name: tf-drift-check
+
+# QNT-474: drift can appear at any time from an out-of-band change to the persistent layer
+# (QNT-473's hand-created `silver` database incident), not just on a push, so this runs on a
+# schedule rather than as a ci.yml step -- ci.yml has zero AWS credentials by design.
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      - name: Terraform state drift check
+        run: make tf-drift-check

@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain
+.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain tf-drift-check
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -79,6 +79,14 @@ dbt-run:
 # QNT-454: Athena OPTIMIZE + VACUUM on every Iceberg table (silver, and gold once it exists).
 iceberg-maintain:
 	uv run python scripts/iceberg_maintain.py
+
+# QNT-474: compare infra/main/persistent's Terraform state against the live Glue catalog;
+# fails loudly on drift in either direction (a live database/table Terraform doesn't know
+# about, or a state entry with no live counterpart). Needs AWS credentials -- not part of
+# `check`/CI, which stays offline; run from a dev session or the scheduled tf-drift-check.yml.
+tf-drift-check:
+	cd infra/main/persistent && terraform init -backend-config=../backend.hcl -input=false >/dev/null
+	uv run python scripts/tf_drift_check.py
 
 tf-check:
 	@if find . -name '*.tf' -not -path './.terraform/*' | grep -q .; then \
