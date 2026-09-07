@@ -76,5 +76,6 @@ The spec: *what* we're building and *why*, organized by phase. This is the sourc
 ## Ops & Reliability (perpetual)
 
 - **Post-destroy audit** — script listing any live `project=hyperlake` billable ephemeral resources; fails loudly; last step of `session-down`. *Why:* FR-6; a checklist is not a guard.
+- **Terraform state drift check** — compares live `project=hyperlake` resources (at minimum Glue databases/tables) against `terraform state list` on the persistent layer; fails loudly on a resource in either direction with no counterpart in the other. *Why:* Non-negotiables — "every AWS resource Terraform-managed... nothing hand-created"; QNT-473 (Phase 1 retro) found the `silver` Glue database had drifted (hand-created, never `terraform apply`'d) undetected through most of the phase.
 
 <!-- Add phases as the roadmap grows. A phase maps to a Linear milestone. -->

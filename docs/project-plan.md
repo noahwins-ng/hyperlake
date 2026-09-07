@@ -98,6 +98,9 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
 
 - [ ] QNT-471: chore(ops): post-destroy audit — list any live project=hyperlake billable resources and fail loudly
   - wired as the last step of `session-down`
+- [ ] QNT-474: chore(ops): Terraform state drift check on the persistent layer
+  - compares live project=hyperlake resources (Glue databases/tables) against `terraform state list`; fails on drift in either direction
+  - **Triggered by:** QNT-473 (Phase 1 retro) — `silver` Glue db was hand-created, drifted undetected
 
 ## Parking lot (no tickets — reopen the PRD before building)
 
