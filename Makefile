@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop
+.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -103,6 +103,16 @@ ingester-stop:
 	  --service "$$(cd infra/main/ephemeral && terraform output -raw ecs_service_name)" \
 	  --desired-count 0 >/dev/null
 	@echo "ingester-stop: desired count 0"
+
+# QNT-458: the scripted session lifecycle -- preflight guard, apply, ingester-start,
+# manifest stub (session-up); stop, drain, destroy, cost_estimate, dbt-run,
+# iceberg-maintain, finalize + commit (session-down). LABEL sets the session_id prefix,
+# e.g. `make session-up LABEL=qnt-460`.
+session-up:
+	uv run python scripts/session_up.py --label $(or $(LABEL),dev)
+
+session-down:
+	uv run python scripts/session_down.py $(if $(DBT_ARGS),--dbt-args $(DBT_ARGS))
 
 tf-check:
 	@if find . -name '*.tf' -not -path './.terraform/*' | grep -q .; then \

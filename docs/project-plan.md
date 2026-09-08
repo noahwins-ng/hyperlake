@@ -58,7 +58,7 @@ Goal: Fargate ingester → Kinesis → Firehose → the same bronze; scripted se
 - [x] QNT-456: feat(ingester): Python WebSocket ingester — trades subscription, envelope, PutRecords, reconnect with gap recording, self-exit
 - [x] QNT-457: feat(infra): Fargate ingester service + Firehose in the ephemeral layer, G2 measured
   - default VPC, public IP, egress-only SG; image tagged by commit SHA; emission→bronze < 3 min
-- [ ] QNT-458: feat(session): make session-up / session-down with committed manifest and cost_estimate
+- [x] QNT-458: feat(session): make session-up / session-down with committed manifest and cost_estimate
   - `sessions/<id>.json`; Firehose drain wait; `dbt-run` + `iceberg-maintain`; costs row `pending`
   - `session-up` preflight: refuse to start if the latest manifest has no `session_down_at` /
     isn't `reaped: true`, or `terraform state list` on the ephemeral layer shows the Kinesis
