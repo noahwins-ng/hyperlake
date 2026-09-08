@@ -128,6 +128,33 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "arn:aws:logs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:log-group:/hyperlake/*",
     ]
   }
+
+  # QNT-457: ingester-image.yml pushes to the one ECR repo (infra/main/persistent/ecr.tf),
+  # tagged with the commit SHA -- scoped by name prefix ahead of its creation, same as the
+  # Athena/Glue/S3 statements above. GetAuthorizationToken is an AWS-wide API call with no
+  # resource-level permissions, so it's the one action that must stay "*".
+  statement {
+    sid       = "EcrAuth"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  # Push-only: ingester-image.yml builds and pushes, it never pulls, so no BatchGetImage /
+  # GetDownloadUrlForLayer (that pair belongs to the ECS execution role instead -- see
+  # infra/main/ephemeral/fargate_ingester.tf's ingester_execution_permissions).
+  statement {
+    sid = "EcrPush"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:InitiateLayerUpload",
+      "ecr:UploadLayerPart",
+      "ecr:CompleteLayerUpload",
+      "ecr:PutImage",
+    ]
+    resources = [
+      "arn:aws:ecr:ap-northeast-1:${data.aws_caller_identity.current.account_id}:repository/hyperlake-ingester",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "github_actions" {

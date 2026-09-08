@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain tf-drift-check
+.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -87,6 +87,22 @@ iceberg-maintain:
 tf-drift-check:
 	cd infra/main/persistent && terraform init -backend-config=../backend.hcl -input=false >/dev/null
 	uv run python scripts/tf_drift_check.py
+
+# QNT-457: the primitives session-up/session-down (own tickets) will call to bring the
+# already-applied ECS service up/down, without a Terraform apply/destroy round trip.
+ingester-start:
+	aws ecs update-service --region ap-northeast-1 \
+	  --cluster "$$(cd infra/main/ephemeral && terraform output -raw ecs_cluster_name)" \
+	  --service "$$(cd infra/main/ephemeral && terraform output -raw ecs_service_name)" \
+	  --desired-count 1 >/dev/null
+	@echo "ingester-start: desired count 1"
+
+ingester-stop:
+	aws ecs update-service --region ap-northeast-1 \
+	  --cluster "$$(cd infra/main/ephemeral && terraform output -raw ecs_cluster_name)" \
+	  --service "$$(cd infra/main/ephemeral && terraform output -raw ecs_service_name)" \
+	  --desired-count 0 >/dev/null
+	@echo "ingester-stop: desired count 0"
 
 tf-check:
 	@if find . -name '*.tf' -not -path './.terraform/*' | grep -q .; then \

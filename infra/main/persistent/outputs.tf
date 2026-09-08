@@ -9,3 +9,7 @@ output "glue_database_name" {
 output "athena_workgroup_name" {
   value = aws_athena_workgroup.hyperlake.name
 }
+
+output "ecr_repository_url" {
+  value = aws_ecr_repository.ingester.repository_url
+}
