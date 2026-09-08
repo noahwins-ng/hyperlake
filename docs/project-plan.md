@@ -56,7 +56,7 @@ Goal: Fargate ingester → Kinesis → Firehose → the same bronze; scripted se
 - [x] QNT-455: feat(spike): Kinesis + Firehose Parquet landing spike — envelope schema, dynamic partitioning, destroy
   - Phase 2 learning spike; ADR-004 go/no-go
 - [x] QNT-456: feat(ingester): Python WebSocket ingester — trades subscription, envelope, PutRecords, reconnect with gap recording, self-exit
-- [ ] QNT-457: feat(infra): Fargate ingester service + Firehose in the ephemeral layer, G2 measured
+- [x] QNT-457: feat(infra): Fargate ingester service + Firehose in the ephemeral layer, G2 measured
   - default VPC, public IP, egress-only SG; image tagged by commit SHA; emission→bronze < 3 min
 - [ ] QNT-458: feat(session): make session-up / session-down with committed manifest and cost_estimate
   - `sessions/<id>.json`; Firehose drain wait; `dbt-run` + `iceberg-maintain`; costs row `pending`

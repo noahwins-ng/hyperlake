@@ -56,6 +56,18 @@ jobs:
             exit 1
           fi
 
+      # AC1 (QNT-457): the Fargate ingester runs in the default VPC via data sources
+      # (data.aws_vpc/data.aws_subnets), never resources of our own (NFR-2). Same static-grep
+      # rationale as the banned-services check above -- CI has no AWS credentials to run a
+      # real `terraform plan`.
+      - name: No VPC resources
+        run: |
+          BANNED='resource "aws_vpc"|resource "aws_subnet"|resource "aws_nat_gateway"|resource "aws_vpc_endpoint"'
+          if grep -rEn --include='*.tf' --exclude-dir=.terraform "$BANNED" infra/; then
+            echo "VPC resource found under infra/ — Fargate must use the default VPC via data sources, see CLAUDE.md NFR-2" >&2
+            exit 1
+          fi
+
       - name: Watchlist stays config-driven
         run: |
           uv run python -c "from hyperlake.watchlist import load_watchlist; print(chr(10).join(load_watchlist()))" > /tmp/watchlist_markets.txt

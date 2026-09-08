@@ -179,6 +179,35 @@ def test_malformed_trade_is_logged_and_skipped_not_a_crash(capsys):
     assert delivered_tids == {2}
 
 
+def test_connect_logs_subscribed_with_every_watchlist_coin(capsys):
+    # QNT-457 AC2: a deployment check greps CloudWatch Logs for this line to confirm every
+    # watchlist coin was actually subscribed, not just that the socket opened.
+    conn = _FakeConn([_trades_message([_trade(1, 1000)])])
+
+    kinesis = _FakeKinesis()
+    ingester = ing.Ingester(
+        coins=["BTC", "ETH", "HYPE"],
+        kinesis_client=kinesis,
+        stream_name="hyperlake-trades",
+        recv_timeout_s=0.02,
+    )
+
+    async def drive():
+        task = asyncio.create_task(ingester.run())
+        await asyncio.sleep(0.1)
+        ingester.request_stop()
+        await task
+
+    with mock.patch.object(ing.websockets, "connect", return_value=conn):
+        asyncio.run(drive())
+
+    log_lines = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    subscribed = [line for line in log_lines if line["event"] == "subscribed"]
+
+    assert len(subscribed) == 1
+    assert subscribed[0]["coins"] == ["BTC", "ETH", "HYPE"]
+
+
 def test_gap_tracker_closes_exactly_one_gap_per_disconnect():
     tracker = ing.GapTracker()
 

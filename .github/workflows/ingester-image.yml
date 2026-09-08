@@ -1,0 +1,56 @@
+name: ingester-image
+
+# QNT-457: builds the live-ingester image and pushes it to the ECR repo
+# (infra/main/persistent/ecr.tf), tagged with the commit SHA -- that tag is the
+# `deployed_sha` a session's Fargate task is pinned to via `var.image_tag`. Separate from
+# ci.yml on purpose: ci.yml's offline gate must stay AWS-credential-free (AC-templates: CI /
+# dbt-run workflow changes), and this job needs the OIDC role to push.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "src/hyperlake/**"
+      - "config/watchlist.yaml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/ingester-image.yml"
+  # Manual dispatch (AC-templates: IAM/OIDC changes verified by exercising the role for
+  # real, not a local/dev-credential run -- QNT-473) lets this ECR push get proven on a
+  # feature branch before the push-to-main trigger can ever fire.
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      # Repo URL is deterministic (account + region + fixed name from
+      # infra/main/persistent/ecr.tf) -- derived from the OIDC identity rather than a
+      # second repo variable duplicating what Terraform already owns.
+      - name: Resolve ECR repository URL
+        id: ecr
+        run: |
+          account_id=$(aws sts get-caller-identity --query Account --output text)
+          echo "url=${account_id}.dkr.ecr.ap-northeast-1.amazonaws.com/hyperlake-ingester" >> "$GITHUB_OUTPUT"
+
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region ap-northeast-1 \
+            | docker login --username AWS --password-stdin "${{ steps.ecr.outputs.url }}"
+
+      - name: Build and push
+        run: |
+          docker build -t "${{ steps.ecr.outputs.url }}:${{ github.sha }}" .
+          docker push "${{ steps.ecr.outputs.url }}:${{ github.sha }}"

@@ -254,6 +254,9 @@ class Ingester:
                 async with websockets.connect(WS_URL, max_size=None) as ws:
                     for sub in subscribe_messages(self.coins):
                         await ws.send(sub)
+                    # QNT-457 AC2: the one place a deployment check can confirm every
+                    # watchlist coin was actually subscribed, not just that the socket opened.
+                    log_event("subscribed", coins=self.coins, session_id=self.session_id)
                     if not first_connect:
                         log_event("reconnected", session_id=self.session_id)
                     first_connect = False
