@@ -16,3 +16,15 @@ variable "max_session_hours" {
   type        = number
   default     = 6
 }
+
+# No defaults, mirroring image_tag -- both are per-session identity that must be supplied
+# explicitly at apply time (session_up.py), never silently reused from a prior apply.
+variable "session_id" {
+  description = "This session's id (scripts/session_up.py) -- names the per-session reaper schedule and is passed to the reaper Lambda as its target input."
+  type        = string
+}
+
+variable "session_start" {
+  description = "This session's start time, RFC3339 UTC (matches the manifest's own `start` field) -- the reaper schedule fires `max_session_hours` after this."
+  type        = string
+}

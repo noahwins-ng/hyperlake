@@ -28,3 +28,6 @@ dbt/.user.yml
 
 # OS / editor
 .DS_Store
+
+# Claude Code local/personal settings
+.claude/settings.local.json
