@@ -35,5 +35,15 @@ jobs:
           role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
           aws-region: ap-northeast-1
 
+      # infra/main/backend.hcl is gitignored (docs/guides/bootstrap.md step 2 -- the bucket
+      # name embeds the AWS account ID) so a fresh checkout never has it; write it here from
+      # the same repo variables pattern as AWS_OIDC_ROLE_ARN / DBT_ATHENA_S3_STAGING_DIR.
+      - name: Write backend.hcl
+        run: |
+          cat > infra/main/backend.hcl <<EOF
+          bucket         = "${{ vars.TF_STATE_BUCKET }}"
+          dynamodb_table = "${{ vars.TF_STATE_LOCK_TABLE }}"
+          EOF
+
       - name: Terraform state drift check
         run: make tf-drift-check
