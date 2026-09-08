@@ -5,7 +5,12 @@ stream still present in Terraform state, naming the blocker in each case.
 
 from unittest.mock import MagicMock
 
-from scripts.session_up import latest_image_tag, preflight_blocker, stream_exists_in_state
+from scripts.session_up import (
+    label_is_safe,
+    latest_image_tag,
+    preflight_blocker,
+    stream_exists_in_state,
+)
 
 
 def test_no_prior_session_and_clean_state_does_not_block():
@@ -48,3 +53,18 @@ def test_latest_image_tag_picks_most_recently_pushed():
     }
 
     assert latest_image_tag(ecr) == "newest-sha"
+
+
+def test_label_is_safe_accepts_lowercase_alnum_and_hyphens():
+    assert label_is_safe("dev") is True
+    assert label_is_safe("qnt-459-ac1") is True
+
+
+def test_label_is_safe_rejects_shell_metacharacters():
+    # `--label` (QNT-459) flows unquoted into TF_ARGS, which the Makefile expands into a
+    # shell-executed `terraform apply` command -- a label containing shell metacharacters
+    # would execute arbitrary local commands.
+    assert label_is_safe("dev; rm -rf /") is False
+    assert label_is_safe("dev`whoami`") is False
+    assert label_is_safe("dev$(whoami)") is False
+    assert label_is_safe("") is False

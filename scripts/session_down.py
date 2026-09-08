@@ -21,9 +21,17 @@ from pathlib import Path
 
 import boto3
 
-from hyperlake.session import estimate_cost_usd, latest_manifest, load_manifest, write_manifest
+from hyperlake.session import (
+    DRAIN_SECONDS,
+    estimate_cost_usd,
+    latest_manifest,
+    load_manifest,
+    reap_marker_key,
+    write_manifest,
+)
 
 REGION = "ap-northeast-1"
+EPHEMERAL_DIR = Path("infra/main/ephemeral")
 SESSIONS_DIR = Path("sessions")
 COSTS_CSV = Path("costs/sessions.csv")
 COSTS_FIELDNAMES = [
@@ -36,15 +44,17 @@ COSTS_FIELDNAMES = [
     "ce_query_date",
 ]
 LOG_GROUP = "/ecs/hyperlake-ingester"
-# >= one Firehose buffer window (60s, infra/main/ephemeral/kinesis_firehose.tf) with margin,
-# so records already in flight when the ingester stops still land in S3 before the stream
-# that carries them is destroyed.
-DRAIN_SECONDS = 120
 RUN_URL_RE = re.compile(r"https://\S+/actions/runs/\d+")
 
 
 def append_pending_cost_row(
-    csv_path: Path, session_id: str, start_iso: str, end_iso: str, cost_estimate: float
+    csv_path: Path,
+    session_id: str,
+    start_iso: str,
+    end_iso: str,
+    cost_estimate: float,
+    *,
+    reaped: bool = False,
 ) -> None:
     row = {
         "session_id": session_id,
@@ -52,7 +62,7 @@ def append_pending_cost_row(
         "end": end_iso,
         "cost_estimate_usd": f"{cost_estimate:.2f}",
         "cost_actual_usd": "",
-        "cost_status": "pending",
+        "cost_status": "reaper-terminated" if reaped else "pending",
         "ce_query_date": "",
     }
     with csv_path.open("a", newline="") as f:
@@ -62,12 +72,13 @@ def append_pending_cost_row(
 @dataclass
 class SessionDownDeps:
     stop_ingester: Callable[[], None]
-    destroy_ephemeral: Callable[[str], None]
+    destroy_ephemeral: Callable[[str, str, str], None]
     collect_gaps: Callable[[str, datetime, datetime], list[dict]]
     run_dbt: Callable[[str], dict]
     run_iceberg_maintain: Callable[[], None]
     git_commit: Callable[[list[str], str], None]
-    append_cost_row: Callable[[str, str, str, float], None]
+    append_cost_row: Callable[..., None]
+    check_reaped: Callable[[str], dict | None]
     sleep: Callable[[float], None] = time.sleep
     now: Callable[[], datetime] = field(default=lambda: datetime.now(UTC))
 
@@ -77,32 +88,59 @@ def run_session_down(manifest_path: Path, deps: SessionDownDeps) -> dict:
     for key in ("session_id", "start", "deployed_sha"):
         if key not in manifest:
             raise RuntimeError(f"malformed manifest {manifest_path}: missing '{key}'")
+    session_id = manifest["session_id"]
     start = datetime.fromisoformat(manifest["start"])
 
-    deps.stop_ingester()
-    deps.sleep(DRAIN_SECONDS)
-    end = deps.now()
-    gaps = deps.collect_gaps(manifest["session_id"], start, end)
-    deps.destroy_ephemeral(manifest["deployed_sha"])
+    # QNT-459: a fired dead-man's switch already scaled the ingester to 0, drained, and
+    # deleted the stream -- redoing the stop/wait here would just be a slow no-op, and the
+    # reap must stay visible rather than looking like a plain successful session (AC6).
+    # Accepted race, not an oversight: if the schedule fires *during* this run, after this
+    # check returns None but before destroy_ephemeral completes, both paths independently
+    # scale-to-zero/drain/touch the stream. Every effect on both sides is idempotent or
+    # already tolerated (AC2's drift-tolerant destroy), so the interleaving is harmless.
+    reap_marker = deps.check_reaped(session_id)
+    if reap_marker is not None:
+        print(
+            f"session-down: WARNING -- session {session_id} was reaped at "
+            f"{reap_marker['reaped_at']} (dead-man's switch fired, max_session_hours exceeded)",
+            file=sys.stderr,
+        )
+        end_iso = reap_marker["reaped_at"]
+        end = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
+        manifest["reaped"] = True
+        manifest["reaped_at"] = reap_marker["reaped_at"]
+    else:
+        deps.stop_ingester()
+        deps.sleep(DRAIN_SECONDS)
+        end = deps.now()
+        end_iso = end.isoformat().replace("+00:00", "Z")
+
+    gaps = deps.collect_gaps(session_id, start, end)
+    # `terraform destroy` also removes the per-session reaper schedule (Terraform-managed,
+    # infra/main/ephemeral/session_reaper.tf) -- no separate delete call needed, whether or
+    # not it already fired.
+    deps.destroy_ephemeral(manifest["deployed_sha"], session_id, manifest["start"])
 
     duration_hours = (end - start).total_seconds() / 3600
     cost_estimate = estimate_cost_usd(duration_hours)
-    end_iso = end.isoformat().replace("+00:00", "Z")
-    deps.append_cost_row(manifest["session_id"], manifest["start"], end_iso, cost_estimate)
+    deps.append_cost_row(
+        session_id, manifest["start"], end_iso, cost_estimate, reaped=reap_marker is not None
+    )
 
     manifest["end"] = end_iso
     manifest["gaps"] = gaps
     manifest["cost_estimate_usd"] = cost_estimate
 
-    run_key = f"session-down-{manifest['session_id']}"
+    run_key = f"session-down-{session_id}"
     dbt_result = deps.run_dbt(run_key)
     manifest["dbt_runs"] = manifest.get("dbt_runs", []) + [dbt_result]
 
+    reaped_note = " (reaper-terminated)" if reap_marker is not None else ""
     if dbt_result["status"] != "success":
         write_manifest(manifest_path, manifest)
         deps.git_commit(
             [str(manifest_path), str(COSTS_CSV)],
-            f"chore(session): record session {manifest['session_id']} (dbt-run failed)",
+            f"chore(session): record session {session_id}{reaped_note} (dbt-run failed)",
         )
         raise RuntimeError(f"session-down: dbt-run failed: {dbt_result['url']}")
 
@@ -110,7 +148,7 @@ def run_session_down(manifest_path: Path, deps: SessionDownDeps) -> dict:
     write_manifest(manifest_path, manifest)
     deps.git_commit(
         [str(manifest_path), str(COSTS_CSV)],
-        f"chore(session): record session {manifest['session_id']}",
+        f"chore(session): record session {session_id}{reaped_note}",
     )
     return manifest
 
@@ -123,12 +161,18 @@ def _real_stop_ingester() -> None:
     _run("make", "ingester-stop")
 
 
-def _real_destroy_ephemeral(image_tag: str) -> None:
-    # `image_tag` has no default (infra/main/ephemeral/variables.tf) so it's required even
-    # for destroy; the value doesn't have to match what's live, but Terraform won't plan
-    # without one. `terraform destroy` refreshes state before planning, so a stream already
-    # gone out-of-band is detected and dropped from state rather than failing the destroy.
-    _run("make", "tf-destroy-ephemeral", f"TF_ARGS=-auto-approve -var image_tag={image_tag}")
+def _real_destroy_ephemeral(image_tag: str, session_id: str, session_start: str) -> None:
+    # None of these three vars has a default (infra/main/ephemeral/variables.tf) so all are
+    # required even for destroy; the values don't have to match what's live, but Terraform
+    # won't plan without them. `terraform destroy` refreshes state before planning, so a
+    # stream (or, since QNT-459, the reaper schedule) already gone out-of-band is detected
+    # and dropped from state rather than failing the destroy.
+    _run(
+        "make",
+        "tf-destroy-ephemeral",
+        f"TF_ARGS=-auto-approve -var image_tag={image_tag} "
+        f"-var session_id={session_id} -var session_start={session_start}",
+    )
 
 
 def _real_collect_gaps(session_id: str, start: datetime, end: datetime) -> list[dict]:
@@ -190,9 +234,32 @@ def _real_git_commit(paths: list[str], message: str) -> None:
 
 
 def _real_append_cost_row(
-    session_id: str, start_iso: str, end_iso: str, cost_estimate: float
+    session_id: str, start_iso: str, end_iso: str, cost_estimate: float, *, reaped: bool = False
 ) -> None:
-    append_pending_cost_row(COSTS_CSV, session_id, start_iso, end_iso, cost_estimate)
+    append_pending_cost_row(COSTS_CSV, session_id, start_iso, end_iso, cost_estimate, reaped=reaped)
+
+
+def _terraform_output(name: str) -> str:
+    result = subprocess.run(
+        ["terraform", "output", "-raw", name],
+        cwd=EPHEMERAL_DIR,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def _real_check_reaped(session_id: str) -> dict | None:
+    """The reap marker the reaper Lambda writes to S3 (QNT-459), if present -- there is no
+    other channel from the Lambda back to this locally-run script."""
+    bucket = _terraform_output("data_bucket_name")
+    s3 = boto3.client("s3", region_name=REGION)
+    try:
+        obj = s3.get_object(Bucket=bucket, Key=reap_marker_key(session_id))
+    except s3.exceptions.NoSuchKey:
+        return None
+    return json.loads(obj["Body"].read())
 
 
 def main() -> None:
@@ -219,6 +286,7 @@ def main() -> None:
         run_iceberg_maintain=_real_run_iceberg_maintain,
         git_commit=_real_git_commit,
         append_cost_row=_real_append_cost_row,
+        check_reaped=_real_check_reaped,
     )
     try:
         manifest = run_session_down(manifest_path, deps)

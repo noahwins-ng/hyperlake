@@ -64,7 +64,7 @@ Goal: Fargate ingester → Kinesis → Firehose → the same bronze; scripted se
     isn't `reaped: true`, or `terraform state list` on the ephemeral layer shows the Kinesis
     stream already present — guards against an overlapping/forgotten session outrunning the
     reaper's 6h bound
-- [ ] QNT-459: feat(session): session reaper — one-time EventBridge Scheduler + Lambda, drift-tolerant apply/destroy verified
+- [x] QNT-459: feat(session): session reaper — one-time EventBridge Scheduler + Lambda, drift-tolerant apply/destroy verified
   - `session-down` treats a detected reap as an anomaly, not a silent clean stop: loud warning
     naming the session id + `reaped_at`, and the `costs/` row it appends is marked
     reaper-terminated — makes a fired reaper visible instead of looking like a normal teardown

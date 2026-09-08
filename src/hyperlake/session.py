@@ -33,6 +33,19 @@ BYTES_PER_SECOND = 55_000_000 / (4 * 3600)
 # 64 MB / 60s -- used only to approximate object count for the $/1k-objects charge.
 FIREHOSE_AVG_OBJECT_BYTES = 64_000_000
 
+# >= one Firehose buffer window (60s, infra/main/ephemeral/kinesis_firehose.tf) with margin,
+# so records already in flight when the ingester stops still land in S3 before the stream
+# that carries them is destroyed. Shared by `session-down` and the session reaper
+# (QNT-459) -- both scale the ingester to 0 then wait this long before touching the stream.
+DRAIN_SECONDS = 120
+
+
+def reap_marker_key(session_id: str) -> str:
+    """S3 key (under the data bucket's `sessions/` prefix) the reaper Lambda writes to
+    signal a fired dead-man's switch -- the Lambda has no git/repo access, so this is how
+    `session-down` (own ticket, QNT-458) learns a session was reaped out-of-band."""
+    return f"sessions/{session_id}.reaped.json"
+
 
 def estimate_cost_usd(duration_hours: float) -> float:
     """Approximate a demo session's cost from resource-hours x list price."""

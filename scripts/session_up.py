@@ -4,6 +4,8 @@ apply the ephemeral Terraform stack, start the ingester, and write the manifest 
 """
 
 import argparse
+import os
+import re
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -19,6 +21,17 @@ ECR_REPOSITORY = "hyperlake-ingester"
 EPHEMERAL_DIR = Path("infra/main/ephemeral")
 SESSIONS_DIR = Path("sessions")
 KINESIS_STREAM_ADDRESS = "aws_kinesis_stream.trades"
+DEFAULT_MAX_SESSION_HOURS = 6.0
+LABEL_RE = re.compile(r"^[a-z0-9-]+$")
+
+
+def label_is_safe(label: str) -> bool:
+    """`--label` becomes part of `session_id`, which (QNT-459) flows unquoted into
+    `TF_ARGS` -- the Makefile expands that into a shell-executed `terraform apply` command.
+    Restricting it to the same charset Terraform/AWS resource names already require closes
+    off shell metacharacters (`;`, `` ` ``, `$()`) without needing to quote/escape anywhere
+    downstream."""
+    return bool(LABEL_RE.fullmatch(label))
 
 
 def stream_exists_in_state(state_list_output: str) -> bool:
@@ -65,6 +78,14 @@ def main() -> None:
     parser.add_argument("--label", default="dev", help="session_id prefix (default: dev)")
     args = parser.parse_args()
 
+    if not label_is_safe(args.label):
+        print(
+            f"session-up: --label {args.label!r} must match {LABEL_RE.pattern} "
+            "(it flows into a shell-executed terraform command)",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
     manifest_path = latest_manifest(SESSIONS_DIR)
     manifest = load_manifest(manifest_path) if manifest_path else None
     blocker = preflight_blocker(manifest, _terraform_state_list(EPHEMERAL_DIR))
@@ -73,20 +94,32 @@ def main() -> None:
         raise SystemExit(1)
 
     image_tag = latest_image_tag(boto3.client("ecr", region_name=REGION))
+    max_session_hours = float(os.environ.get("MAX_SESSION_HOURS", DEFAULT_MAX_SESSION_HOURS))
+
+    # Computed before the apply (not after, as session-id/start normally would be) because
+    # QNT-459's reaper schedule is a Terraform resource keyed on both -- `session_id` names
+    # it, `session_start` + `max_session_hours` compute its `at()` fire time.
+    start = datetime.now(UTC)
+    session_id = f"{args.label}-{start.strftime('%Y%m%d%H%M%S')}"
+    start_iso = start.isoformat().replace("+00:00", "Z")
 
     subprocess.run(
-        ["make", "tf-apply-ephemeral", f"TF_ARGS=-auto-approve -var image_tag={image_tag}"],
+        [
+            "make",
+            "tf-apply-ephemeral",
+            f"TF_ARGS=-auto-approve -var image_tag={image_tag} "
+            f"-var max_session_hours={max_session_hours} "
+            f"-var session_id={session_id} -var session_start={start_iso}",
+        ],
         check=True,
     )
     subprocess.run(["make", "ingester-start"], check=True)
 
     SESSIONS_DIR.mkdir(exist_ok=True)
-    start = datetime.now(UTC)
-    session_id = f"{args.label}-{start.strftime('%Y%m%d%H%M%S')}"
     manifest = {
         "session_id": session_id,
         "coins": load_watchlist(),
-        "start": start.isoformat().replace("+00:00", "Z"),
+        "start": start_iso,
         "end": None,
         "deployed_sha": image_tag,
         "gaps": [],

@@ -122,6 +122,35 @@ Measured against the live ephemeral stack (`hyperlake-backfill` state machine, M
 - **Prevention:** by design. Fresh clones need `git config core.hooksPath .githooks` or the
   hook does not run at all.
 
+## A session was reaped (the dead-man's switch fired)
+
+- **Symptom:** `make session-down` prints `WARNING -- session <id> was reaped at <reaped_at>
+  (dead-man's switch fired, max_session_hours exceeded)` on stderr instead of doing a normal
+  drain-and-stop; or, before running `session-down` at all, `aws ecs describe-services` shows
+  the ingester already at `desiredCount: 0` and `aws kinesis describe-stream` 404s on
+  `hyperlake-trades` even though nobody ran `session-down`.
+- **Diagnosis:** the session ran past `max_session_hours` (default 6, PRD FR-8) with nobody
+  watching. `session-up`'s per-session EventBridge Scheduler `at()` entry
+  (`hyperlake-reaper-<session_id>`) fired and invoked the reaper Lambda
+  (`src/hyperlake/session_reaper.py`), which scaled the ingester to 0, waited for the Firehose
+  buffer to drain, deleted the Kinesis stream, and wrote a reap marker to
+  `s3://<data-bucket>/sessions/<session_id>.reaped.json` -- confirm with `aws s3api get-object
+  --bucket <data-bucket> --key sessions/<session_id>.reaped.json /dev/stdout`. The Lambda has
+  no git/repo access, so that marker (not the locally-committed manifest) is the only record
+  until `session-down` runs and reads it.
+- **Response:** just run `make session-down` as normal -- it detects the marker, skips the
+  now-redundant stop/drain steps, finalizes the manifest with `reaped: true` /
+  `reaped_at` (using the marker's timestamp as the session's `end`), and marks the appended
+  `costs/sessions.csv` row `cost_status=reaper-terminated` rather than `pending`, so a reap
+  stays visibly distinct from a normal teardown in the cost log. `make session-up` afterward
+  starts a fresh session normally -- the stream Terraform still had recorded is dropped from
+  state during the `terraform destroy` inside `session-down` (state refresh detects it's
+  already gone), so the next apply just recreates it.
+- **Prevention:** this *is* the prevention mechanism for a forgotten session (the alternative
+  is an unbounded bill); nothing to fix. If reaps are firing on sessions you didn't forget,
+  the `MAX_SESSION_HOURS` env var (default 6) is too tight for that demo -- raise it for that
+  run: `MAX_SESSION_HOURS=8 make session-up`.
+
 ## `make check` green locally, `ci.yml` red
 
 - **Symptom:** the local gate passes but the same commit fails in Actions.

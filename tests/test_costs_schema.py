@@ -16,4 +16,4 @@ def test_sessions_csv_has_documented_schema() -> None:
         reader = csv.DictReader(f)
         assert reader.fieldnames == EXPECTED_FIELDNAMES
         for row in reader:
-            assert row["cost_status"] in ("pending", "final", "")
+            assert row["cost_status"] in ("pending", "final", "reaper-terminated", "")
