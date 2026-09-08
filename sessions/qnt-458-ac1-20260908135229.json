@@ -1,0 +1,30 @@
+{
+  "session_id": "qnt-458-ac1-20260908135229",
+  "coins": [
+    "BTC",
+    "ETH",
+    "HYPE",
+    "xyz:SP500",
+    "xyz:XYZ100"
+  ],
+  "start": "2026-09-08T13:52:29.989276Z",
+  "end": "2026-09-08T14:19:37.498282Z",
+  "deployed_sha": "f9bbf2626ae56a418bfaec584e2353d0155ac3d6",
+  "gaps": [],
+  "recon": {
+    "ws_only": null,
+    "backfill_only": null,
+    "both": null,
+    "window": null
+  },
+  "dbt_runs": [
+    {
+      "run_key": "session-down-qnt-458-ac1-20260908135229",
+      "url": "https://github.com/noahwins-ng/hyperlake/actions/runs/34237635736",
+      "status": "success"
+    }
+  ],
+  "cost_estimate_usd": 0.07,
+  "cost_actual_usd": null,
+  "reaped": false
+}
