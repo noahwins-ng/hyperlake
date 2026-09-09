@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: seam_trades
+    description: >
+      ADR-002 Athena seam test -- a `seam_test.trades` instance of silver's real merge
+      (macros/silver_trades_select.sql), proven only on athena (target-disabled on
+      duckdb: merge has no duckdb equivalent, ADR-002). Run twice via
+      `var('seam_round')` against `seam_fixture_round1` / `seam_fixture_round2`
+      (dbt/seeds/); the singular tests in dbt/tests/seam/ are what actually prove the
+      three ordering cases and `first_seen_source` immutability.
+    columns:
+      - name: tid
+        tests:
+          - unique
+          - not_null
+      - name: coin
+        tests:
+          - not_null
+      - name: source
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["ws", "backfill"]
+      - name: first_seen_source
+        tests:
+          - not_null
+      - name: source_rank
+        tests:
+          - not_null

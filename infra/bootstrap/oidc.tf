@@ -85,15 +85,19 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
     # Scoped to the real layer database names (infra/main/persistent/glue.tf, dbt schema
     # default) -- "hyperlake*" was never a real prefix any Glue database used, so this
-    # statement never actually covered the catalog until this fix (QNT-473).
+    # statement never actually covered the catalog until this fix (QNT-473). `seam_test`
+    # (QNT-462, ADR-002 amendment) isn't Terraform-managed -- dbt-athena creates it itself
+    # (glue:CreateDatabase, already granted above) the first time the seam job runs.
     resources = [
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:catalog",
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/bronze",
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/silver",
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/gold",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/seam_test",
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/bronze/*",
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/silver/*",
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/gold/*",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/seam_test/*",
     ]
   }
 

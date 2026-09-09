@@ -18,6 +18,10 @@ vars:
   # dt lookback for the silver merge (ADR-002); overridable per run (`--vars`) for the
   # first post-backfill run and `make heal` (QNT-461).
   silver_lookback_days: 2
+  # ADR-002 Athena seam test (QNT-462): which seam_fixture_round<N> seed
+  # models/seam/seam_trades.sql reads. The dbt-run seam job runs the model once per
+  # round (--vars '{seam_round: 1}' then 2) to exercise the merge over both rounds.
+  seam_round: 1
   # recon_trades (QNT-460, ADR-003) is scoped to one session per run via these three
   # vars, supplied by `make recon` for a real session. Defaults point at the
   # committed recon-fixture-clean scenario (dbt/fixtures/bronze_trades_sample.parquet,
@@ -38,7 +42,24 @@ models:
       +enabled: "{{ target.type != 'athena' }}"
     recon:
       +tags: ["recon"]
+    seam:
+      # ADR-002: merge behaviour has no duckdb equivalent -- the seam model is
+      # meaningless there (and would fail on duckdb, which doesn't support
+      # incremental_strategy: merge for this config shape). Athena-only.
+      +enabled: "{{ target.type == 'athena' }}"
+      +tags: ["seam"]
 
 seeds:
   hyperlake:
-    +tags: ["recon"]
+    session_gaps:
+      +tags: ["recon"]
+    seam_fixture_round1:
+      +tags: ["seam"]
+    seam_fixture_round2:
+      +tags: ["seam"]
+
+data_tests:
+  hyperlake:
+    seam:
+      +enabled: "{{ target.type == 'athena' }}"
+      +tags: ["seam"]
