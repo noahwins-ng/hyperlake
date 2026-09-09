@@ -10,7 +10,10 @@ the issue author didn't list them. Referenced by `profile.docs.ac_templates`.
      2026-09-06 (post-QNT-449/450): infra/**, dbt/models/staging/**, and src/hyperlake/** now
      exist for real. Re-checked 2026-09-07 (post-Phase-1 retro, QNT-473): added the IAM/OIDC
      verification bullet to the Terraform group from a real incident, not a hypothetical — see
-     docs/retros/phase-1-lakehouse.md. `sessions/**` (QNT-458) still doesn't exist. -->
+     docs/retros/phase-1-lakehouse.md. Re-checked 2026-09-09 (Phase 2 retro): broadened the CI
+     workflow group's ACs to any scheduled/dispatched workflow from the tf-drift-check.yml
+     backend.hcl incident — see docs/retros/phase-2-streaming.md. `sessions/**` (QNT-458) now
+     exists for real. -->
 
 ## Terraform / session-lifecycle changes
 
@@ -41,6 +44,15 @@ Apply when the diff touches `.github/workflows/*.yml`.
   `dbt build --target duckdb`/`terraform fmt -check`) must not gain a cloud dependency.
 - `dbt-run.yml` (OIDC, Athena target) completes under the `run_key` completion contract with no
   interactive prompt and a loud, non-silent failure on timeout.
+- Any new or modified scheduled/dispatched workflow (`schedule:`/`workflow_dispatch:` trigger) is
+  exercised by an actual triggered run (`gh workflow run` or its natural trigger) with an observed
+  success, before the ticket is called done — running the underlying script/logic locally is not
+  sufficient proof of the workflow's own wiring (checkout state, secrets/vars, backend config).
+  QNT-474's `tf-drift-check.yml` shipped with only its local-script ACs proven; the workflow itself
+  silently failed at `terraform init` on every scheduled run for ~1 day (no `infra/main/backend.hcl`
+  on a fresh checkout) until QNT-459-window PR #24 caught and fixed it. Same shape as QNT-473
+  (Phase 1): a mechanism verified via a stand-in (dev credentials / local run) instead of its real
+  execution context turns out broken there.
 
 ## dbt model changes (silver / gold / recon)
 
