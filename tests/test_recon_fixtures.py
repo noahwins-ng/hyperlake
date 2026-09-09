@@ -79,12 +79,34 @@ def test_duplicated_ws_row_does_not_inflate_distinct_tid_count():
     result = _dbt_build("recon-fixture-clean", *SCENARIOS["recon-fixture-clean"])
     assert result.returncode == 0, result.stdout + result.stderr
 
-    import duckdb
+    # `dbt show` (not a raw duckdb import -- duckdb is only in the `dbt` dependency
+    # group, which `make types`/`make test` don't install; CI caught this) reuses the
+    # same `uv run --group dbt` subprocess path as `_dbt_build` above.
+    show = subprocess.run(
+        [
+            "uv",
+            "run",
+            "--group",
+            "dbt",
+            "dbt",
+            "show",
+            "--profiles-dir",
+            ".",
+            "--target",
+            "duckdb",
+            "--inline",
+            "select membership from recon_trades where tid = 2002",
+            "--output",
+            "json",
+            "--limit",
+            "-1",
+            "--quiet",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=DBT_DIR,
+        check=True,
+    )
+    rows = json.loads(show.stdout)["show"]
 
-    con = duckdb.connect(str(DBT_DIR / "dev.duckdb"), read_only=True)
-    try:
-        rows = con.execute("select membership from main.recon_trades where tid = 2002").fetchall()
-    finally:
-        con.close()
-
-    assert rows == [("both",)]
+    assert rows == [{"membership": "both"}]
