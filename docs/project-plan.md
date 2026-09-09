@@ -101,6 +101,9 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
 - [x] QNT-474: chore(ops): Terraform state drift check on the persistent layer
   - compares live project=hyperlake resources (Glue databases/tables) against `terraform state list`; fails on drift in either direction
   - **Triggered by:** QNT-473 (Phase 1 retro) — `silver` Glue db was hand-created, drifted undetected
+- [x] QNT-475: chore(infra): bump hashicorp/aws provider to ~> 6.0 across all three Terraform roots
+  - `versions.tf` + lockfile in bootstrap, persistent, ephemeral; `terraform plan` proven zero-diff against real state
+  - **Triggered by:** Dependabot PR #11, which bumped only `infra/bootstrap` and would have drifted the three roots onto different provider majors
 
 ## Parking lot (no tickets — reopen the PRD before building)
 
