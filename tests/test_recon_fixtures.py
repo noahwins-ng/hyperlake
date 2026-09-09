@@ -8,6 +8,7 @@ Runs a real `dbt build --target duckdb` per scenario (same command CI runs via
 """
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -19,6 +20,19 @@ SCENARIOS = {
     "recon-fixture-gap": ("2026-02-01 02:00:00", "2026-02-01 03:00:00"),
     "recon-fixture-miss": ("2026-02-01 04:00:00", "2026-02-01 05:00:00"),
 }
+
+
+def _duckdb_path(session_id: str) -> str:
+    # Each scenario gets its own duckdb file (gitignored, dbt/*.duckdb) rather than
+    # sharing dev.duckdb across the four dbt subprocess invocations in this module --
+    # CI observed cross-test staleness/races against a shared file that never
+    # reproduced locally; per-scenario isolation removes the shared mutable state
+    # instead of chasing the exact non-deterministic cause.
+    return f"test_recon_{session_id.replace('-', '_')}.duckdb"
+
+
+def _dbt_env(session_id: str) -> dict:
+    return {**os.environ, "DBT_DUCKDB_PATH": _duckdb_path(session_id)}
 
 
 def _dbt_build(session_id: str, window_start: str, window_end: str) -> subprocess.CompletedProcess:
@@ -50,6 +64,7 @@ def _dbt_build(session_id: str, window_start: str, window_end: str) -> subproces
         capture_output=True,
         text=True,
         cwd=DBT_DIR,
+        env=_dbt_env(session_id),
     )
 
 
@@ -105,6 +120,7 @@ def test_duplicated_ws_row_does_not_inflate_distinct_tid_count():
         capture_output=True,
         text=True,
         cwd=DBT_DIR,
+        env=_dbt_env("recon-fixture-clean"),
         check=True,
     )
     rows = json.loads(show.stdout)["show"]
