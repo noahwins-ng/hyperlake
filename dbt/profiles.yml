@@ -8,6 +8,14 @@ hyperlake:
       type: duckdb
       path: "{{ env_var('DBT_DUCKDB_PATH', 'dev.duckdb') }}"
       threads: 4
+      # Athena's session timezone is always UTC (AWS platform behavior, not
+      # configurable) -- duckdb otherwise defaults to the host OS's local timezone,
+      # which silently shifts any naive `timestamp '...'` literal compared against a
+      # TIMESTAMPTZ column (e.g. recon_trades.sql's window bounds) by the local UTC
+      # offset. Found running the recon fixture tests on a non-UTC dev machine: CI
+      # (UTC) and a UTC+8 machine produced different results from the same query.
+      settings:
+        TimeZone: "UTC"
     athena:
       type: athena
       s3_staging_dir: "{{ env_var('DBT_ATHENA_S3_STAGING_DIR', 's3://hyperlake-athena-results-placeholder/') }}"

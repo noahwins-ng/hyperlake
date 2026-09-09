@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: recon_trades
+    description: >
+      G3 reconciliation ledger (ADR-003) -- one row per distinct `tid` seen in the
+      window `var('recon_window_start')`..`var('recon_window_end')` for
+      `var('recon_session_id')`, classified `ws_only` / `backfill_only` / `both`.
+      `make recon` aggregates this into the session manifest's `recon` block; the
+      singular tests `assert_ws_only_zero` and `assert_backfill_only_within_gaps`
+      (dbt/tests/) are what actually prove G3.
+    columns:
+      - name: session_id
+        tests:
+          - not_null
+      - name: tid
+        tests:
+          - not_null
+      - name: coin
+        tests:
+          - not_null
+      - name: time
+        tests:
+          - not_null
+      - name: membership
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["ws_only", "backfill_only", "both"]

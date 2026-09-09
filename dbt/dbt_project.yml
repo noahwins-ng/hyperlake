@@ -18,6 +18,15 @@ vars:
   # dt lookback for the silver merge (ADR-002); overridable per run (`--vars`) for the
   # first post-backfill run and `make heal` (QNT-461).
   silver_lookback_days: 2
+  # recon_trades (QNT-460, ADR-003) is scoped to one session per run via these three
+  # vars, supplied by `make recon` for a real session. Defaults point at the
+  # committed recon-fixture-clean scenario (dbt/fixtures/bronze_trades_sample.parquet,
+  # dbt/seeds/session_gaps.csv) so a bare `dbt build --target duckdb` (`make check`)
+  # stays green; the gap/miss scenarios are exercised by tests/test_recon_fixtures.py
+  # via `--vars` overrides, not by the default build.
+  recon_session_id: "recon-fixture-clean"
+  recon_window_start: "2026-02-01 00:00:00"
+  recon_window_end: "2026-02-01 01:00:00"
 
 models:
   hyperlake:
@@ -27,3 +36,9 @@ models:
       # only ever ran on duckdb. Disabled on athena rather than left to fail a real `dbt
       # build --target athena` the first time one runs unscoped (QNT-473).
       +enabled: "{{ target.type != 'athena' }}"
+    recon:
+      +tags: ["recon"]
+
+seeds:
+  hyperlake:
+    +tags: ["recon"]
