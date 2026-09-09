@@ -17,6 +17,10 @@ on:
         description: "dbt target"
         required: false
         default: "athena"
+      vars:
+        description: "dbt --vars argument, as a JSON object string (QNT-460: make recon's per-session recon_session_id/window)"
+        required: false
+        default: ""
 
 # Makes the run locatable by run_key via `gh run list --json displayTitle` -- the whole
 # point of the completion contract (FR-8): "latest" is unsafe when two dispatches land
@@ -63,6 +67,14 @@ jobs:
             exit 1
           fi
 
+      # QNT-460: regenerate dbt/seeds/session_gaps.csv from the real session's manifest
+      # (already committed by session-down) before the build reads it -- must run on
+      # this checkout, not the dispatching machine, which this runner never sees.
+      - name: Regenerate session_gaps seed for a real recon session
+        env:
+          DBT_VARS: ${{ inputs.vars }}
+        run: uv run python scripts/regen_recon_seed.py
+
       - name: dbt build
         working-directory: dbt
         env:
@@ -70,8 +82,9 @@ jobs:
           DBT_ATHENA_WORKGROUP: hyperlake
           TARGET: ${{ inputs.target }}
           SELECT: ${{ inputs.select }}
+          DBT_VARS: ${{ inputs.vars }}
         run: |
-          uv run --group dbt dbt build --profiles-dir . --target "$TARGET" ${SELECT:+--select "$SELECT"}
+          uv run --group dbt dbt build --profiles-dir . --target "$TARGET" ${SELECT:+--select "$SELECT"} ${DBT_VARS:+--vars "$DBT_VARS"}
 
       - name: Upload run_results.json
         if: always()

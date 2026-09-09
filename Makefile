@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down
+.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -113,6 +113,14 @@ session-up:
 
 session-down:
 	uv run python scripts/session_down.py $(if $(DBT_ARGS),--dbt-args $(DBT_ARGS))
+
+# QNT-460: G3 reconciliation (ADR-003) -- computes the session's reconcilable window,
+# regenerates dbt/seeds/session_gaps.csv from its manifest gaps, runs recon_trades +
+# its tests via dbt-run (`select tag:recon`), and writes the resulting
+# ws_only/backfill_only/both counts into the manifest's recon block.
+recon:
+	@test -n "$(SESSION)" || (echo "usage: make recon SESSION=<session_id>"; exit 1)
+	uv run python scripts/recon.py --session $(SESSION)
 
 tf-check:
 	@if find . -name '*.tf' -not -path './.terraform/*' | grep -q .; then \
