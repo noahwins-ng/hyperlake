@@ -15,59 +15,16 @@
 -- target row more than once, and the incoming batch re-reads the whole lookback window on
 -- every run, so it commonly holds more than one row per `tid` (a prior ws row plus a later
 -- backfill row for the same trade). ADR-005: backfill outranks ws (source_rank); ties break
--- on the most recently ingested row.
-with bronze as (
+-- on the most recently ingested row. Select body: macros/silver_trades_select.sql (shared
+-- with the Athena seam test, QNT-462, so both run the identical merge logic).
+{% set bronze_source %}
+    (
+        select *
+        from {{ source('bronze', 'trades_raw') }}
+        {% if target.type == 'athena' %}
+        where dt >= date_add('day', -{{ var('silver_lookback_days') }}, current_date)
+        {% endif %}
+    )
+{% endset %}
 
-    select *
-    from {{ source('bronze', 'trades_raw') }}
-    {% if target.type == 'athena' %}
-    where dt >= date_add('day', -{{ var('silver_lookback_days') }}, current_date)
-    {% endif %}
-
-),
-
-ranked as (
-
-    select
-        tid,
-        coin,
-        side,
-        px,
-        sz,
-        time,
-        hash,
-        crossed,
-        liquidation,
-        fee,
-        source,
-        case source
-            when 'backfill' then 2
-            when 'ws' then 1
-        end as source_rank,
-        source as first_seen_source,
-        row_number() over (
-            partition by tid
-            order by
-                case source when 'backfill' then 2 when 'ws' then 1 end desc,
-                ingested_at desc
-        ) as rn
-    from bronze
-
-)
-
-select
-    tid,
-    coin,
-    side,
-    px,
-    sz,
-    time,
-    hash,
-    crossed,
-    liquidation,
-    fee,
-    source,
-    source_rank,
-    first_seen_source
-from ranked
-where rn = 1
+{{ silver_trades_select(bronze_source) }}

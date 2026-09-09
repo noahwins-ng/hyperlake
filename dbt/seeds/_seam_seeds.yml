@@ -1,0 +1,54 @@
+version: 2
+
+seeds:
+  - name: seam_fixture_round1
+    description: >
+      ADR-002 Athena seam test (QNT-462) -- round-1 fixture: tid 1001 (ws), 1002 (ws),
+      1003 (backfill). Loaded once; models/seam/seam_trades.sql reads it on
+      `var('seam_round', 1)` (the default, and the model's initial load).
+    config:
+      column_types:
+        tid: bigint
+        coin: varchar
+        side: varchar
+        px: decimal(18,8)
+        sz: decimal(18,6)
+        time: timestamp
+        hash: varchar
+        crossed: boolean
+        liquidation: boolean
+        fee: decimal(18,6)
+        source: varchar
+        ingested_at: timestamp
+    columns:
+      - name: tid
+        tests:
+          - unique
+          - not_null
+
+  - name: seam_fixture_round2
+    description: >
+      ADR-002 Athena seam test (QNT-462) -- round-2 fixture, read when
+      `var('seam_round')` is 2: tid 1001 gets a late `ws` duplicate (case a, no-op
+      re-delivery), tid 1002 a `backfill` row arriving after its round-1 `ws` row
+      (case b, backfill must win), tid 1003 a `ws` row arriving after its round-1
+      `backfill` row (case c, ws must not overwrite backfill).
+    config:
+      column_types:
+        tid: bigint
+        coin: varchar
+        side: varchar
+        px: decimal(18,8)
+        sz: decimal(18,6)
+        time: timestamp
+        hash: varchar
+        crossed: boolean
+        liquidation: boolean
+        fee: decimal(18,6)
+        source: varchar
+        ingested_at: timestamp
+    columns:
+      - name: tid
+        tests:
+          - unique
+          - not_null
