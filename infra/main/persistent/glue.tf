@@ -37,6 +37,12 @@ resource "aws_glue_catalog_database" "silver" {
   name = "silver"
 }
 
+# Auto-created by dbt-athena on the seam job's first run (QNT-462, ADR-002 amendment) --
+# same hand-created-then-imported story as `silver` above, not a fresh mistake.
+resource "aws_glue_catalog_database" "seam_test" {
+  name = "seam_test"
+}
+
 # Partition projection (no crawler, no MSCK REPAIR): new objects under bronze/ are
 # queryable the moment they land (PRD Landing -> Partition registration).
 resource "aws_glue_catalog_table" "trades_raw" {
