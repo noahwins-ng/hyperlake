@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build dbt-demo-fail cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal
+.PHONY: check lint format types test audit tf-check dbt-build dbt-demo-fail cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -142,6 +142,17 @@ recon:
 heal:
 	@test -n "$(SESSION)" || (echo "usage: make heal SESSION=<session_id>"; exit 1)
 	uv run python scripts/heal.py --session $(SESSION)
+
+# QNT-476: ad-hoc Athena query wrapper for bronze.trades_raw -- DT_FROM (required) bounds
+# the partition-projection scan; DT_TO/SELECT/WHERE/LIMIT are optional passthroughs, e.g.
+# `make bronze-query DT_FROM=2026-09-03 SELECT=tid,coin WHERE="coin = 'BTC'"`.
+bronze-query:
+	@test -n "$(DT_FROM)" || (echo "usage: make bronze-query DT_FROM=YYYY-MM-DD [DT_TO=YYYY-MM-DD] [SELECT=cols] [WHERE=clause] [LIMIT=n]"; exit 1)
+	uv run python scripts/bronze_query.py --dt-from "$(DT_FROM)" \
+	  $(if $(DT_TO),--dt-to "$(DT_TO)") \
+	  $(if $(SELECT),--select "$(SELECT)") \
+	  $(if $(WHERE),--where "$(WHERE)") \
+	  $(if $(LIMIT),--limit "$(LIMIT)")
 
 tf-check:
 	@if find . -name '*.tf' -not -path './.terraform/*' | grep -q .; then \

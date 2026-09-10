@@ -104,6 +104,9 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
 - [x] QNT-475: chore(infra): bump hashicorp/aws provider to ~> 6.0 across all three Terraform roots
   - `versions.tf` + lockfile in bootstrap, persistent, ephemeral; `terraform plan` proven zero-diff against real state
   - **Triggered by:** Dependabot PR #11, which bumped only `infra/bootstrap` and would have drifted the three roots onto different provider majors
+- [x] QNT-476: chore(ops): bronze ad-hoc query guardrail — bounded dt filter wrapper
+  - `make bronze-query DT_FROM=...` requires a bounded `dt` lower bound and refuses to run unfiltered; safe pattern documented in `docs/guides/ops-runbook.md`
+  - **Triggered by:** cost investigation (2026-09-09) tracing ~$0.62 of ~$0.78 total spend to unbounded ad-hoc scans against bronze's partition-projected table; deferred from QNT-460 scoping
 - [x] QNT-477: fix(infra): declare + import seam_test Glue database, tf-drift-check flags it as hand-created
   - `seam_test` (auto-created live by QNT-462's seam job) declared in `glue.tf` and `terraform import`ed — same fix shape as QNT-473's `silver` import
   - **Triggered by:** QNT-474's scheduled `tf-drift-check` catching real drift for the first time, 2026-09-10

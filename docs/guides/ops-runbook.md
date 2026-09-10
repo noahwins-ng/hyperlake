@@ -182,6 +182,30 @@ Measured against the live ephemeral stack (`hyperlake-backfill` state machine, M
   the `MAX_SESSION_HOURS` env var (default 6) is too tight for that demo -- raise it for that
   run: `MAX_SESSION_HOURS=8 make session-up`.
 
+## Ad-hoc Athena queries against `bronze.trades_raw` (S3 request-count cost)
+
+- **Symptom:** an unbounded `SELECT ... FROM bronze.trades_raw` (no `dt` filter) run
+  manually in the Athena console feels slow and shows up as S3 `Requests-Tier1/Tier2`
+  cost, out of proportion to the actual bytes scanned.
+- **Diagnosis:** `bronze.trades_raw` uses Glue partition projection (`dt` range
+  2025-07-27..NOW × 5 watchlist coins × 2 sources ≈ 4,090 virtual partitions) with no
+  persisted partition metadata, so Athena issues an S3 LIST per virtual partition on any
+  query that doesn't bound `dt`. A cost investigation (2026-09-09) traced ~$0.62 of the
+  project's ~$0.78 total AWS spend to exactly this, from ad-hoc queries run right after
+  QNT-450 created the table and during the QNT-455..459 dev sessions.
+- **Safe pattern:** use `make bronze-query DT_FROM=YYYY-MM-DD` instead of querying Athena
+  directly — it requires a bounded `dt` lower bound and refuses to run (no Athena call at
+  all) without one. `DT_TO` (default: same as `DT_FROM`, i.e. one day), `SELECT`,
+  `WHERE` (ANDed with the `dt` bound), and `LIMIT` (default 100) are optional, e.g.:
+  ```
+  make bronze-query DT_FROM=2026-09-03 DT_TO=2026-09-03 SELECT=tid,coin WHERE="coin = 'BTC'" LIMIT=20
+  ```
+- **Prevention:** the dbt-managed path is already guarded by `silver_lookback_days`
+  (`dbt/models/silver/trades.sql`) — this wrapper is the equivalent guard for the
+  ad-hoc/manual path (QNT-476). It does not change bronze's partition strategy (out of
+  scope — current cost is well within budget); it only stops unbounded scans at the
+  query layer.
+
 ## `make check` green locally, `ci.yml` red
 
 - **Symptom:** the local gate passes but the same commit fails in Actions.
