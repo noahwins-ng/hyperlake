@@ -10,8 +10,11 @@ sources:
           On athena this is the real Glue table (QNT-450); on duckdb it resolves to the
           committed fixture dbt/fixtures/bronze_trades_sample.parquet, which contains
           duplicate `tid`s across `ws`/`backfill` sources to prove the dedup (QNT-453 AC1).
+          `make dbt-demo-fail` (QNT-464 AC2) points this at
+          bronze_trades_demo_fail.parquet instead -- the same fixture plus one row with an
+          invalid `side` ('X'), to show the red test + gold SKIP live.
         meta:
-          external_location: "fixtures/bronze_trades_sample.parquet"
+          external_location: "{{ 'fixtures/bronze_trades_demo_fail.parquet' if var('dbt_demo_fail', false) else 'fixtures/bronze_trades_sample.parquet' }}"
 
 models:
   - name: trades
@@ -23,37 +26,58 @@ models:
     columns:
       - name: tid
         description: Trade id — the dedup key.
+        data_type: bigint
         tests:
           - unique
           - not_null
       - name: coin
+        data_type: varchar
         tests:
           - not_null
       - name: side
+        data_type: varchar
         tests:
           - not_null
           - accepted_values:
               arguments:
                 values: ["A", "B"]
       - name: px
+        data_type: decimal(18,8)
         tests:
           - not_null
       - name: sz
+        data_type: decimal(18,6)
         tests:
           - not_null
       - name: time
+        # duckdb preserves the envelope's tz-aware Parquet timestamp as `TIMESTAMP WITH
+        # TIME ZONE`; Athena/Hive has no tz-aware timestamp type -- the Glue column is
+        # plain `timestamp` (src/hyperlake/envelope.py's `_glue_type`). One contract,
+        # per-target type, same pattern as materialization_for_target's target.type branch.
+        data_type: "{{ 'timestamp with time zone' if target.type == 'duckdb' else 'timestamp' }}"
         tests:
           - not_null
+      - name: hash
+        data_type: varchar
+      - name: crossed
+        data_type: boolean
+      - name: liquidation
+        data_type: boolean
+      - name: fee
+        data_type: decimal(18,6)
       - name: source
+        data_type: varchar
         tests:
           - not_null
           - accepted_values:
               arguments:
                 values: ["ws", "backfill"]
-      - name: first_seen_source
-        tests:
-          - not_null
       - name: source_rank
         description: Gates the merge's `update_condition` — a null rank here would silently break precedence.
+        data_type: integer
+        tests:
+          - not_null
+      - name: first_seen_source
+        data_type: varchar
         tests:
           - not_null

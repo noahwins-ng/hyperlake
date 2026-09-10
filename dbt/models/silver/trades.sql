@@ -1,5 +1,11 @@
 {{ config(**materialization_for_target(kind='merge', unique_key='tid')) }}
 
+-- G5 (PRD): silver is a governed contract, not an inferred shape -- every returned
+-- column must be declared with its type in _silver.yml (QNT-464 AC1). `on_schema_change:
+-- fail` so a dropped/retyped/reordered column breaks the build loudly instead of the
+-- incremental merge silently drifting from the contract.
+{{ config(contract={'enforced': true}, on_schema_change='fail') }}
+
 {% if target.type == 'athena' %}
 {{ config(
     partitioned_by=['coin', "day(time)"],

@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal
+.PHONY: check lint format types test audit tf-check dbt-build dbt-demo-fail cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -25,6 +25,12 @@ audit:
 # `uv sync --group dbt` step — relies on that uv auto-sync behavior.
 dbt-build:
 	cd dbt && uv run --group dbt dbt build --profiles-dir . --target duckdb
+
+# QNT-464 AC2/G5: seeds one bad row (an invalid `side`) via a demo-only bronze fixture and
+# runs `dbt build` so the run summary shows the red silver test and gold SKIPping downstream
+# of it -- "failures are visible in the demo" (Phase 4).
+dbt-demo-fail:
+	cd dbt && uv run --group dbt dbt build --profiles-dir . --target duckdb --vars '{dbt_demo_fail: true}'
 
 # Fills cost_actual_usd for pending costs/sessions.csv rows once Cost Explorer data is ready
 # (costs/README.md). Needs AWS credentials; not part of `check`/CI.

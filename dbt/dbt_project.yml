@@ -31,6 +31,14 @@ vars:
   recon_session_id: "recon-fixture-clean"
   recon_window_start: "2026-02-01 00:00:00"
   recon_window_end: "2026-02-01 01:00:00"
+  # G5 freshness (QNT-464, dbt/tests/assert_silver_freshness.sql): the session window to
+  # check silver's max event `time` against, plus how much lag behind `freshness_window_end`
+  # is tolerable. `make session-down`/`make recon` supply the real session's start/end for a
+  # live check; defaults here match the committed fixture (max `time` 2026-02-01 04:30:00)
+  # so a bare `dbt build --target duckdb` (`make check`) stays green.
+  freshness_window_start: "2026-02-01 00:00:00"
+  freshness_window_end: "2026-02-01 04:31:00"
+  freshness_max_lag_minutes: 5
 
 models:
   hyperlake:
