@@ -43,6 +43,37 @@ Each entry follows the same shape:
 - **Prevention:** `make heal` (QNT-461) HEADs every hour object before starting a Map execution
   and exits non-zero listing the not-yet-landed hours instead of running a partial backfill.
 
+## Falling back to the Reservoir daily file (`make backfill-fallback DATE=`)
+
+- **When:** only after the 24 h wait above — this is a manual decision, not an automatic
+  fallback (out of scope for QNT-465 on purpose). Confirm the official hour file is still
+  missing (`aws s3api head-object` per the entry above) before running this; the fallback
+  reader derives its own `hour=` object keys from each fill's event time (`hyperlake.
+  partitions.hour_from_event_time_ms`), which can differ from whichever invocation hour the
+  official reader would have used for the same trades — running both for the same date can
+  leave two bronze objects covering the same trades under different `hour=` keys. Silver's
+  merge-on-`tid` (ADR-005) makes that safe to query, just wasteful.
+- **Command:** `make backfill-fallback DATE=YYYY-MM-DD` — runs locally (no Lambda/Terraform),
+  reads `s3://hydromancer-reservoir/by_dex/{dex}/fills/perp/all/date=YYYY-MM-DD/fills.parquet`
+  requester-pays for each dex the watchlist touches, and writes bronze through the same
+  envelope + Parquet writer as the official reader.
+- **Diagnosis if it fails loud:** a `hyperlake.backfill.reservoir.SchemaError` naming missing
+  column(s), or an unrecognised `side` value, means Reservoir's layout has drifted again (it
+  already has once — `_pre_hip4_unification_backup/`) — the reader pins the full 28-column
+  contract (`PINNED_COLUMNS`) and refuses to guess at a null-filled row. A `pyarrow.
+  ArrowInvalid: Rescaling Decimal value would cause data loss` instead means a real
+  price/size/fee needed more than 8/6/6 decimal digits (the envelope's `px`/`sz`/`fee`
+  scales) — also loud, not silent, but a different exception path than `SchemaError`; no
+  watchlist market has needed more than 5 observed (OQ-1 spike).
+- **Prevention:** the schema assertion runs against the file's footer metadata before any row
+  is read (pytest: `tests/test_backfill_reservoir.py`, AC2) — drift is a loud exception, not a
+  silent wrong answer downstream.
+- **Parity proof (AC3, 2026-09-10):** read-only, no bronze writes on either side. BTC,
+  2026-09-03 hour 12 (already-backfilled bronze via the official reader, vs. a fresh
+  Reservoir read of the same hour): both sides returned **25,569** distinct `tid`s, 0
+  only-in-official, 0 only-in-reservoir — exact match, consistent with the OQ-1 spike's
+  measured ≈25.6 k figure for the same hour.
+
 ## `make cost-backfill` reports `0 row(s) backfilled` when a `pending` row should have filled
 
 - **Symptom:** a session's `costs/sessions.csv` row is more than a day old but stays

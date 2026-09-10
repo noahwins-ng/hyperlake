@@ -4,6 +4,7 @@ from hyperlake.partitions import (
     coin_from_partition_value,
     coin_partition_value,
     dt_from_event_time_ms,
+    hour_from_event_time_ms,
 )
 from hyperlake.watchlist import load_watchlist
 
@@ -48,3 +49,13 @@ def test_dt_from_event_time_ms_just_after_midnight_lands_in_next_day():
     # 2026-09-05T00:00:00.100Z
     ms = 1788566400100
     assert dt_from_event_time_ms(ms) == "2026-09-05"
+
+
+def test_hour_from_event_time_ms_has_no_leading_zero():
+    # 2026-09-04T03:00:00Z
+    assert hour_from_event_time_ms(1788490800000) == "3"
+
+
+def test_hour_from_event_time_ms_matches_the_official_archive_boundary_example():
+    # 2026-09-04T11:59:59.860Z -- hour 11, per the spike's hour-file boundary case.
+    assert hour_from_event_time_ms(1788436799860) == "11"

@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build dbt-demo-fail cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal
+.PHONY: check lint format types test audit tf-check dbt-build dbt-demo-fail cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -68,6 +68,13 @@ backfill-hour:
 	  --cli-binary-format raw-in-base64-out \
 	  --payload '{"date":"$(DATE)","hour":"$(HOUR)"}' \
 	  /tmp/backfill-hour-response.json && cat /tmp/backfill-hour-response.json
+
+# QNT-465: Reservoir daily-file fallback for a date whose official hour files are still
+# missing 24h after they should have landed (manual decision -- see the ops runbook).
+# Runs locally (no Lambda) against HYPERLAKE_DATA_BUCKET.
+backfill-fallback:
+	@test -n "$(DATE)" || (echo "usage: make backfill-fallback DATE=YYYY-MM-DD"; exit 1)
+	uv run python -m hyperlake.backfill.reservoir --date $(DATE)
 
 # QNT-452: fan out the backfill Lambda over [FROM, TO] (inclusive, ISO dates) through
 # the Step Functions state machine; waits for completion and reports failed hours.

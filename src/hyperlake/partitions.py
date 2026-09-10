@@ -33,3 +33,11 @@ def coin_from_partition_value(value: str, watchlist: Iterable[str]) -> str:
 def dt_from_event_time_ms(time_ms: int) -> str:
     """UTC calendar date (`YYYY-MM-DD`) of an exchange event time, in epoch milliseconds."""
     return datetime.fromtimestamp(time_ms / 1000, tz=UTC).strftime("%Y-%m-%d")
+
+
+def hour_from_event_time_ms(time_ms: int) -> str:
+    """UTC hour-of-day of an exchange event time, in epoch milliseconds -- matches the
+    official archive's hour-file basename convention (no leading zero, e.g. "3" not
+    "03"). Used by readers that must derive an object key's `hour=` segment from the
+    event itself rather than from an invocation argument (Reservoir fallback, QNT-465)."""
+    return str(datetime.fromtimestamp(time_ms / 1000, tz=UTC).hour)
