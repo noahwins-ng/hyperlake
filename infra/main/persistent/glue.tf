@@ -43,6 +43,13 @@ resource "aws_glue_catalog_database" "seam_test" {
   name = "seam_test"
 }
 
+# QNT-463: declared before the first `dbt build --target athena --select gold` runs, so
+# gold never goes through the hand-created-then-imported drift that hit silver/seam_test
+# (QNT-473/QNT-477). The OIDC role's Glue policy already scopes to this name (QNT-473).
+resource "aws_glue_catalog_database" "gold" {
+  name = "gold"
+}
+
 # Partition projection (no crawler, no MSCK REPAIR): new objects under bronze/ are
 # queryable the moment they land (PRD Landing -> Partition registration).
 resource "aws_glue_catalog_table" "trades_raw" {

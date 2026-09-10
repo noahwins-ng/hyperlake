@@ -42,6 +42,13 @@ models:
       +enabled: "{{ target.type != 'athena' }}"
     recon:
       +tags: ["recon"]
+    gold:
+      # Literal 'gold' database (mirrors bronze/silver, not recon's co-located-in-silver
+      # choice) -- declared in infra/main/persistent/glue.tf so it's Terraform-managed
+      # from creation, not auto-created-then-imported like seam_test/silver were
+      # (QNT-473/QNT-477).
+      +schema: "gold"
+      +tags: ["gold"]
     seam:
       # ADR-002: merge behaviour has no duckdb equivalent -- the seam model is
       # meaningless there (and would fail on duckdb, which doesn't support
