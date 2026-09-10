@@ -75,7 +75,7 @@ Goal: G3 proven at bronze, gaps healed, seam tested on Athena, gold marts with d
 
 - [ ] QNT-460: feat(dbt): recon_trades over bronze with gap-aware G3 tests
   - `ws_only = 0`; every `backfill_only` inside a manifest gap (ADR-003)
-- [ ] QNT-461: feat(session): make heal — backfill unhealed gap hours + trailing hour, re-run dbt-run, flip healed
+- [x] QNT-461: feat(session): make heal — backfill unhealed gap hours + trailing hour, re-run dbt-run, flip healed
 - [x] QNT-462: test(dbt): Athena seam test — seam_test schema, tag:seam, runs on every push to main
 - [ ] QNT-463: feat(dbt): gold marts — ohlcv_1m/1h/1d, volume_daily, liquidations_daily with OHLCV invariant tests
 - [ ] QNT-464: test(dbt): silver contract tests — schema, freshness, volume; gold gated on silver tests

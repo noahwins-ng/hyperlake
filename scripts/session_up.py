@@ -13,11 +13,16 @@ from pathlib import Path
 
 import boto3
 
-from hyperlake.session import latest_manifest, load_manifest, session_is_open, write_manifest
+from hyperlake.session import (
+    latest_image_tag,
+    latest_manifest,
+    load_manifest,
+    session_is_open,
+    write_manifest,
+)
 from hyperlake.watchlist import load_watchlist
 
 REGION = "ap-northeast-1"
-ECR_REPOSITORY = "hyperlake-ingester"
 EPHEMERAL_DIR = Path("infra/main/ephemeral")
 SESSIONS_DIR = Path("sessions")
 KINESIS_STREAM_ADDRESS = "aws_kinesis_stream.trades"
@@ -60,17 +65,6 @@ def _terraform_state_list(cwd: Path) -> str:
         ["terraform", "state", "list"], cwd=cwd, capture_output=True, text=True, check=True
     )
     return result.stdout
-
-
-def latest_image_tag(ecr_client) -> str:
-    """The commit SHA of the most recently pushed ingester image
-    (.github/workflows/ingester-image.yml tags each push with its commit SHA) --
-    not `git rev-parse HEAD`, since that workflow only fires on ingester-relevant path
-    changes and HEAD can advance past the last commit that actually built an image."""
-    images = ecr_client.describe_images(repositoryName=ECR_REPOSITORY)["imageDetails"]
-    tagged = [i for i in images if i.get("imageTags")]
-    newest = max(tagged, key=lambda i: i["imagePushedAt"])
-    return newest["imageTags"][0]
 
 
 def main() -> None:

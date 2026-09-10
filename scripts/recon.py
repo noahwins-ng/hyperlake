@@ -68,7 +68,14 @@ def run_recon(manifest_path: Path, deps: RunReconDeps) -> dict:
         "recon_window_start": window_start.strftime("%Y-%m-%d %H:%M:%S"),
         "recon_window_end": window_end.strftime("%Y-%m-%d %H:%M:%S"),
     }
-    dbt_result = deps.run_dbt(f"recon-{session_id}", dbt_vars)
+    # A bare `recon-{session_id}` run_key collides across repeated invocations for the
+    # same session (e.g. a retry after a transient failure, or `make heal` calling
+    # this a second time) -- gh_run.sh locates a run by exact displayTitle match, so a
+    # reused key can watch a *stale* run instead of the one just dispatched (found
+    # 2026-09-10 running QNT-461's heal verification against a retried recon). Stamp
+    # it with `now` like `scripts/heal.py`'s own run_key already does.
+    run_key = f"recon-{session_id}-{int(deps.now().timestamp())}"
+    dbt_result = deps.run_dbt(run_key, dbt_vars)
     if dbt_result["status"] != "success":
         raise RuntimeError(f"recon: dbt-run failed: {dbt_result['url']}")
 
