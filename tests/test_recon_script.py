@@ -86,13 +86,31 @@ def test_dbt_vars_carry_the_reconcilable_window_and_session_id(tmp_path):
     run_recon(manifest_path, deps)
 
     run_dbt_call = next(c for c in calls if c.startswith("run_dbt:"))
-    assert run_dbt_call.startswith("run_dbt:recon-dev-20260908090000:")
+    assert run_dbt_call.startswith("run_dbt:recon-dev-20260908090000-1788912000:")
     dbt_vars = json.loads(run_dbt_call.split(":", 2)[2])
     assert dbt_vars == {
         "recon_session_id": "dev-20260908090000",
         "recon_window_start": "2026-09-08 09:00:00",
         "recon_window_end": "2026-09-08 12:00:00",
     }
+
+
+def test_run_key_is_unique_per_invocation_not_reused_across_retries(tmp_path):
+    # A bare `recon-{session_id}` key would collide across two invocations for the
+    # same session (e.g. a retry) -- gh_run.sh locates a run by exact displayTitle
+    # match, so a reused key risks watching a stale run instead of the new dispatch.
+    manifest_path = _manifest(tmp_path)
+    deps, calls = _deps()
+    deps.now = lambda: datetime(2026, 9, 9, 1, 0, 0, tzinfo=UTC)
+    run_recon(manifest_path, deps)
+    first_call = next(c for c in calls if c.startswith("run_dbt:"))
+
+    deps2, calls2 = _deps()
+    deps2.now = lambda: datetime(2026, 9, 9, 1, 30, 0, tzinfo=UTC)
+    run_recon(manifest_path, deps2)
+    second_call = next(c for c in calls2 if c.startswith("run_dbt:"))
+
+    assert first_call.split(":", 2)[1] != second_call.split(":", 2)[1]
 
 
 def test_unsafe_session_id_fails_loud(tmp_path):

@@ -6,6 +6,8 @@ outrunning the reaper's 6h bound.
 import json
 from pathlib import Path
 
+ECR_REPOSITORY = "hyperlake-ingester"
+
 # ap-northeast-1 list prices, docs/prd.md S8 ("Cost model"). Fargate ingester is
 # 0.25 vCPU / 0.5 GB; Kinesis and Firehose are on-demand.
 FARGATE_HOURLY_USD = 0.016
@@ -92,3 +94,17 @@ def write_manifest(path: Path, manifest: dict) -> None:
     with path.open("w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
+
+
+def latest_image_tag(ecr_client) -> str:
+    """The commit SHA of the most recently pushed ingester image
+    (.github/workflows/ingester-image.yml tags each push with its commit SHA) --
+    not `git rev-parse HEAD`, since that workflow only fires on ingester-relevant path
+    changes and HEAD can advance past the last commit that actually built an image.
+    Shared by `session-up` (a live session's ingester) and `heal` (re-applying just the
+    backfill sub-stack, QNT-461) -- both need whatever image is already in ECR, not a
+    new build of their own."""
+    images = ecr_client.describe_images(repositoryName=ECR_REPOSITORY)["imageDetails"]
+    tagged = [i for i in images if i.get("imageTags")]
+    newest = max(tagged, key=lambda i: i["imagePushedAt"])
+    return newest["imageTags"][0]
