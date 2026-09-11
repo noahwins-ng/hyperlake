@@ -73,7 +73,7 @@ Goal: Fargate ingester → Kinesis → Firehose → the same bronze; scripted se
 
 Goal: G3 proven at bronze, gaps healed, seam tested on Athena, gold marts with data-quality gates.
 
-- [ ] QNT-460: feat(dbt): recon_trades over bronze with gap-aware G3 tests
+- [x] QNT-460: feat(dbt): recon_trades over bronze with gap-aware G3 tests
   - `ws_only = 0`; every `backfill_only` inside a manifest gap (ADR-003)
 - [x] QNT-461: feat(session): make heal — backfill unhealed gap hours + trailing hour, re-run dbt-run, flip healed
 - [x] QNT-462: test(dbt): Athena seam test — seam_test schema, tag:seam, runs on every push to main
