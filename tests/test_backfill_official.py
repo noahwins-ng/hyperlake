@@ -4,6 +4,7 @@ decode -- never `.read()` the whole S3 body into memory (AC6).
 """
 
 import io
+import json
 from pathlib import Path
 
 import lz4.frame
@@ -19,6 +20,7 @@ from hyperlake.backfill.official import (
     iter_fills,
     read_hour_file,
     row_object_key,
+    to_envelope_row,
     write_parquet_object,
 )
 
@@ -181,3 +183,34 @@ def test_collapse_raises_loudly_when_a_pair_has_no_crossed_fill():
     ]
     with pytest.raises(ValueError, match="9001"):
         list(collapse_fills(pair))
+
+
+# ---- QNT-466: a real archive hour proved `liquidation` isn't always a bare bool -------
+
+
+def _bronze_row(**fill_overrides) -> BronzeRow:
+    fill = {"tid": 1, "coin": "BTC", "side": "B", "px": "1", "sz": "1", "time": 0}
+    fill.update(fill_overrides)
+    return BronzeRow(coin="BTC", dt="2026-09-11", hour="13", fill=fill, archive_rows_collapsed=1)
+
+
+def test_to_envelope_row_liquidation_absent_stays_none():
+    row = to_envelope_row(_bronze_row(), ingested_at_ms=0, session_id="s")
+    assert row["liquidation"] is None
+
+
+def test_to_envelope_row_liquidation_bool_passes_through():
+    row = to_envelope_row(_bronze_row(liquidation=True), ingested_at_ms=0, session_id="s")
+    assert row["liquidation"] is True
+
+
+def test_to_envelope_row_liquidation_nested_object_coerces_to_true():
+    # 2026-09-11 live session: a real liquidation-driven fill's `liquidation` field is
+    # {liquidatedUser, markPx, method}, not the bare bool the 2026-09-04 spike assumed --
+    # the schema declares pa.bool_(), so this must coerce rather than crash the write.
+    liquidation_detail = {"liquidatedUser": "0xabc", "markPx": "77933.0", "method": "market"}
+    row = to_envelope_row(
+        _bronze_row(liquidation=liquidation_detail), ingested_at_ms=0, session_id="s"
+    )
+    assert row["liquidation"] is True
+    assert json.loads(row["raw_payload"])["liquidation"] == liquidation_detail

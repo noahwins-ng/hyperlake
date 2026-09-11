@@ -146,6 +146,35 @@ def test_enforces_locate_timeout_when_no_run_matches_key(tmp_path):
     assert "timed out after 2s locating a run for run_key=mykey" in result.stderr
 
 
+def test_dispatches_with_ref_pinned_to_the_calling_branch(tmp_path):
+    # QNT-466: without --ref, `gh workflow run` silently dispatches against the repo's
+    # default branch instead of whatever branch called this script -- wrong for anything
+    # the workflow reads from its own checkout (e.g. regen_recon_seed.py's session
+    # manifest, committed only on the caller's branch until the PR merges).
+    call_log = tmp_path / "workflow_run_args.txt"
+    stub = f"""
+"workflow run") echo "$*" > {call_log} ;;
+"run list") echo 123 ;;
+"""
+    stub += _RUN_VIEW_CASE
+    result = _run(
+        tmp_path,
+        stub,
+        "mykey",
+        env={"GH_STUB_STATUS": "completed", "GH_STUB_CONCLUSION": "success"},
+    )
+
+    assert result.returncode == 0, result.stderr
+    current_branch = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert f"--ref {current_branch}" in call_log.read_text()
+
+
 def test_distinguishes_two_back_to_back_keys(tmp_path):
     # AC1's shape, exercised against the stub: two different run_keys resolve to two
     # different run URLs, never falling back to "latest".

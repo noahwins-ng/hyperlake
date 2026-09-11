@@ -74,7 +74,7 @@ class SessionDownDeps:
     stop_ingester: Callable[[], None]
     destroy_ephemeral: Callable[[str, str, str], None]
     collect_gaps: Callable[[str, datetime, datetime], list[dict]]
-    run_dbt: Callable[[str], dict]
+    run_dbt: Callable[[str, dict], dict]
     run_iceberg_maintain: Callable[[], None]
     git_commit: Callable[[list[str], str], None]
     append_cost_row: Callable[..., None]
@@ -132,7 +132,16 @@ def run_session_down(manifest_path: Path, deps: SessionDownDeps) -> dict:
     manifest["cost_estimate_usd"] = cost_estimate
 
     run_key = f"session-down-{session_id}"
-    dbt_result = deps.run_dbt(run_key)
+    # QNT-466 (2026-09-11 live session): without these, assert_silver_freshness checks
+    # against dbt_project.yml's placeholder demo-fixture window (2026-02-01) instead of
+    # this session's real one, and fails on every real session regardless of actual
+    # freshness -- dbt's TIMESTAMP literal (unlike duckdb's) rejects ISO-8601 `T`/offset
+    # formatting (recon.py hit the same thing), hence the plain SQL literal shape.
+    dbt_vars = {
+        "freshness_window_start": start.strftime("%Y-%m-%d %H:%M:%S"),
+        "freshness_window_end": end.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    dbt_result = deps.run_dbt(run_key, dbt_vars)
     manifest["dbt_runs"] = manifest.get("dbt_runs", []) + [dbt_result]
 
     reaped_note = " (reaper-terminated)" if reap_marker is not None else ""
@@ -212,9 +221,11 @@ def _real_collect_gaps(session_id: str, start: datetime, end: datetime) -> list[
     return gaps
 
 
-def _real_run_dbt(run_key: str, extra_args: list[str] | None = None) -> dict:
+def _real_run_dbt(run_key: str, dbt_vars: dict, extra_args: list[str] | None = None) -> dict:
     result = subprocess.run(
-        ["scripts/gh_run.sh", run_key, *(extra_args or [])], capture_output=True, text=True
+        ["scripts/gh_run.sh", run_key, "-f", f"vars={json.dumps(dbt_vars)}", *(extra_args or [])],
+        capture_output=True,
+        text=True,
     )
     output = result.stdout + result.stderr
     match = RUN_URL_RE.search(output)
@@ -282,7 +293,9 @@ def main() -> None:
         stop_ingester=_real_stop_ingester,
         destroy_ephemeral=_real_destroy_ephemeral,
         collect_gaps=_real_collect_gaps,
-        run_dbt=lambda run_key: _real_run_dbt(run_key, extra_args=args.dbt_args),
+        run_dbt=lambda run_key, dbt_vars: _real_run_dbt(
+            run_key, dbt_vars, extra_args=args.dbt_args
+        ),
         run_iceberg_maintain=_real_run_iceberg_maintain,
         git_commit=_real_git_commit,
         append_cost_row=_real_append_cost_row,

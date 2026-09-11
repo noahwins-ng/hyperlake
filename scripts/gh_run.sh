@@ -28,7 +28,12 @@ case "$run_key" in
   ;;
 esac
 
-gh workflow run "$WORKFLOW" -f "run_key=$run_key" "$@"
+# QNT-466 (2026-09-11 live session): without --ref, `gh workflow run` dispatches against
+# the repo's default branch, not the branch actually calling this script -- silently
+# wrong for anything the workflow reads from the checkout (e.g. regen_recon_seed.py's
+# sessions/<id>.json, which exists only on the caller's branch until the PR merges).
+ref="$(git rev-parse --abbrev-ref HEAD)"
+gh workflow run "$WORKFLOW" --ref "$ref" -f "run_key=$run_key" "$@"
 
 run_id=""
 elapsed=0

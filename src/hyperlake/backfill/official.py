@@ -129,10 +129,11 @@ def to_envelope_row(row: BronzeRow, *, ingested_at_ms: int, session_id: str) -> 
         "time": fill["time"],
         "hash": fill.get("hash"),
         "crossed": fill.get("crossed"),
-        # The official archive carries no liquidation flag (spike 2026-09-04), so this is
-        # always None here; the Reservoir fallback reader (QNT-465) populates a real value
-        # through this same function.
-        "liquidation": fill.get("liquidation"),
+        # QNT-466 (2026-09-11 live session): a liquidation-driven trade carries
+        # `liquidation` as a nested {liquidatedUser, markPx, method} object, not the
+        # boolean the schema declares (contra the 2026-09-04 spike, which never observed
+        # one) -- coerce to presence/absence; raw_payload keeps the full detail.
+        "liquidation": bool(fill["liquidation"]) if fill.get("liquidation") is not None else None,
         "fee": Decimal(fill["fee"]) if fill.get("fee") is not None else None,
         "raw_payload": json.dumps(fill, sort_keys=True),
         "source": "backfill",

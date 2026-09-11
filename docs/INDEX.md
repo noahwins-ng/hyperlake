@@ -18,6 +18,7 @@
 
 ## Spikes
 - [2026-09-04 OQ-1 archive desk spike](spikes/2026-09-04-oq1-archive-desk-spike.md) — measured both archives + WS feed: region, sizes, lag, grain, volume, decimals
+- [2026-09-11 QNT-466 G3 live replay](spikes/2026-09-11-qnt466-g3-live-replay.md) — first full-hour live session: 4 bugs found + fixed (liquidation coercion, freshness vars, gh_run.sh --ref, gap boundary), one documented residual
 
 ## Retrospectives
 <!-- One per completed milestone; retro appends here. -->

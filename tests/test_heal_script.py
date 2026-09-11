@@ -170,7 +170,11 @@ def test_dbt_run_gets_lookback_sized_to_oldest_unhealed_gap(tmp_path):
 
     call = next(c for c in calls if c.startswith("run_dbt"))
     dbt_vars = json.loads(call.split(":", 2)[2])
-    assert dbt_vars == {"silver_lookback_days": 6}  # 2026-09-10 - 2026-09-05 + 1
+    assert dbt_vars == {
+        "silver_lookback_days": 6,  # 2026-09-10 - 2026-09-05 + 1
+        "freshness_window_start": "2026-09-08 09:00:00",
+        "freshness_window_end": "2026-09-08 10:00:00",
+    }
 
 
 def test_failed_dbt_run_does_not_flip_healed_or_run_recon(tmp_path):
