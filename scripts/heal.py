@@ -95,7 +95,16 @@ def run_heal(manifest_path: Path, deps: HealDeps) -> dict:
     now = deps.now()
     n_lookback = lookback_days(gaps, now.date())
     run_key = f"heal-{session_id}-{int(now.timestamp())}"
-    dbt_result = deps.run_dbt(run_key, {"silver_lookback_days": n_lookback})
+    # QNT-466 (2026-09-11 live session): without these, assert_silver_freshness checks
+    # against dbt_project.yml's placeholder demo-fixture window instead of this session's
+    # real one and fails regardless of actual freshness (same fix as session_down.py's
+    # run_dbt call) -- plain SQL literal shape, dbt's TIMESTAMP rejects ISO-8601 `T`/offset.
+    dbt_vars = {
+        "silver_lookback_days": n_lookback,
+        "freshness_window_start": _parse(manifest["start"]).strftime("%Y-%m-%d %H:%M:%S"),
+        "freshness_window_end": _parse(manifest["end"]).strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    dbt_result = deps.run_dbt(run_key, dbt_vars)
     manifest["dbt_runs"] = manifest.get("dbt_runs", []) + [dbt_result]
 
     if dbt_result["status"] != "success":

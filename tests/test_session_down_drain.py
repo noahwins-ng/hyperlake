@@ -42,6 +42,11 @@ def _manifest(tmp_path: Path) -> Path:
 
 def _deps(*, reap_marker: dict | None = None) -> tuple[SessionDownDeps, list[str]]:
     calls: list[str] = []
+
+    def run_dbt(run_key, dbt_vars):
+        calls.append(f"run_dbt:{run_key}:{json.dumps(dbt_vars, sort_keys=True)}")
+        return {"run_key": run_key, "url": "https://x/1", "status": "success"}
+
     deps = SessionDownDeps(
         stop_ingester=lambda: calls.append("stop_ingester"),
         sleep=lambda seconds: calls.append(f"sleep:{seconds}"),
@@ -51,7 +56,7 @@ def _deps(*, reap_marker: dict | None = None) -> tuple[SessionDownDeps, list[str
             )
         ),
         collect_gaps=lambda session_id, start, end: [],
-        run_dbt=lambda run_key: {"run_key": run_key, "url": "https://x/1", "status": "success"},
+        run_dbt=run_dbt,
         run_iceberg_maintain=lambda: calls.append("run_iceberg_maintain"),
         git_commit=lambda paths, message: calls.append(f"git_commit:{message}"),
         now=lambda: datetime(2026, 9, 8, 4, 0, 0, tzinfo=UTC),
@@ -86,6 +91,24 @@ def test_finalized_manifest_has_end_and_cost_estimate(tmp_path):
     assert result["cost_estimate_usd"] > 0
     on_disk = json.loads(manifest_path.read_text())
     assert on_disk["end"] == "2026-09-08T04:00:00Z"
+
+
+def test_dbt_run_gets_the_real_session_freshness_window(tmp_path):
+    # QNT-466: without these, assert_silver_freshness checks dbt_project.yml's
+    # placeholder demo-fixture window instead of this session's real one and fails
+    # regardless of actual freshness -- pin the exact vars passed, not just that
+    # run_dbt was called (found in review: this fix was previously unpinned).
+    manifest_path = _manifest(tmp_path)
+    deps, calls = _deps()
+
+    run_session_down(manifest_path, deps)
+
+    call = next(c for c in calls if c.startswith("run_dbt"))
+    dbt_vars = json.loads(call.split(":", 2)[2])
+    assert dbt_vars == {
+        "freshness_window_start": "2026-09-08 00:00:00",
+        "freshness_window_end": "2026-09-08 04:00:00",
+    }
 
 
 def test_malformed_manifest_missing_deployed_sha_fails_loud(tmp_path):

@@ -81,7 +81,7 @@ Goal: G3 proven at bronze, gaps healed, seam tested on Athena, gold marts with d
 - [x] QNT-464: test(dbt): silver contract tests — schema, freshness, volume; gold gated on silver tests
   - includes `make dbt-demo-fail` for the demo
 - [x] QNT-465: feat(backfill): Reservoir fallback reader via column mapping, layout-pinned and loud on drift
-- [ ] QNT-466: test(e2e): G3 replay on a live session — stream, heal, recon passes, manifest committed
+- [x] QNT-466: test(e2e): G3 replay on a live session — stream, heal, recon passes, manifest committed
   - the phase's demoable state; first fully populated manifest
 
 ### Phase 4 — Presentation
