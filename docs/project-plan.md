@@ -88,8 +88,10 @@ Goal: G3 proven at bronze, gaps healed, seam tested on Athena, gold marts with d
 
 Goal: a hiring manager can absorb the project in ten minutes; a stranger can reproduce it.
 
-- [ ] QNT-467: docs(readme): README with architecture diagram, per-layer sample queries, and bootstrap path
+- [x] QNT-467: docs(readme): README with architecture diagram, per-layer sample queries, and bootstrap path
   - carries the timed G1 (< 15 min) reproduction; fills `architecture/system-overview.md`
+  - live 2026-09-11: bootstrap/persistent no-op re-apply → ephemeral apply → 1-day backfill →
+    dbt-run → Athena query in 8m53s; detail in `docs/guides/ops-runbook.md`
 - [ ] QNT-468: docs(demo): demo runbook with timings — session-up → stream → heal → recon → query
 - [ ] QNT-469: docs(demo): recorded demo following the runbook + cost report
   - cost report reconciles the Cost Explorer all-time total against `sum(cost_actual)` in

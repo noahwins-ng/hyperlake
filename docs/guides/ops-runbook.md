@@ -125,6 +125,44 @@ Measured against the live ephemeral stack (`hyperlake-backfill` state machine, M
   disabled schedule) was destroyed immediately after each apply, per the
   ephemeral-by-design rule.
 
+## G1 stranger-path timing — bootstrap → backfill → Athena query (QNT-467 AC1)
+
+Measured live end-to-end in `ap-northeast-1`, 2026-09-11, following the README's
+"reproduce in 15 minutes" path against this project's one real AWS account (a genuinely
+fresh AWS account is a one-time NFR-7 cost this project doesn't re-pay per measurement —
+`infra/bootstrap` and `infra/main/persistent` are idempotent, so re-running them against
+already-applied state is the equivalent proof; see `docs/guides/bootstrap.md` AC1):
+
+| Step | Command | Result | Elapsed |
+|---|---|---|---|
+| Bootstrap (no-op re-apply) | `terraform plan` in `infra/bootstrap` | No changes | — |
+| Persistent (no-op re-apply) | `terraform plan` in `infra/main/persistent` | No changes | — |
+| Ephemeral apply (backfill primitives) | `make tf-apply-ephemeral` | 7 resources added | — |
+| 1-day backfill | `make backfill FROM=2026-09-10 TO=2026-09-10` | 25 hours run, 0 failed | 20.5 s |
+| `dbt-run` (OIDC) | `make dbt-run` | silver/gold/recon built | ~70 s |
+| Athena query | `make bronze-query` + `silver.trades` count | bronze 867,681 rows; silver row_count = distinct_tid = 867,681 | — |
+| **Total (apply → query)** | | | **8 min 53 s** |
+
+- **Result: 8m53s, well inside the 15-minute G1 ceiling** (bootstrap's own AC1 proof — a
+  no-op `terraform plan` — and the persistent layer's no-op plan both complete in
+  seconds, so nearly the full budget goes to the ephemeral apply + real 1-day backfill
+  + `dbt-run` round trip).
+- **Gotcha hit and documented for the README's quickstart:** the first `make dbt-run`
+  dispatch used `dbt_project.yml`'s placeholder `freshness_window_*` vars (meant to be
+  overridden per real session/backfill window — QNT-466 already hit this for
+  `session_down.py`/`heal.py`, see the entry below) and failed
+  `assert_silver_freshness`. Re-dispatched with `-f vars='{"freshness_window_start":
+  "2026-09-10 00:00:00", "freshness_window_end": "2026-09-11 01:00:00"}'` matching the
+  backfilled window, which passed. The README's quickstart command includes this flag
+  up front so a first-time reader doesn't hit it; the measured 8m53s includes the failed
+  first dispatch's ~2 min round trip anyway, so the clean-path time is faster still.
+- **Ephemeral teardown:** `terraform destroy` on the same 7 backfill-primitive resources
+  → `Destroy complete! Resources: 7 destroyed.`, confirmed clean by a follow-up
+  `terraform plan` showing only additions (nothing left to destroy).
+- **Cost:** not yet in Cost Explorer (24h tag lag, see the bootstrap entry above); same
+  order of magnitude as QNT-452's measured 1-day backfill (~$0.10), comfortably under
+  the $2/session G4 ceiling.
+
 ## `dbt-run` workflow fails, times out, or a caller can't tell which run is theirs
 
 - **Symptom:** `scripts/gh_run.sh` exits non-zero, or two callers dispatched around the same
