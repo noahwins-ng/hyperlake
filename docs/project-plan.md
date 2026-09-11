@@ -92,6 +92,8 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
   - carries the timed G1 (< 15 min) reproduction; fills `architecture/system-overview.md`
 - [ ] QNT-468: docs(demo): demo runbook with timings — session-up → stream → heal → recon → query
 - [ ] QNT-469: docs(demo): recorded demo following the runbook + cost report
+  - cost report reconciles the Cost Explorer all-time total against `sum(cost_actual)` in
+    `costs/sessions.csv`, explaining any gap — added in the Phase 3 retro (QNT-476 cost incident)
 - [ ] QNT-470: feat(dbt): dbt docs generated in CI and published to GitHub Pages
 
 ### Ops & Reliability  <!-- perpetual milestone: hardening that cuts across phases -->

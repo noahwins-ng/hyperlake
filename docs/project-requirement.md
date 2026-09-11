@@ -70,7 +70,7 @@ The spec: *what* we're building and *why*, organized by phase. This is the sourc
 
 - **README** — diagram, per-layer sample queries, bootstrap path, timed G1 (< 15 min). *Why:* G1, G6, NFR-4.
 - **Demo runbook** — `docs/demo-runbook.md` with timings and failure sidebar. *Why:* PRD §7 Phase 4; OQ-4 live-run fallback.
-- **Recorded demo + cost report** — video following the runbook; `make cost-report` rendering estimate vs actual. *Why:* OQ-4 primary artifact; G4 evidence.
+- **Recorded demo + cost report** — video following the runbook; `make cost-report` rendering estimate vs actual; report reconciles the Cost Explorer all-time total (`project=hyperlake` tag) against `sum(cost_actual)` in `costs/sessions.csv` and explains any gap. *Why:* OQ-4 primary artifact; G4 evidence. The reconciliation guards against `costs/sessions.csv` looking clean while non-session-scoped spend (e.g. the ad-hoc Athena query cost QNT-476 found and fixed) goes unreported.
 - **dbt docs on Pages** — lineage graph published from CI. *Why:* G6; the presentation layer without a BI product.
 
 ## Ops & Reliability (perpetual)

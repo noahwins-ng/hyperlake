@@ -13,7 +13,8 @@ the issue author didn't list them. Referenced by `profile.docs.ac_templates`.
      docs/retros/phase-1-lakehouse.md. Re-checked 2026-09-09 (Phase 2 retro): broadened the CI
      workflow group's ACs to any scheduled/dispatched workflow from the tf-drift-check.yml
      backend.hcl incident — see docs/retros/phase-2-streaming.md. `sessions/**` (QNT-458) now
-     exists for real. -->
+     exists for real. Re-checked 2026-09-11 (Phase 3 retro): added a Glue-schema-pairing bullet to
+     the dbt model group from the QNT-462/QNT-477 incident — see docs/retros/phase-3-convergence.md. -->
 
 ## Terraform / session-lifecycle changes
 
@@ -64,6 +65,12 @@ Apply when the diff touches `dbt/models/silver/**`, `dbt/models/gold/**`, or `db
   `source_rank` (backfill outranks ws) and `first_seen_source` stays insert-only lineage.
 - `recon_trades` still proves G3: `ws_only = 0`, and every `backfill_only` row falls inside a
   manifest-recorded gap.
+- If the change causes dbt-athena to auto-create a new Glue database/schema (a seam/fixture
+  schema, a new environment target, etc.), the matching `infra/main/persistent/glue.tf`
+  declaration + `terraform import` lands in the **same PR** — not left for the nightly
+  `tf-drift-check` to catch reactively. QNT-462 (Phase 3) shipped the `seam_test` schema this way;
+  `tf-drift-check` caught the drift within a day and QNT-477 fixed it — same shape as QNT-473
+  (Phase 1), a different trigger (auto-created by dbt, not hand-created in the console).
 
 ## Envelope / watchlist / partition-helper changes
 
