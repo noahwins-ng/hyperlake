@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check dbt-build dbt-demo-fail cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
+.PHONY: check lint format types test audit tf-check docs-check dbt-build dbt-demo-fail cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -163,3 +163,9 @@ tf-check:
 	else \
 		echo "tf-check: no *.tf files yet — skipping"; \
 	fi
+
+# QNT-467 AC3: relative markdown links in README.md + docs/ must resolve to a real file;
+# external/anchor-only links are skipped. Offline (no network call); not part of `check`
+# (kept standalone, matching AC3's "make docs-check or CI" -- ci.yml doesn't call it either).
+docs-check:
+	uv run python scripts/docs_check.py
