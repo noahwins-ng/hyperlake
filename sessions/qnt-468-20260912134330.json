@@ -1,0 +1,30 @@
+{
+  "session_id": "qnt-468-20260912134330",
+  "coins": [
+    "BTC",
+    "ETH",
+    "HYPE",
+    "xyz:SP500",
+    "xyz:XYZ100"
+  ],
+  "start": "2026-09-12T13:43:30.420622Z",
+  "end": "2026-09-12T13:58:02.295976Z",
+  "deployed_sha": "a93bef68db6ff536d4b65f1389b0f18656ec3cb2",
+  "gaps": [],
+  "recon": {
+    "ws_only": null,
+    "backfill_only": null,
+    "both": null,
+    "window": null
+  },
+  "dbt_runs": [
+    {
+      "run_key": "session-down-qnt-468-20260912134330",
+      "url": "",
+      "status": "failed"
+    }
+  ],
+  "cost_estimate_usd": 0.04,
+  "cost_actual_usd": null,
+  "reaped": false
+}
