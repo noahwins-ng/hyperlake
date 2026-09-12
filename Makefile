@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check docs-check dbt-build dbt-demo-fail cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
+.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check dbt-build dbt-demo-fail cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -169,3 +169,9 @@ tf-check:
 # (kept standalone, matching AC3's "make docs-check or CI" -- ci.yml doesn't call it either).
 docs-check:
 	uv run python scripts/docs_check.py
+
+# QNT-468 AC2: every `make <target>` docs/demo-runbook.md tells a reader to run must be a
+# real Makefile target, and every referenced docs/queries/*.sql must exist. Offline (no
+# network call); standalone like docs-check above -- not part of `check`/CI.
+demo-runbook-check:
+	uv run python scripts/demo_runbook_check.py

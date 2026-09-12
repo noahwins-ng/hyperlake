@@ -92,7 +92,10 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
   - carries the timed G1 (< 15 min) reproduction; fills `architecture/system-overview.md`
   - live 2026-09-11: bootstrap/persistent no-op re-apply → ephemeral apply → 1-day backfill →
     dbt-run → Athena query in 8m53s; detail in `docs/guides/ops-runbook.md`
-- [ ] QNT-468: docs(demo): demo runbook with timings — session-up → stream → heal → recon → query
+- [x] QNT-468: docs(demo): demo runbook with timings — session-up → stream → heal → recon → query
+  - live 2026-09-12: session `qnt-468-20260912134330` — session-up 69.5s, ~12 min stream;
+    recon hit the expected "archive not landed" path on a short session (full G3 pass
+    reference: QNT-466's spike)
 - [ ] QNT-469: docs(demo): recorded demo following the runbook + cost report
   - cost report reconciles the Cost Explorer all-time total against `sum(cost_actual)` in
     `costs/sessions.csv`, explaining any gap — added in the Phase 3 retro (QNT-476 cost incident)
