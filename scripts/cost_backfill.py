@@ -54,17 +54,28 @@ def query_cost(ce_client, start: str, end: str) -> float:
 
 
 def backfill(rows: list[dict], ce_client, now: datetime) -> int:
-    """Rewrite eligible pending rows in place; return how many were filled."""
+    """Rewrite eligible pending/reaper-terminated rows in place; return how many were filled.
+
+    A reaped session's `end` is still real (the reap marker's timestamp), so it's just as
+    queryable as a normal teardown -- but its `cost_status` stays `reaper-terminated` rather
+    than flipping to `final`, so a reap remains visibly distinct in the cost log (see
+    docs/guides/ops-runbook.md).
+    """
     filled = 0
     for row in rows:
-        if row["cost_status"] != "pending":
+        if row["cost_status"] not in ("pending", "reaper-terminated"):
+            continue
+        if row["cost_actual_usd"]:
+            # A reaper-terminated row never flips to `final`, so `cost_status` alone can't
+            # signal "already filled" the way it does for pending -> final -- check the value.
             continue
         end = datetime.fromisoformat(row["end"])
         if now - end < BACKFILL_DELAY:
             continue
         cost = query_cost(ce_client, row["start"], row["end"])
         row["cost_actual_usd"] = f"{cost:.2f}"
-        row["cost_status"] = "final"
+        if row["cost_status"] == "pending":
+            row["cost_status"] = "final"
         row["ce_query_date"] = now.date().isoformat()
         filled += 1
         print(f"{row['session_id']}: cost_actual_usd={row['cost_actual_usd']}")
