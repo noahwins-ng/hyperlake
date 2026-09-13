@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check dbt-build dbt-demo-fail cost-backfill tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
+.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check dbt-build dbt-demo-fail cost-backfill cost-report tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -36,6 +36,12 @@ dbt-demo-fail:
 # (costs/README.md). Needs AWS credentials; not part of `check`/CI.
 cost-backfill:
 	uv run python scripts/cost_backfill.py
+
+# QNT-469: renders costs/sessions.csv into docs/costs.md and the README's Cost section,
+# and proves cost discipline (per-session + idle ceilings, CE-vs-sessions.csv reconciliation).
+# Needs AWS credentials (Cost Explorer); not part of `check`/CI.
+cost-report:
+	uv run python -m scripts.cost_report
 
 # Persistent layer (S3 data bucket + Glue catalog + Athena workgroup) -- survives
 # session teardown, so destroy is confirmation-guarded.

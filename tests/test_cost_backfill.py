@@ -74,6 +74,56 @@ def test_final_row_is_never_requeried() -> None:
     ce.get_cost_and_usage.assert_not_called()
 
 
+def test_reaper_terminated_row_older_than_24h_gets_actual_but_keeps_status() -> None:
+    now = datetime.now(UTC)
+    old_end = (now - timedelta(hours=30)).isoformat()
+    rows = [
+        {
+            "session_id": "s5",
+            "start": old_end,
+            "end": old_end,
+            "cost_estimate_usd": "0.03",
+            "cost_actual_usd": "",
+            "cost_status": "reaper-terminated",
+            "ce_query_date": "",
+        }
+    ]
+    ce = _mock_ce("0.07")
+
+    filled = backfill(rows, ce, now)
+
+    assert filled == 1
+    assert rows[0]["cost_status"] == "reaper-terminated"
+    assert rows[0]["cost_actual_usd"] == "0.07"
+    assert rows[0]["ce_query_date"] == now.date().isoformat()
+
+
+def test_reaper_terminated_row_is_never_requeried_once_filled() -> None:
+    now = datetime.now(UTC)
+    old_end = (now - timedelta(hours=30)).isoformat()
+    rows = [
+        {
+            "session_id": "s6",
+            "start": old_end,
+            "end": old_end,
+            "cost_estimate_usd": "0.03",
+            "cost_actual_usd": "",
+            "cost_status": "reaper-terminated",
+            "ce_query_date": "",
+        }
+    ]
+    ce = _mock_ce("0.07")
+
+    first = backfill(rows, ce, now)
+    second = backfill(rows, ce, now)
+
+    assert first == 1
+    assert second == 0
+    assert rows[0]["cost_status"] == "reaper-terminated"
+    assert rows[0]["cost_actual_usd"] == "0.07"
+    ce.get_cost_and_usage.assert_called_once()
+
+
 def test_rerun_is_idempotent() -> None:
     now = datetime.now(UTC)
     old_end = (now - timedelta(hours=30)).isoformat()
