@@ -26,7 +26,7 @@ convergence, IaC, orchestration, data quality, and cost discipline — on a real
 non-toy dataset.
 
 The secondary problem is cost: portfolio infra that runs 24/7 bleeds money and rots. Hyperlake
-is **ephemeral by design** — built up for a recorded demo or interview walkthrough, torn down
+is **ephemeral by design** — built up for a demo session or interview walkthrough, torn down
 after, with idle cost near zero.
 
 ### Why Hyperliquid data
@@ -47,7 +47,7 @@ after, with idle cost near zero.
 | G3 | Batch/stream convergence | Backfilled and streamed rows land in the **same** silver tables; verified by **replay reconciliation at bronze** — stream an hour live, later backfill the same hour from the archive, and a dbt test over bronze proves **`ws_only = 0`** and **every `backfill_only` trade falls inside a gap interval recorded in the session manifest** (a WS disconnect legitimately produces archive-only trades; anything outside a recorded gap is a real miss). The window covers only hours whose archive file has landed (`recon_trades`; [ADR-003](decisions/ADR-003-g3-reconciliation-at-bronze.md)) |
 | G4 | Cost discipline | < $2 per demo session; < $2/month idle; every session's `cost_estimate` and next-day `cost_actual` committed to `costs/`; a forgotten session is bounded to ~6 h by the session reaper (FR-8) |
 | G5 | Data quality is enforced, not claimed | dbt tests gate the gold layer and failures are visible in the demo. **Freshness** = max event `time` in silver is within the session window; **volume** = the `recon_trades` counts (G3 and G5 share the same test). Plus schema/uniqueness/not-null tests on silver and OHLCV invariants on gold (`low ≤ open,close ≤ high`, candle volume = sum of trades) |
-| G6 | Legible to a recruiter | README with architecture diagram, recorded demo, and per-layer sample queries; PRD/ADRs show product thinking |
+| G6 | Legible to a recruiter | README with architecture diagram, demo runbook, and per-layer sample queries; PRD/ADRs show product thinking |
 
 ## 3. Non-goals
 
@@ -56,7 +56,7 @@ Explicitly out of scope — reject in review if it creeps in:
 - **No trading, signals, or execution.** Market data engineering only; no order placement,
   no wallets, no keys with financial power.
 - **No 24/7 operation.** No always-on dashboard, no uptime SLO. The artifact is the repo +
-  a recorded demo, not a live service.
+  a demo runbook, not a live service.
 - **No self-hosted Hyperliquid node.** The node requires x86 / 32 GB RAM / ~20 GB logs/day —
   a different project. WebSocket API + S3 archives only.
 - **No paid data sources.** Free feeds and requester-pays archive transfer only.
@@ -339,7 +339,7 @@ Contract: **at-least-once into bronze, exactly-once at silver** (dedup on `tid`)
 | **1 — Lakehouse (batch)** | Lambda backfill (per hour file, taker-fill collapse; source/identity fixed by [ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md)) → bronze Parquet → silver Iceberg via dbt (`dbt-run` workflow) → Athena queries. Stretch: Reservoir fallback reader | Lakehouse fundamentals, requester-pays handling |
 | **2 — Streaming** | Fargate ingester → Kinesis → Firehose → same bronze; `session-up`/`session-down` with manifest; **session reaper** (Scheduler + Lambda) and ingester self-exit | Streaming ingestion, live demo capability, bounded blast radius |
 | **3 — Convergence + transforms** | dbt silver/gold, dedup at the seam, data quality tests | The actual hard problem; the interview talking point |
-| **4 — Presentation** | README + diagram, **demo runbook** (`docs/demo-runbook.md`: session-up → stream → heal → recon → query, with timings), recorded demo following the runbook, cost report, dbt docs | Legibility to the hiring audience |
+| **4 — Presentation** | README + diagram, **demo runbook** (`docs/demo-runbook.md`: session-up → stream → heal → recon → query, with timings) as the demo artifact, cost report, dbt docs | Legibility to the hiring audience |
 
 Phases ship sequentially; each ends with a working, demoable state and a teardown test.
 

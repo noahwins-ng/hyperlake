@@ -1,7 +1,7 @@
 # Demo Runbook
 
-PRD Phase 4 deliverable (§7, §10 OQ-4): the script the recorded demo follows, and the
-fallback for a live run on request. Covers the streaming path (`session-up` → stream →
+PRD Phase 4 deliverable (§7, §10 OQ-4 amended): the project's demo artifact — real measured
+command + output, not a recording. Covers the streaming path (`session-up` → stream →
 `heal` → `recon` → query) plus the data-quality failure demo. The batch/backfill path's
 own timed walkthrough ("reproduce in 15 minutes") is in
 [`docs/guides/bootstrap.md`](guides/bootstrap.md) — this runbook assumes that layer

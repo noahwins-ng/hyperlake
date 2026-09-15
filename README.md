@@ -96,12 +96,6 @@ order by bucket desc
 limit 24;
 ```
 
-## Demo video
-
-`TODO(QNT-469): recorded demo link pending` — a walkthrough of the runbook
-([`docs/demo-runbook.md`](docs/demo-runbook.md)), showing the G3 recon passing and a
-deliberately red dbt test.
-
 ## Cost
 
 Ephemeral by design (G4): no 24/7 compute, everything scoped to a
@@ -126,6 +120,8 @@ lag clears; schema and methodology in [`costs/README.md`](costs/README.md).
 ## Docs map
 
 - [PRD](docs/prd.md) — scope, goals, and the frozen v1.0 architecture decisions
+- [Demo runbook](docs/demo-runbook.md) — the demo artifact: session-up → stream → heal →
+  recon → query, with real measured timings and the data-quality failure sidebar
 - [ADRs](docs/decisions) ([index](docs/INDEX.md#decisions-adrs)) — one per significant
   decision (dbt runtime, two-target dbt, G3 reconciliation point, Kinesis+Firehose vs.
   direct write, backfill source/trade identity)
