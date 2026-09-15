@@ -69,8 +69,8 @@ The spec: *what* we're building and *why*, organized by phase. This is the sourc
 **Goal:** A hiring manager can absorb the project in ten minutes; a stranger can reproduce it.
 
 - **README** — diagram, per-layer sample queries, bootstrap path, timed G1 (< 15 min). *Why:* G1, G6, NFR-4.
-- **Demo runbook** — `docs/demo-runbook.md` with timings and failure sidebar. *Why:* PRD §7 Phase 4; OQ-4 live-run fallback.
-- **Recorded demo + cost report** — video following the runbook; `make cost-report` rendering estimate vs actual; report reconciles the Cost Explorer all-time total (`project=hyperlake` tag) against `sum(cost_actual)` in `costs/sessions.csv` and explains any gap. *Why:* OQ-4 primary artifact; G4 evidence. The reconciliation guards against `costs/sessions.csv` looking clean while non-session-scoped spend (e.g. the ad-hoc Athena query cost QNT-476 found and fixed) goes unreported.
+- **Demo artifact** — `docs/demo-runbook.md` with real measured timings, the G3 recon walkthrough, and the data-quality failure sidebar (`make dbt-demo-fail`). *Why:* PRD §7 Phase 4; OQ-4 (amended 2026-09-15) — the recorded-video requirement was dropped in favor of this runbook, which already carries the same evidence as literal, reproducible command + output rather than a recording.
+- **Cost report** — `make cost-report` renders `costs/sessions.csv`, asserts per-session and idle spend stay under the PRD G4 ceiling, and reconciles the Cost Explorer all-time total (`project=hyperlake` tag) against `sum(cost_actual)` in `costs/sessions.csv`, explaining any gap. *Why:* G4 evidence. The reconciliation guards against `costs/sessions.csv` looking clean while non-session-scoped spend (e.g. the ad-hoc Athena query cost QNT-476 found and fixed) goes unreported.
 - **dbt docs on Pages** — lineage graph published from CI. *Why:* G6; the presentation layer without a BI product.
 
 ## Ops & Reliability (perpetual)

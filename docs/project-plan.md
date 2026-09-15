@@ -96,9 +96,11 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
   - live 2026-09-12: session `qnt-468-20260912134330` — session-up 69.5s, ~12 min stream;
     recon hit the expected "archive not landed" path on a short session (full G3 pass
     reference: QNT-466's spike)
-- [ ] QNT-469: docs(demo): recorded demo following the runbook + cost report
+- [x] QNT-469: docs(demo): cost report + reconciliation
   - cost report reconciles the Cost Explorer all-time total against `sum(cost_actual)` in
     `costs/sessions.csv`, explaining any gap — added in the Phase 3 retro (QNT-476 cost incident)
+  - recorded-video requirement dropped (scope change 2026-09-15, OQ-4 amended) — `docs/demo-runbook.md`
+    (QNT-468) is the demo artifact
 - [ ] QNT-470: feat(dbt): dbt docs generated in CI and published to GitHub Pages
 
 ### Ops & Reliability  <!-- perpetual milestone: hardening that cuts across phases -->

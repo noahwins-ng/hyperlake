@@ -405,7 +405,7 @@ dated otherwise.
 | Catalog (OQ-2, 2026-07-10) | Glue catalog; S3 Tables parked — beginner fluency + dbt-athena maturity | Phase 1 |
 | Write path (2026-07-10) | bronze = plain Parquet, Hive partitions; Iceberg only at silver/gold, written only by dbt-athena; backfill = plain-Python Lambda | Phase 1 |
 | Bronze drift posture (OQ-7, 2026-09-01) | ingester-owned envelope: typed columns + `raw_payload`; drift → nulls, never lost records | Phase 2 |
-| Demo artifact (OQ-4, 2026-09-01) | recorded video primary; scripted live run on request | Phase 4 |
+| Demo artifact (OQ-4, 2026-09-01; amended 2026-09-15) | `docs/demo-runbook.md` (real measured timings + G3 walkthrough + data-quality failure sidebar) is the demo artifact — recorded-video requirement dropped: low expected watch-through vs. production cost, and the runbook already carries the same evidence as reproducible text rather than a recording | Phase 4 |
 | Timeline (OQ-6, 2026-09-01) | no deadline; ~1–2 weekends per phase; Phase 3 uncompressed | — |
 | dbt runtime (2026-09-04) | GitHub Actions `dbt-run` workflow over OIDC; Step Functions = backfill fan-out only | [ADR-001](decisions/ADR-001-dbt-runtime-github-actions.md) |
 | Local dbt parity (2026-09-04) | two targets `duckdb`/`athena`; CI proves logic, Athena proves merge | [ADR-002](decisions/ADR-002-two-target-dbt-project.md) |
