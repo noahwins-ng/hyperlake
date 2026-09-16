@@ -11,22 +11,21 @@ with one `terraform apply` and torn down after every session.
 
 ## Why this exists
 
-Most portfolio data pipelines run on a Kaggle CSV, and most that run in the cloud bleed money
-24/7 until they rot. Hyperlake avoids both. It ingests a real, high-volume feed (Hyperliquid
-trades, ~6.6 M/day network-wide, ~1.1 M/day on the default watchlist) through two genuinely
-different paths: a live WebSocket stream and a requester-pays S3 archive. Landing both in one
-table with exactly-once semantics is the batch/stream convergence problem that makes lakehouse
-design interesting, and proving it (not asserting it) is the project's central claim.
+Hyperliquid publishes the same trades twice. A WebSocket feed delivers them live but loses
+whatever happens during a disconnect; an S3 archive delivers them complete but about an hour
+late. A system that wants both freshness and completeness has to take both, land them in
+one table, and show that nothing was lost and nothing was counted twice.
 
-Nothing runs 24/7: a session is `terraform apply` → work → `destroy`, bounded by a
-dead-man's-switch reaper if nobody runs the teardown. Sessions cost about $0.30; idle is near
-zero. Market-data engineering only, with no trading, signals, or execution anywhere.
+That is the problem Hyperlake solves, and the proof is the point. A reconciliation over the
+raw layer names every trade one path saw and the other did not, so exactly-once is measured
+after every run rather than assumed from the design. The feed is real volume, about 17
+trades/s across five markets, enough that the storage and merge choices actually matter.
 
-**Data scope.** The `trades` WebSocket channel only (no order book, no candles), for the five
-markets in [`config/watchlist.yaml`](config/watchlist.yaml): BTC, ETH, HYPE, and the HIP-3
-markets `xyz:SP500` and `xyz:XYZ100`, about 17 trades/s in total. Backfill reads the official
-`hl-mainnet-node-data` hourly archive. Widening to more of Hyperliquid's ~440 markets is a
-config change, not a code change.
+The second constraint is that it must cost almost nothing when nobody is looking. Nothing
+runs 24/7: a session is `terraform apply`, work, `destroy`, with a dead-man's-switch reaper
+if the teardown is forgotten. Sessions cost about $0.30; idle is near zero.
+
+Market data only. No trading, signals, or execution anywhere.
 
 ## Architecture
 
@@ -59,6 +58,12 @@ flowchart LR
     SILVER --> ATHENA
     GOLD --> ATHENA
 ```
+
+**Data scope.** The `trades` WebSocket channel only (no order book, no candles), for the five
+markets in [`config/watchlist.yaml`](config/watchlist.yaml): BTC, ETH, HYPE, and the HIP-3
+markets `xyz:SP500` and `xyz:XYZ100`, about 17 trades/s in total. Backfill reads the official
+`hl-mainnet-node-data` hourly archive. Widening to more of Hyperliquid's ~440 markets is a
+config change, not a code change.
 
 Component-by-component detail of what is deployed today is in
 [`docs/architecture/system-overview.md`](docs/architecture/system-overview.md).
