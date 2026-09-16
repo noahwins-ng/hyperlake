@@ -102,6 +102,11 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
   - recorded-video requirement dropped (scope change 2026-09-15, OQ-4 amended) — `docs/demo-runbook.md`
     (QNT-468) is the demo artifact
 - [ ] QNT-470: feat(dbt): dbt docs generated in CI and published to GitHub Pages
+- [x] QNT-478: docs(readme): restructure README as a shareable portfolio landing page
+  - problem statement, proof-first layout, design decisions, stack/repo tables, run/verify/tear-down,
+    testing + CI, "what I would do differently"; internal vocabulary (G*/OQ-*/QNT-*/phase) swept out
+  - proof image replaced by the runbook's measured bronze/silver/gold outputs (qnt-468, 2026-09-12);
+    cost report regenerated with qnt-468's actual (12/12 sessions final, avg $0.30)
 
 ### Ops & Reliability  <!-- perpetual milestone: hardening that cuts across phases -->
 
