@@ -101,7 +101,11 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
     `costs/sessions.csv`, explaining any gap — added in the Phase 3 retro (QNT-476 cost incident)
   - recorded-video requirement dropped (scope change 2026-09-15, OQ-4 amended) — `docs/demo-runbook.md`
     (QNT-468) is the demo artifact
-- [ ] QNT-470: feat(dbt): dbt docs generated in CI and published to GitHub Pages
+- [x] QNT-470: feat(dbt): dbt docs generated in CI, lineage graph captured for README
+  - live-Pages AC dropped (scope change 2026-09-16, modify) — GitHub Free can't serve Pages from
+    a private repo; lineage graph ships as a static screenshot instead
+  - Cost Explorer screenshot AC dropped (scope change 2026-09-16, modify) — the existing
+    `costs/sessions.csv`/`docs/costs.md` reconciliation tables already carry the cost proof
 - [x] QNT-478: docs(readme): restructure README as a shareable portfolio landing page
   - problem statement, proof-first layout, design decisions, stack/repo tables, run/verify/tear-down,
     testing + CI, "what I would do differently"; internal vocabulary (G*/OQ-*/QNT-*/phase) swept out

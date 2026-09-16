@@ -25,6 +25,13 @@ the teardown. Measured sessions cost about $0.30; idle cost is near zero.
 
 This is a market-data engineering project only — no trading, signals, or execution anywhere.
 
+**Data scope.** Only the `trades` WebSocket channel — no order book, no candles feed. The
+watchlist is the five markets in [`config/watchlist.yaml`](config/watchlist.yaml): BTC, ETH,
+HYPE, and two HIP-3 markets by their exact exchange name, `xyz:SP500` and `xyz:XYZ100` —
+together ~17 trades/s / ~1.1 M trades/day, backfilled from the official
+`hl-mainnet-node-data` hourly archive. Hyperliquid trades across ~440 markets network-wide;
+widening the watchlist is a one-line change to that config file, not a code change.
+
 ## Architecture
 
 Both paths write the same ingester-owned envelope into one bronze table. dbt, run from
@@ -75,6 +82,15 @@ Every number below is a real measurement recorded in the repo, cited by date and
   [spike report](docs/spikes/2026-09-11-qnt466-g3-live-replay.md)).
 - **$0.30 average session cost** over 12 finalized sessions, against a $2 ceiling — see
   [Cost](#cost).
+- **dbt docs, regenerated on every push to `main`** — lineage graph bronze → silver →
+  gold/recon on duckdb (offline, no AWS credentials); every silver/gold/recon column carries
+  a description, proven over `manifest.json`
+  ([`tests/test_dbt_docs_columns_described.py`](tests/test_dbt_docs_columns_described.py)).
+  No live site — GitHub Free can't serve Pages from a private repo — so the lineage graph
+  below is a static capture (`make dbt-docs && cd dbt && uv run --group dbt dbt docs serve`,
+  2026-09-16):
+
+![dbt docs lineage graph: bronze.trades_raw feeding silver trades, which feeds the gold OHLCV/volume/liquidations marts and their tests, and bronze.trades_raw feeding recon_trades](docs/img/dbt-lineage.png)
 
 The same coin and day traced through all three layers, from the demo session run 2026-09-12
 (`qnt-468-20260912134330`, [demo runbook](docs/demo-runbook.md)):
@@ -201,6 +217,45 @@ reconciliation are in [`docs/costs.md`](docs/costs.md).
 | Target ceiling | < $2/session, < $2/month idle |
 | Cost Explorer reconciliation gap | $-0.92 (full detail: [docs/costs.md](docs/costs.md)) |
 <!-- COST_REPORT:END -->
+
+**What this would cost you**, one scenario at a time:
+
+| Scenario | Cost | Source |
+|---|---|---|
+| Idle — nothing running | ~$-0.92/month (2026-09; Cost Explorer's ~24h billing lag makes this transiently negative right after a session ends — self-corrects) | [`docs/costs.md`](docs/costs.md) idle-by-month |
+| One demo session (measured: 3 min-1h25m so far) | $0.13-$0.76, avg $0.30 across 12 sessions | [`costs/sessions.csv`](costs/sessions.csv) |
+| One-day backfill | negligible (<$0.01 Lambda compute; 25 invocations, 20.5s wall time) | [ops runbook, QNT-452](docs/guides/ops-runbook.md#backfill-step-functions-fan-out--measured-wall-time--cost-qnt-452) |
+| 24×7 streaming, 30 days *(model, not a measurement)* | $50-$100/month | `hyperlake.session.estimate_cost_usd(720)` |
+
+The 24×7 row is a model, not something this project ever runs — every other row above is a
+real, ephemeral session. Its own line items at 720 h, from the estimator's constants:
+
+| Line item | Cost |
+|---|---|
+| Fargate | $11.52 |
+| Kinesis stream-hours | $34.56 |
+| Kinesis + Firehose per-GB (~9.9 GB raw/month) | $1.80 |
+| Athena maintenance (`iceberg-maintain`) | $0.01 |
+| Overhead margin | $54.00 |
+| **Model total** | **$101.89** |
+| Model total, excluding the overhead margin | $47.89 |
+
+Of the metered AWS spend (excluding the overhead margin), Kinesis's on-demand hourly charge
+dominates at ~72% ($34.56 of $47.89) — it runs whether or not a trade arrives, which is
+exactly why Hyperlake tears the stream down between sessions instead of leaving it up.
+Receipt (2026-09-16, regenerated for this PR, not hand-typed):
+
+```
+$ uv run python -c "
+from hyperlake.session import estimate_cost_usd, FARGATE_HOURLY_USD, KINESIS_HOURLY_USD, KINESIS_PER_GB_USD, FIREHOSE_INGEST_PER_GB_USD, FIREHOSE_CONVERSION_PER_GB_USD, FIREHOSE_PARTITION_PER_GB_USD, FIREHOSE_PARTITION_PER_1K_OBJECTS_USD, OVERHEAD_HOURLY_USD, BYTES_PER_SECOND, FIREHOSE_AVG_OBJECT_BYTES
+h = 720; raw_gb = BYTES_PER_SECOND * h * 3600 / 1e9; objs = raw_gb * 1e9 / FIREHOSE_AVG_OBJECT_BYTES
+fargate = FARGATE_HOURLY_USD * h; kinesis_hourly = KINESIS_HOURLY_USD * h
+per_gb = KINESIS_PER_GB_USD * raw_gb + (FIREHOSE_INGEST_PER_GB_USD + FIREHOSE_CONVERSION_PER_GB_USD) * raw_gb + FIREHOSE_PARTITION_PER_GB_USD * raw_gb + FIREHOSE_PARTITION_PER_1K_OBJECTS_USD * (objs / 1000)
+overhead = OVERHEAD_HOURLY_USD * h; total = estimate_cost_usd(h)
+print(f'fargate={fargate:.2f} kinesis_stream_hours={kinesis_hourly:.2f} kinesis_firehose_per_gb={per_gb:.2f} overhead_margin={overhead:.2f} total={total} total_excl_overhead={round(total-overhead,2)}')
+"
+fargate=11.52 kinesis_stream_hours=34.56 kinesis_firehose_per_gb=1.80 overhead_margin=54.00 total=101.89 total_excl_overhead=47.89
+```
 
 ## Testing and CI
 
