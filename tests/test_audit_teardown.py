@@ -2,14 +2,14 @@ from unittest.mock import MagicMock
 
 from scripts.audit_teardown import billable_ephemeral_arns, check, tagged_resource_arns
 
-KINESIS_ARN = "arn:aws:kinesis:ap-northeast-1:380345540395:stream/hyperlake-trades"
-FIREHOSE_ARN = "arn:aws:firehose:ap-northeast-1:380345540395:deliverystream/hyperlake-trades"
-SCHEDULER_ARN = "arn:aws:scheduler:ap-northeast-1:380345540395:schedule/default/hyperlake-reaper"
-ECS_ARN = "arn:aws:ecs:ap-northeast-1:380345540395:service/hyperlake/hyperlake-ingester"
-ECS_CLUSTER_ARN = "arn:aws:ecs:ap-northeast-1:380345540395:cluster/hyperlake"
-ECS_TASK_DEF_ARN = "arn:aws:ecs:ap-northeast-1:380345540395:task-definition/hyperlake-ingester:3"
-S3_ARN = "arn:aws:s3:::hyperlake-data-380345540395"
-GLUE_ARN = "arn:aws:glue:ap-northeast-1:380345540395:database/bronze"
+KINESIS_ARN = "arn:aws:kinesis:ap-northeast-1:123456789012:stream/hyperlake-trades"
+FIREHOSE_ARN = "arn:aws:firehose:ap-northeast-1:123456789012:deliverystream/hyperlake-trades"
+SCHEDULER_ARN = "arn:aws:scheduler:ap-northeast-1:123456789012:schedule/default/hyperlake-reaper"
+ECS_ARN = "arn:aws:ecs:ap-northeast-1:123456789012:service/hyperlake/hyperlake-ingester"
+ECS_CLUSTER_ARN = "arn:aws:ecs:ap-northeast-1:123456789012:cluster/hyperlake"
+ECS_TASK_DEF_ARN = "arn:aws:ecs:ap-northeast-1:123456789012:task-definition/hyperlake-ingester:3"
+S3_ARN = "arn:aws:s3:::hyperlake-data-123456789012"
+GLUE_ARN = "arn:aws:glue:ap-northeast-1:123456789012:database/bronze"
 
 
 def _mock_tagging(arns: list[str]) -> MagicMock:
