@@ -12,25 +12,21 @@ with one `terraform apply` and torn down after every session.
 ## Why this exists
 
 Most portfolio data pipelines run on a Kaggle CSV, and most that run in the cloud bleed money
-24/7 until they rot. Hyperlake is built to avoid both. It ingests a real, high-volume feed —
-Hyperliquid trades, measured at ~6.6 M/day network-wide and ~1.1 M/day on the default
-5-market watchlist — through two genuinely different acquisition paths: a live WebSocket
-stream and a requester-pays S3 archive. Making those two paths land in one table with
-exactly-once semantics is the batch/stream convergence problem that makes lakehouse design
-interesting, and proving it (not asserting it) is the project's central claim.
+24/7 until they rot. Hyperlake avoids both. It ingests a real, high-volume feed — Hyperliquid
+trades, ~6.6 M/day network-wide, ~1.1 M/day on the default watchlist — through two genuinely
+different paths: a live WebSocket stream and a requester-pays S3 archive. Landing both in one
+table with exactly-once semantics is the batch/stream convergence problem that makes lakehouse
+design interesting, and proving it (not asserting it) is the project's central claim.
 
-The second design constraint is cost. Nothing here runs 24/7: a demo session is
-`terraform apply` → work → `destroy`, bounded by a dead-man's-switch reaper if nobody runs
-the teardown. Measured sessions cost about $0.30; idle cost is near zero.
+Nothing runs 24/7: a session is `terraform apply` → work → `destroy`, bounded by a
+dead-man's-switch reaper if nobody runs the teardown. Sessions cost about $0.30; idle is near
+zero. Market-data engineering only — no trading, signals, or execution anywhere.
 
-This is a market-data engineering project only — no trading, signals, or execution anywhere.
-
-**Data scope.** Only the `trades` WebSocket channel — no order book, no candles feed. The
-watchlist is the five markets in [`config/watchlist.yaml`](config/watchlist.yaml): BTC, ETH,
-HYPE, and two HIP-3 markets by their exact exchange name, `xyz:SP500` and `xyz:XYZ100` —
-together ~17 trades/s / ~1.1 M trades/day, backfilled from the official
-`hl-mainnet-node-data` hourly archive. Hyperliquid trades across ~440 markets network-wide;
-widening the watchlist is a one-line change to that config file, not a code change.
+**Data scope.** The `trades` WebSocket channel only (no order book, no candles), for the five
+markets in [`config/watchlist.yaml`](config/watchlist.yaml): BTC, ETH, HYPE, and the HIP-3
+markets `xyz:SP500` and `xyz:XYZ100` — ~17 trades/s. Backfill reads the official
+`hl-mainnet-node-data` hourly archive. Widening to more of Hyperliquid's ~440 markets is a
+config change, not a code change.
 
 ## Architecture
 
@@ -82,13 +78,10 @@ Every number below is a real measurement recorded in the repo, cited by date and
   [spike report](docs/spikes/2026-09-11-qnt466-g3-live-replay.md)).
 - **$0.30 average session cost** over 12 finalized sessions, against a $2 ceiling — see
   [Cost](#cost).
-- **dbt docs, regenerated on every push to `main`** — lineage graph bronze → silver →
-  gold/recon on duckdb (offline, no AWS credentials); every silver/gold/recon column carries
-  a description, proven over `manifest.json`
-  ([`tests/test_dbt_docs_columns_described.py`](tests/test_dbt_docs_columns_described.py)).
-  No live site — GitHub Free can't serve Pages from a private repo — so the lineage graph
-  below is a static capture (`make dbt-docs && cd dbt && uv run --group dbt dbt docs serve`,
-  2026-09-16):
+- **dbt docs regenerated on every push to `main`**, offline on DuckDB; every silver/gold/recon
+  column is described, enforced by
+  [a pytest over `manifest.json`](tests/test_dbt_docs_columns_described.py). Lineage as of
+  2026-09-16:
 
 ![dbt docs lineage graph: bronze.trades_raw feeding silver trades, which feeds the gold OHLCV/volume/liquidations marts and their tests, and bronze.trades_raw feeding recon_trades](docs/img/dbt-lineage.png)
 
@@ -123,14 +116,10 @@ One line each; the reasoning lives in the linked ADR.
 - **Official node archive as backfill source, `tid` as trade identity.** The identity gate
   passed 1,986/1,986 between feed and archive before the schema was frozen —
   [ADR-005](docs/decisions/ADR-005-backfill-source-and-trade-identity.md).
-- **One Iceberg writer.** Bronze is plain Parquet; Iceberg exists only at silver/gold and is
-  written exclusively by dbt-athena.
-- **Event time everywhere.** Every partition and every gold window derives from exchange
-  event time, never from arrival time.
-- **No NAT Gateway, MWAA, MSK, OpenSearch, or QuickSight.** Each was rejected on cost;
-  Fargate runs with a public IP and an egress-only security group instead.
-- **No long-lived AWS keys.** GitHub Actions assumes a role over OIDC; CI runs with zero
-  cloud credentials.
+- **Guardrails.** One Iceberg writer (bronze is plain Parquet; only dbt-athena writes
+  Iceberg). Event time everywhere, never arrival time. No NAT Gateway, MWAA, MSK, OpenSearch,
+  or QuickSight — Fargate runs with a public IP and an egress-only security group. No
+  long-lived AWS keys — GitHub Actions assumes a role over OIDC, CI runs with none.
 
 ## Stack
 
@@ -155,10 +144,8 @@ One line each; the reasoning lives in the linked ADR.
 | `infra/` | Terraform: `bootstrap/` (state, OIDC, budgets), `main/persistent/` (S3, Glue, Athena), `main/ephemeral/` (compute, streams) |
 | `scripts/` | `session_up`/`session_down`, `heal`, `recon`, `backfill`, `bronze_query`, cost tooling, doc checks |
 | `config/watchlist.yaml` | The market list; the only place markets are named |
-| `sessions/` | One committed manifest per demo session: window, gaps, healed state, cost estimate |
-| `costs/` | `sessions.csv` — estimate vs. next-day actual per session |
-| `tests/` | pytest suite for the Python package and scripts |
-| `docs/` | PRD, ADRs, architecture overview, runbooks, spikes, retros |
+| `sessions/` · `costs/` | One committed manifest per demo session; `sessions.csv` with estimate vs. next-day actual |
+| `docs/` · `tests/` | PRD, ADRs, architecture overview, runbooks, spikes, retros; the pytest suite |
 | `.github/workflows/` | `ci.yml`, `dbt-run.yml`, `ingester-image.yml`, `tf-drift-check.yml`, `verify-oidc.yml` |
 
 ## Run it yourself
@@ -178,20 +165,10 @@ make backfill FROM=<day> TO=<day>                         # e.g. 2026-09-10
 make dbt-run ARGS="-f vars='{\"freshness_window_start\": \"<day> 00:00:00\", \"freshness_window_end\": \"<day+1> 01:00:00\"}'"
 ```
 
-**Verify** — bronze row count for the day, then the exactly-once check on silver:
-
-```
-make bronze-query DT_FROM=<day>
-```
-
-```sql
-select count(*) as row_count, count(distinct tid) as distinct_tid
-from silver.trades
-where coin = 'BTC';
-```
-
-The two counts are equal. For the streaming path — `session-up` → stream → `heal` → `recon`
-→ query — follow [`docs/demo-runbook.md`](docs/demo-runbook.md).
+**Verify** — `make bronze-query DT_FROM=<day>` for the day's bronze rows, then the
+exactly-once check from [`silver.sql`](docs/queries/silver.sql): row count equals distinct
+`tid` count. For the streaming path — `session-up` → stream → `heal` → `recon` → query —
+follow [`docs/demo-runbook.md`](docs/demo-runbook.md).
 
 **Tear down** — the ephemeral stack is the only thing that costs money while idle:
 
@@ -218,44 +195,17 @@ reconciliation are in [`docs/costs.md`](docs/costs.md).
 | Cost Explorer reconciliation gap | $-0.92 (full detail: [docs/costs.md](docs/costs.md)) |
 <!-- COST_REPORT:END -->
 
-**What this would cost you**, one scenario at a time:
+**What this would cost you:**
 
 | Scenario | Cost | Source |
 |---|---|---|
-| Idle — nothing running | ~$-0.92/month (2026-09; Cost Explorer's ~24h billing lag makes this transiently negative right after a session ends — self-corrects) | [`docs/costs.md`](docs/costs.md) idle-by-month |
-| One demo session (measured: 3 min-1h25m so far) | $0.13-$0.76, avg $0.30 across 12 sessions | [`costs/sessions.csv`](costs/sessions.csv) |
-| One-day backfill | negligible (<$0.01 Lambda compute; 25 invocations, 20.5s wall time) | [ops runbook, QNT-452](docs/guides/ops-runbook.md#backfill-step-functions-fan-out--measured-wall-time--cost-qnt-452) |
-| 24×7 streaming, 30 days *(model, not a measurement)* | $50-$100/month | `hyperlake.session.estimate_cost_usd(720)` |
+| Idle — nothing running | under $1/month (transiently negative right after a session while Cost Explorer catches up) | [`docs/costs.md`](docs/costs.md) |
+| One demo session | $0.13–$0.76, avg $0.30 across 12 sessions | [`costs/sessions.csv`](costs/sessions.csv) |
+| One-day backfill | under $0.01 of Lambda compute | [ops runbook](docs/guides/ops-runbook.md#backfill-step-functions-fan-out--measured-wall-time--cost-qnt-452) |
+| 24×7 streaming, 30 days *(model, never run)* | $50–$100/month | [`costs/README.md`](costs/README.md#what-247-would-cost) |
 
-The 24×7 row is a model, not something this project ever runs — every other row above is a
-real, ephemeral session. Its own line items at 720 h, from the estimator's constants:
-
-| Line item | Cost |
-|---|---|
-| Fargate | $11.52 |
-| Kinesis stream-hours | $34.56 |
-| Kinesis + Firehose per-GB (~9.9 GB raw/month) | $1.80 |
-| Athena maintenance (`iceberg-maintain`) | $0.01 |
-| Overhead margin | $54.00 |
-| **Model total** | **$101.89** |
-| Model total, excluding the overhead margin | $47.89 |
-
-Of the metered AWS spend (excluding the overhead margin), Kinesis's on-demand hourly charge
-dominates at ~72% ($34.56 of $47.89) — it runs whether or not a trade arrives, which is
-exactly why Hyperlake tears the stream down between sessions instead of leaving it up.
-Receipt (2026-09-16, regenerated for this PR, not hand-typed):
-
-```
-$ uv run python -c "
-from hyperlake.session import estimate_cost_usd, FARGATE_HOURLY_USD, KINESIS_HOURLY_USD, KINESIS_PER_GB_USD, FIREHOSE_INGEST_PER_GB_USD, FIREHOSE_CONVERSION_PER_GB_USD, FIREHOSE_PARTITION_PER_GB_USD, FIREHOSE_PARTITION_PER_1K_OBJECTS_USD, OVERHEAD_HOURLY_USD, BYTES_PER_SECOND, FIREHOSE_AVG_OBJECT_BYTES
-h = 720; raw_gb = BYTES_PER_SECOND * h * 3600 / 1e9; objs = raw_gb * 1e9 / FIREHOSE_AVG_OBJECT_BYTES
-fargate = FARGATE_HOURLY_USD * h; kinesis_hourly = KINESIS_HOURLY_USD * h
-per_gb = KINESIS_PER_GB_USD * raw_gb + (FIREHOSE_INGEST_PER_GB_USD + FIREHOSE_CONVERSION_PER_GB_USD) * raw_gb + FIREHOSE_PARTITION_PER_GB_USD * raw_gb + FIREHOSE_PARTITION_PER_1K_OBJECTS_USD * (objs / 1000)
-overhead = OVERHEAD_HOURLY_USD * h; total = estimate_cost_usd(h)
-print(f'fargate={fargate:.2f} kinesis_stream_hours={kinesis_hourly:.2f} kinesis_firehose_per_gb={per_gb:.2f} overhead_margin={overhead:.2f} total={total} total_excl_overhead={round(total-overhead,2)}')
-"
-fargate=11.52 kinesis_stream_hours=34.56 kinesis_firehose_per_gb=1.80 overhead_margin=54.00 total=101.89 total_excl_overhead=47.89
-```
+In the 24×7 model, Kinesis's on-demand hourly charge is ~72% of metered spend and accrues
+whether or not a trade arrives — which is exactly why the stream is torn down between sessions.
 
 ## Testing and CI
 
@@ -264,31 +214,26 @@ fargate=11.52 kinesis_stream_hours=34.56 kinesis_firehose_per_gb=1.80 overhead_m
   and a grep that fails on any long-lived AWS key. Zero cloud credentials.
 - **Athena seam test on every push to `main`**: three merge-ordering cases run against a real
   Iceberg table over OIDC, because DuckDB cannot prove `MERGE` semantics.
-- **dbt contract tests gate gold**: schema, freshness, and volume tests on silver must
-  pass before any gold mart builds; the convergence tests run over bronze; OHLCV
-  invariants are tested on gold.
+- **dbt contract tests gate gold**: schema, freshness, and volume tests on silver must pass
+  before any gold mart builds; convergence tests run over bronze; OHLCV invariants on gold.
   `make dbt-demo-fail` shows a deliberate failure and the downstream skips.
-- **Daily Terraform drift check** compares the Glue catalog against state and flags anything
-  hand-created.
+- **Daily Terraform drift check** flags anything in the Glue catalog that Terraform did not create.
 - **Docs checks**: `make docs-check` fails on any broken relative link;
   `make demo-runbook-check` fails if the runbook names a `make` target that does not exist.
 
 ## What I would do differently
 
-- **Bronze partition projection was a cost trap.** With ~4,000 virtual partitions and no
-  persisted metadata, one unbounded ad-hoc query triggers an S3 LIST per partition; that
-  was most of the project's early spend. A bounded query wrapper fixed the symptom, but I
-  would persist partition metadata next time.
-- **Kinesis + Firehose is more machinery than ~17 trades/s needs.** The decision was made
-  for the managed Parquet conversion and for learning value; a direct Parquet write from the
-  ingester would be simpler at this volume.
-- **Local merge parity is a real gap.** The seam test only runs on `main`, so a bad merge
+- **Bronze partition projection was a cost trap.** ~4,000 virtual partitions and no persisted
+  metadata means one unbounded query triggers an S3 LIST per partition; that was most of the
+  early spend. A bounded query wrapper fixed the symptom; persisted metadata is the real fix.
+- **Kinesis + Firehose is more machinery than ~17 trades/s needs.** Chosen for managed
+  Parquet conversion and learning value; a direct Parquet write would be simpler at this volume.
+- **Local merge parity is a real gap.** The seam test runs only on `main`, so a bad merge
   change is caught after the PR. A Trino container in CI would close it.
-- **Inducing a WebSocket disconnect for the convergence proof took three attempts.** A
-  gap-injection flag in the ingester would have replaced an afternoon of NACL edits.
-- **Short demo sessions cannot reconcile.** The archive lands about an hour after a clock
-  hour closes, so a session has to span a full clock hour and then wait for it; the demo
-  should have been designed around that from the start.
+- **Inducing a WebSocket disconnect took three attempts.** A gap-injection flag in the
+  ingester would have replaced an afternoon of NACL edits.
+- **Short demo sessions cannot reconcile.** The archive lands ~1 h after a clock hour closes,
+  so the demo should have been designed around a session that spans one from the start.
 
 ## Further reading
 
@@ -296,8 +241,6 @@ fargate=11.52 kinesis_stream_hours=34.56 kinesis_firehose_per_gb=1.80 overhead_m
 - [System overview](docs/architecture/system-overview.md) — how it works now, component by component
 - [Demo runbook](docs/demo-runbook.md) — the streaming path with real timings and a data-quality failure demo
 - [ADR index](docs/INDEX.md#decisions-adrs) — every significant decision and its reasoning
-- [Ops runbook](docs/guides/ops-runbook.md) — failure catalog and measured timings
-- [Retrospectives](docs/retros) — one per completed phase, with the invariants each one added
 
 ## License
 
