@@ -220,6 +220,25 @@ already-applied state is the equivalent proof; see `docs/guides/bootstrap.md` AC
   the `MAX_SESSION_HOURS` env var (default 6) is too tight for that demo -- raise it for that
   run: `MAX_SESSION_HOURS=8 make session-up`.
 
+## `make audit-teardown` exits non-zero after `session-down`
+
+- **Symptom:** `session-down`'s last step (or a standalone `make audit-teardown`) prints
+  `LIVE BILLABLE RESOURCE: <arn>` and exits 1 -- something tagged `project=hyperlake` is still
+  billable after teardown.
+- **Diagnosis:** the listed ARN names the exact resource (`scripts/audit_teardown.py` queries the
+  Resource Groups Tagging API for `project=hyperlake`, then keeps only Kinesis/Firehose/live-ECS
+  service/Scheduler-schedule ARNs -- the ephemeral types `session-down` is supposed to have torn
+  down). Cross-check with `aws resourcegroupstaggingapi get-resources --tag-filters
+  Key=project,Values=hyperlake` and `terraform -chdir=infra/main/ephemeral state list` to see if
+  `terraform destroy` actually ran or partially failed.
+- **Response:** delete the named resource by hand (or re-run `terraform destroy` in
+  `infra/main/ephemeral` if state still shows it), then re-run `make audit-teardown` to confirm
+  it prints `no billable ephemeral resources` and exits 0.
+- **Prevention:** this check *is* the prevention mechanism (FR-6) -- it exists specifically to
+  catch a `terraform destroy` that silently left something behind; a missed resource is a silent
+  monthly burn otherwise. It never flags persistent-layer resources (S3/Glue/Athena/ECR), which
+  are expected to remain.
+
 ## Ad-hoc Athena queries against `bronze.trades_raw` (S3 request-count cost)
 
 - **Symptom:** an unbounded `SELECT ... FROM bronze.trades_raw` (no `dt` filter) run

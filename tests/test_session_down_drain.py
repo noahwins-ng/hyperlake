@@ -40,12 +40,14 @@ def _manifest(tmp_path: Path) -> Path:
     return path
 
 
-def _deps(*, reap_marker: dict | None = None) -> tuple[SessionDownDeps, list[str]]:
+def _deps(
+    *, reap_marker: dict | None = None, dbt_status: str = "success"
+) -> tuple[SessionDownDeps, list[str]]:
     calls: list[str] = []
 
     def run_dbt(run_key, dbt_vars):
         calls.append(f"run_dbt:{run_key}:{json.dumps(dbt_vars, sort_keys=True)}")
-        return {"run_key": run_key, "url": "https://x/1", "status": "success"}
+        return {"run_key": run_key, "url": "https://x/1", "status": dbt_status}
 
     deps = SessionDownDeps(
         stop_ingester=lambda: calls.append("stop_ingester"),
@@ -66,6 +68,7 @@ def _deps(*, reap_marker: dict | None = None) -> tuple[SessionDownDeps, list[str
             )
         ),
         check_reaped=lambda session_id: reap_marker,
+        run_audit_teardown=lambda: calls.append("run_audit_teardown"),
     )
     return deps, calls
 
@@ -194,3 +197,24 @@ def test_non_reaped_session_cost_row_marked_pending(tmp_path):
     run_session_down(manifest_path, deps)
 
     assert "append_cost_row:reaped=False" in calls
+
+
+def test_audit_teardown_runs_as_the_last_step_on_success(tmp_path):
+    manifest_path = _manifest(tmp_path)
+    deps, calls = _deps()
+
+    run_session_down(manifest_path, deps)
+
+    assert calls[-1] == "run_audit_teardown"
+
+
+def test_audit_teardown_still_runs_when_dbt_run_fails(tmp_path):
+    # QNT-471: the ephemeral stack is already destroyed by the time dbt-run's result
+    # is known, so a dbt failure must not skip the billable-leftover check.
+    manifest_path = _manifest(tmp_path)
+    deps, calls = _deps(dbt_status="failed")
+
+    with pytest.raises(RuntimeError, match="dbt-run failed"):
+        run_session_down(manifest_path, deps)
+
+    assert calls[-1] == "run_audit_teardown"

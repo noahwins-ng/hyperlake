@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check dbt-build dbt-docs dbt-demo-fail cost-backfill cost-report tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
+.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check dbt-build dbt-docs dbt-demo-fail cost-backfill cost-report tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down audit-teardown recon heal bronze-query
 
 # Everything ci.yml runs, in order, the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -139,6 +139,12 @@ session-up:
 
 session-down:
 	uv run python scripts/session_down.py $(if $(DBT_ARGS),--dbt-args $(DBT_ARGS))
+
+# QNT-471 (FR-6): lists any live project=hyperlake billable ephemeral resource
+# (Kinesis/Firehose/ECS/Scheduler) and fails loudly if one is found -- called as
+# session-down's last step, and runnable standalone. Needs AWS credentials.
+audit-teardown:
+	uv run python scripts/audit_teardown.py
 
 # QNT-460: G3 reconciliation (ADR-003) -- computes the session's reconcilable window,
 # regenerates dbt/seeds/session_gaps.csv from its manifest gaps, runs recon_trades +
