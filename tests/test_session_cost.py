@@ -13,3 +13,8 @@ def test_cost_scales_with_duration() -> None:
 def test_six_hour_session_stays_under_budget_cap() -> None:
     # PRD G4: < $2 per demo session, even at the reaper's 6h bound.
     assert estimate_cost_usd(6.0) < 2.00
+
+
+def test_short_session_carries_the_fixed_floor() -> None:
+    # costs/sessions.csv: no finalized session ever billed under ~$0.25, however short.
+    assert estimate_cost_usd(5 / 60) >= 0.25

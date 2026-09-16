@@ -146,3 +146,17 @@ def test_render_readme_block_includes_average_and_gap() -> None:
 
     assert "$0.30" in block
     assert "$0.70" in block
+
+
+def test_render_readme_block_never_shows_a_negative_headline_number() -> None:
+    rows = [
+        _row("s1", "2026-09-01T00:00:00Z", "2026-09-01T00:10:00Z", actual="0.30", status="final")
+    ]
+    idle_report = [{"month": "2026-09", "ce_total": 0.10, "session_total": 0.30, "idle": -0.20}]
+    reconciliation = {"ce_total": 0.10, "session_sum": 0.30, "gap": -0.20}
+
+    block = render_readme_block(rows, idle_report, reconciliation)
+
+    assert "$-" not in block
+    assert "$0.00/month" in block
+    assert "-$0.20" in block

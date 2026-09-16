@@ -195,9 +195,9 @@ reconciliation are in [`docs/costs.md`](docs/costs.md).
 |---|---|
 | Average session cost | $0.30 |
 | Highest session cost | $0.76 |
-| Idle cost (highest month, Cost Explorer) | $-0.92/month |
+| Idle cost (highest month, Cost Explorer) | $0.00/month (Cost Explorer still catching up on the latest session) |
 | Target ceiling | < $2/session, < $2/month idle |
-| Cost Explorer reconciliation gap | $-0.92 (full detail: [docs/costs.md](docs/costs.md)) |
+| Cost Explorer reconciliation gap | -$0.92 (Cost Explorer lag, self-corrects) (full detail: [docs/costs.md](docs/costs.md)) |
 <!-- COST_REPORT:END -->
 
 **What this would cost you:**
