@@ -1,4 +1,4 @@
-"""Live WebSocket ingester (QNT-456, FR-1): single containerised consumer of the
+"""Live WebSocket ingester (FR-1): single containerised consumer of the
 HyperCore `trades` channel for the watchlist. Wraps every trade in the shared bronze
 envelope, batches to Kinesis `PutRecords` (partition key `coin`), retries only failed
 records, reconnects with backoff while recording gap intervals, and self-exits after
@@ -254,7 +254,7 @@ class Ingester:
                 async with websockets.connect(WS_URL, max_size=None) as ws:
                     for sub in subscribe_messages(self.coins):
                         await ws.send(sub)
-                    # QNT-457 AC2: the one place a deployment check can confirm every
+                    # The one place a deployment check can confirm every
                     # watchlist coin was actually subscribed, not just that the socket opened.
                     log_event("subscribed", coins=self.coins, session_id=self.session_id)
                     if not first_connect:

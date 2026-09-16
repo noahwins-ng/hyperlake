@@ -2,7 +2,7 @@
 -- gap interval recorded in the session manifest (`session_gaps` seed); anything
 -- outside a recorded gap is a real miss on the live side.
 --
--- QNT-466 (2026-09-11 live session): `gap_end` is the event `time` of the trade that
+-- 2026-09-11 live session: `gap_end` is the event `time` of the trade that
 -- *closed* the gap (hyperlake.ingester.GapTracker) -- the reconnect resubscribe isn't
 -- instantaneous, so other real trades sharing that exact millisecond can still be
 -- backfill-only. Inclusive upper bound so the closing millisecond counts as covered,

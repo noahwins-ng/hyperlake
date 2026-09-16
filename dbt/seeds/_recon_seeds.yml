@@ -3,7 +3,7 @@ version: 2
 seeds:
   - name: session_gaps
     description: >
-      Session gap intervals (QNT-460, ADR-003) -- overwritten by `make recon`'s
+      Session gap intervals (ADR-003) -- overwritten by `make recon`'s
       pre-step with the real session's manifest gaps before each real run; the
       committed content here is the AC1 fixture scenarios (recon-fixture-clean has
       no gaps, recon-fixture-gap has one covering its legitimate backfill_only trade,

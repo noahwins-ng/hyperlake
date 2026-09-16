@@ -1,5 +1,5 @@
 {#
-  QNT-463: shared candle-aggregation body for ohlcv_1m/1h/1d -- one macro so the three grains
+  Shared candle-aggregation body for ohlcv_1m/1h/1d -- one macro so the three grains
   stay identical except the bucket unit (same reasoning as silver_trades_select: a hand-copied
   triplet could drift between grains). Bucketed on `time` only (NFR-5), never `ingested_at`.
   open/close are picked via row_number ties on time (px as a deterministic tiebreak) rather

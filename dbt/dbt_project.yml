@@ -16,13 +16,13 @@ clean-targets:
 
 vars:
   # dt lookback for the silver merge (ADR-002); overridable per run (`--vars`) for the
-  # first post-backfill run and `make heal` (QNT-461).
+  # first post-backfill run and `make heal`.
   silver_lookback_days: 2
-  # ADR-002 Athena seam test (QNT-462): which seam_fixture_round<N> seed
+  # ADR-002 Athena seam test: which seam_fixture_round<N> seed
   # models/seam/seam_trades.sql reads. The dbt-run seam job runs the model once per
   # round (--vars '{seam_round: 1}' then 2) to exercise the merge over both rounds.
   seam_round: 1
-  # recon_trades (QNT-460, ADR-003) is scoped to one session per run via these three
+  # recon_trades (ADR-003) is scoped to one session per run via these three
   # vars, supplied by `make recon` for a real session. Defaults point at the
   # committed recon-fixture-clean scenario (dbt/fixtures/bronze_trades_sample.parquet,
   # dbt/seeds/session_gaps.csv) so a bare `dbt build --target duckdb` (`make check`)
@@ -31,7 +31,7 @@ vars:
   recon_session_id: "recon-fixture-clean"
   recon_window_start: "2026-02-01 00:00:00"
   recon_window_end: "2026-02-01 01:00:00"
-  # G5 freshness (QNT-464, dbt/tests/assert_silver_freshness.sql): the session window to
+  # G5 freshness (dbt/tests/assert_silver_freshness.sql): the session window to
   # check silver's max event `time` against, plus how much lag behind `freshness_window_end`
   # is tolerable. `make session-down`/`make recon` supply the real session's start/end for a
   # live check; defaults here match the committed fixture (max `time` 2026-02-01 04:30:00)
@@ -46,15 +46,14 @@ models:
       # stg_trades_sample proves the duckdb/athena compile seam (ADR-002) over a committed
       # fixture -- it was never wired up with a real Glue-registered source table, so it
       # only ever ran on duckdb. Disabled on athena rather than left to fail a real `dbt
-      # build --target athena` the first time one runs unscoped (QNT-473).
+      # build --target athena` the first time one runs unscoped.
       +enabled: "{{ target.type != 'athena' }}"
     recon:
       +tags: ["recon"]
     gold:
       # Literal 'gold' database (mirrors bronze/silver, not recon's co-located-in-silver
       # choice) -- declared in infra/main/persistent/glue.tf so it's Terraform-managed
-      # from creation, not auto-created-then-imported like seam_test/silver were
-      # (QNT-473/QNT-477).
+      # from creation, not auto-created-then-imported like seam_test/silver were.
       +schema: "gold"
       +tags: ["gold"]
     seam:

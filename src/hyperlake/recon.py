@@ -1,4 +1,4 @@
-"""Reconciliation window + gap-seed helpers for `make recon` (QNT-460, FR-8/ADR-003)."""
+"""Reconciliation window + gap-seed helpers for `make recon` (FR-8/ADR-003)."""
 
 import csv
 from datetime import datetime, timedelta
