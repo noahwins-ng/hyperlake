@@ -2,14 +2,14 @@
 
 - **Status:** accepted
 - **Date:** 2026-09-05 (closes PRD OQ-1)
-- **Ticket:** —
+- **Ticket:** none
 
 ## Context
 
 The silver exactly-once contract and the G3 replay reconciliation both dedup on a trade
 identity that must be shared by the live WebSocket feed and the historical archive. The
-PRD held OQ-1 open on that single hard gate — plus source, region, backfill window,
-HIP-3 coverage, and grain — until measured. The desk spike of 2026-09-04
+PRD held OQ-1 open on that single hard gate, plus source, region, backfill window,
+HIP-3 coverage, and grain, until measured. The desk spike of 2026-09-04
 (`docs/spikes/2026-09-04-oq1-archive-desk-spike.md`) settled everything except identity;
 the live gate ran on 2026-09-05.
 
@@ -18,7 +18,7 @@ the live gate ran on 2026-09-05.
 - **Backfill source:** `s3://hl-mainnet-node-data/node_fills_by_block/hourly/YYYYMMDD/H.lz4`
   (official, requester-pays) is **primary**. `s3://hydromancer-reservoir` is the
   **fallback**, behind a column-mapping reader.
-- **Region:** **ap-northeast-1** — both buckets live there; S3 → Lambda transfer is free.
+- **Region:** **ap-northeast-1**: both buckets live there; S3 → Lambda transfer is free.
 - **Trade identity / dedup key:** **`tid`**. The gate passed: a 90 s live capture of the
   five watchlist markets (1,986 trades, 15:05 UTC 2026-09-04) was matched **1,986 / 1,986**
   in `20260904/15.lz4` on `tid, coin, px, sz, side, time`; 0 missing, 0 mismatched.
@@ -33,14 +33,14 @@ the live gate ran on 2026-09-05.
 
 ## Alternatives considered
 
-- **Reservoir as primary** — cleaner format (typed Parquet, curated flags), but 10–34 h
+- **Reservoir as primary**: cleaner format (typed Parquet, curated flags), but 10–34 h
   lag pushes the G3 replay demo to the next day, its schema is renamed (mapping layer
   on the primary path), and its bucket layout has already been reorganised once
   (`_pre_hip4_unification_backup/`).
-- **`hash`-based identity (plan B)** — present on both sides and viable, but not needed;
+- **`hash`-based identity (plan B)**: present on both sides and viable, but not needed;
   `tid` matched 100 %. Kept documented in the PRD as the fallback if `tid` semantics ever
   change upstream.
-- **Composite key `coin,time,px,sz,side`** — collides on simultaneous identical trades;
+- **Composite key `coin,time,px,sz,side`**: collides on simultaneous identical trades;
   rejected in the PRD before the gate ran.
 
 ## Consequences

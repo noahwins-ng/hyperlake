@@ -1,18 +1,18 @@
 # Ops Runbook
 
-Grep-first failure-mode catalog — the index into hard-won operational muscle memory. When
+Grep-first failure-mode catalog, the index into hard-won operational muscle memory. When
 something breaks, grep here first. `flow-investigator` reads this. Every reliability ticket
 should add or extend an entry.
 
 Each entry follows the same shape:
 
-## <Failure mode — a symptom you'd actually search for>
+## <Failure mode: a symptom you'd actually search for>
 
 - **Symptom:** what you observe (the alert, the error, the user report).
-- **Diagnosis:** the exact commands to confirm the cause (debug *state*, not logs — query the
+- **Diagnosis:** the exact commands to confirm the cause (debug *state*, not logs, query the
   system's own status first).
 - **Response:** the steps to remediate, safest first.
-- **Prevention:** the guard (CI check / ship hard-gate / config) that now stops it recurring — or
+- **Prevention:** the guard (CI check / ship hard-gate / config) that now stops it recurring, or
   "accepted risk: <reason>".
 
 ---
@@ -26,7 +26,7 @@ Each entry follows the same shape:
   (PRD FR-7).
 - **Response:** nothing to fix. Re-run `terraform apply` the next day; it converges. Until then
   `make cost-backfill` (QNT-447) cannot filter by tag.
-- **Prevention:** accepted risk — documented in `infra/bootstrap/cost_tag.tf` and
+- **Prevention:** accepted risk, documented in `infra/bootstrap/cost_tag.tf` and
   `docs/guides/bootstrap.md`; the resource is idempotent so the retry is safe.
 
 ## Archive hour file not landed (`check_tid_parity.py` exits 2, or a backfill hour is missing)
@@ -45,33 +45,33 @@ Each entry follows the same shape:
 
 ## Falling back to the Reservoir daily file (`make backfill-fallback DATE=`)
 
-- **When:** only after the 24 h wait above — this is a manual decision, not an automatic
+- **When:** only after the 24 h wait above, this is a manual decision, not an automatic
   fallback (out of scope for QNT-465 on purpose). Confirm the official hour file is still
   missing (`aws s3api head-object` per the entry above) before running this; the fallback
   reader derives its own `hour=` object keys from each fill's event time (`hyperlake.
   partitions.hour_from_event_time_ms`), which can differ from whichever invocation hour the
-  official reader would have used for the same trades — running both for the same date can
+  official reader would have used for the same trades, running both for the same date can
   leave two bronze objects covering the same trades under different `hour=` keys. Silver's
   merge-on-`tid` (ADR-005) makes that safe to query, just wasteful.
-- **Command:** `make backfill-fallback DATE=YYYY-MM-DD` — runs locally (no Lambda/Terraform),
+- **Command:** `make backfill-fallback DATE=YYYY-MM-DD`, runs locally (no Lambda/Terraform),
   reads `s3://hydromancer-reservoir/by_dex/{dex}/fills/perp/all/date=YYYY-MM-DD/fills.parquet`
   requester-pays for each dex the watchlist touches, and writes bronze through the same
   envelope + Parquet writer as the official reader.
 - **Diagnosis if it fails loud:** a `hyperlake.backfill.reservoir.SchemaError` naming missing
   column(s), or an unrecognised `side` value, means Reservoir's layout has drifted again (it
-  already has once — `_pre_hip4_unification_backup/`) — the reader pins the full 28-column
+  already has once, `_pre_hip4_unification_backup/`), the reader pins the full 28-column
   contract (`PINNED_COLUMNS`) and refuses to guess at a null-filled row. A `pyarrow.
   ArrowInvalid: Rescaling Decimal value would cause data loss` instead means a real
   price/size/fee needed more than 8/6/6 decimal digits (the envelope's `px`/`sz`/`fee`
-  scales) — also loud, not silent, but a different exception path than `SchemaError`; no
+  scales), also loud, not silent, but a different exception path than `SchemaError`; no
   watchlist market has needed more than 5 observed (OQ-1 spike).
 - **Prevention:** the schema assertion runs against the file's footer metadata before any row
-  is read (pytest: `tests/test_backfill_reservoir.py`, AC2) — drift is a loud exception, not a
+  is read (pytest: `tests/test_backfill_reservoir.py`, AC2), drift is a loud exception, not a
   silent wrong answer downstream.
 - **Parity proof (AC3, 2026-09-10):** read-only, no bronze writes on either side. BTC,
   2026-09-03 hour 12 (already-backfilled bronze via the official reader, vs. a fresh
   Reservoir read of the same hour): both sides returned **25,569** distinct `tid`s, 0
-  only-in-official, 0 only-in-reservoir — exact match, consistent with the OQ-1 spike's
+  only-in-official, 0 only-in-reservoir, exact match, consistent with the OQ-1 spike's
   measured ≈25.6 k figure for the same hour.
 
 ## `make cost-backfill` reports `0 row(s) backfilled` when a `pending` row should have filled
@@ -80,14 +80,14 @@ Each entry follows the same shape:
   `cost_status=pending` after running `make cost-backfill`.
 - **Diagnosis:** the target only queries rows whose `end` is > 24h old (`BACKFILL_DELAY` in
   `scripts/cost_backfill.py`), and only sums cost tagged `project=hyperlake`
-  (`aws ce list-cost-allocation-tags --tag-keys project` — must show `Status: Active`, see the
+  (`aws ce list-cost-allocation-tags --tag-keys project`, must show `Status: Active`, see the
   bootstrap entry above). A `$0.00` result after backfill is a valid outcome (idle cost), not a bug.
 - **Response:** confirm the row's `end` timestamp and the tag's activation status; re-run once
   both hold.
 - **Prevention:** `costs/README.md` documents the schema and the 24h delay; `--dry-run` previews
   the query without writing the file.
 
-## Backfill Step Functions fan-out — measured wall time & cost (QNT-452)
+## Backfill Step Functions fan-out: measured wall time & cost (QNT-452)
 
 Measured against the live ephemeral stack (`hyperlake-backfill` state machine, Map
 `MaxConcurrency=10` over the backfill Lambda), 2026-09-06/07 in `ap-northeast-1`:
@@ -98,7 +98,7 @@ Measured against the live ephemeral stack (`hyperlake-backfill` state machine, M
 | 30-day (AC4) | `FROM=2026-08-05 TO=2026-09-03` | 721 (720 + trailing H+1) | 0 | 317.2 s (~5.3 min) | ~$0.10 |
 
 - **AC2 cross-check:** Athena `SELECT count(*) FROM bronze.trades_raw WHERE dt=DATE
-  '2026-09-03'` returned **1,110,546** — an exact match to the spike's Reservoir
+  '2026-09-03'` returned **1,110,546**: an exact match to the spike's Reservoir
   watchlist figure (BTC 504,527 + HYPE 328,003 + ETH 195,708 + xyz:SP500 47,657 +
   xyz:XYZ100 34,651 = 1,110,546 trades), i.e. 0% deviation, well inside the ±1% AC.
 - **AC4 cost source:** Cost Explorer's `project` tag lags billing data by up to 24h
@@ -107,49 +107,49 @@ Measured against the live ephemeral stack (`hyperlake-backfill` state machine, M
   totalBilledMs, count() as invocations` over `/aws/lambda/hyperlake-backfill-official`
   → 742 invocations, 3,139,807 ms total billed duration (25 + 721 = 746 expected from
   the two runs; the query's 1h lookback window likely clipped a few of the 1-day run's
-  earliest REPORT lines — not a retry/duplicate-invocation signal, since both runs
+  earliest REPORT lines, not a retry/duplicate-invocation signal, since both runs
   independently reported 0 failed hours). At 2048 MB / $0.0000166667 per GB-s:
   `3139.807 s × 2 GB × $0.0000166667/GB-s ≈ $0.105` compute + ~$0.0001 in requests ⇒
   **≈ $0.10 total**, comfortably under the $2 AC4 ceiling.
 - **Task-level timeout:** the Map's `InvokeBackfillLambda` task carries
   `"TimeoutSeconds": 320` (just above the Lambda's own 300s timeout) so its
-  `States.Timeout` Retry entry can actually fire on a real hang — ASL defaults an
+  `States.Timeout` Retry entry can actually fire on a real hang, ASL defaults an
   unset Task timeout to 99999999s, which would otherwise make that Retry entry dead
   code (caught in review).
 - **Teardown verified** (implicit Terraform/session-lifecycle AC,
   `docs/AC-templates.md`): after the live runs, `terraform apply -destroy
   -var tfstate_bucket=...` → `Apply complete! Resources: 0 added, 0 changed, 10
   destroyed.`, followed by `terraform plan` → `Plan: 10 to add, 0 to change, 0 to
-  destroy.` — proving no lingering/drifted resource, matching the original 10-resource
+  destroy.`, proving no lingering/drifted resource, matching the original 10-resource
   set exactly. The ephemeral stack (state machine + backfill Lambda + IAM + the
   disabled schedule) was destroyed immediately after each apply, per the
   ephemeral-by-design rule.
 
-## G1 stranger-path timing — bootstrap → backfill → Athena query (QNT-467 AC1)
+## G1 stranger-path timing: bootstrap → backfill → Athena query (QNT-467 AC1)
 
 Measured live end-to-end in `ap-northeast-1`, 2026-09-11, following the README's
 "reproduce in 15 minutes" path against this project's one real AWS account (a genuinely
-fresh AWS account is a one-time NFR-7 cost this project doesn't re-pay per measurement —
+fresh AWS account is a one-time NFR-7 cost this project doesn't re-pay per measurement,
 `infra/bootstrap` and `infra/main/persistent` are idempotent, so re-running them against
 already-applied state is the equivalent proof; see `docs/guides/bootstrap.md` AC1):
 
 | Step | Command | Result | Elapsed |
 |---|---|---|---|
-| Bootstrap (no-op re-apply) | `terraform plan` in `infra/bootstrap` | No changes | — |
-| Persistent (no-op re-apply) | `terraform plan` in `infra/main/persistent` | No changes | — |
-| Ephemeral apply (backfill primitives) | `make tf-apply-ephemeral` | 7 resources added | — |
+| Bootstrap (no-op re-apply) | `terraform plan` in `infra/bootstrap` | No changes | - |
+| Persistent (no-op re-apply) | `terraform plan` in `infra/main/persistent` | No changes | - |
+| Ephemeral apply (backfill primitives) | `make tf-apply-ephemeral` | 7 resources added | - |
 | 1-day backfill | `make backfill FROM=2026-09-10 TO=2026-09-10` | 25 hours run, 0 failed | 20.5 s |
 | `dbt-run` (OIDC) | `make dbt-run` | silver/gold/recon built | ~70 s |
-| Athena query | `make bronze-query` + `silver.trades` count | bronze 867,681 rows; silver row_count = distinct_tid = 867,681 | — |
+| Athena query | `make bronze-query` + `silver.trades` count | bronze 867,681 rows; silver row_count = distinct_tid = 867,681 | - |
 | **Total (apply → query)** | | | **8 min 53 s** |
 
-- **Result: 8m53s, well inside the 15-minute G1 ceiling** (bootstrap's own AC1 proof — a
-  no-op `terraform plan` — and the persistent layer's no-op plan both complete in
+- **Result: 8m53s, well inside the 15-minute G1 ceiling** (bootstrap's own AC1 proof, a
+  no-op `terraform plan`, and the persistent layer's no-op plan both complete in
   seconds, so nearly the full budget goes to the ephemeral apply + real 1-day backfill
   + `dbt-run` round trip).
 - **Gotcha hit and documented for the README's quickstart:** the first `make dbt-run`
   dispatch used `dbt_project.yml`'s placeholder `freshness_window_*` vars (meant to be
-  overridden per real session/backfill window — QNT-466 already hit this for
+  overridden per real session/backfill window, QNT-466 already hit this for
   `session_down.py`/`heal.py`, see the entry below) and failed
   `assert_silver_freshness`. Re-dispatched with `-f vars='{"freshness_window_start":
   "2026-09-10 00:00:00", "freshness_window_end": "2026-09-11 01:00:00"}'` matching the
@@ -232,16 +232,16 @@ already-applied state is the equivalent proof; see `docs/guides/bootstrap.md` AC
   project's ~$0.78 total AWS spend to exactly this, from ad-hoc queries run right after
   QNT-450 created the table and during the QNT-455..459 dev sessions.
 - **Safe pattern:** use `make bronze-query DT_FROM=YYYY-MM-DD` instead of querying Athena
-  directly — it requires a bounded `dt` lower bound and refuses to run (no Athena call at
+  directly, it requires a bounded `dt` lower bound and refuses to run (no Athena call at
   all) without one. `DT_TO` (default: same as `DT_FROM`, i.e. one day), `SELECT`,
   `WHERE` (ANDed with the `dt` bound), and `LIMIT` (default 100) are optional, e.g.:
   ```
   make bronze-query DT_FROM=2026-09-03 DT_TO=2026-09-03 SELECT=tid,coin WHERE="coin = 'BTC'" LIMIT=20
   ```
 - **Prevention:** the dbt-managed path is already guarded by `silver_lookback_days`
-  (`dbt/models/silver/trades.sql`) — this wrapper is the equivalent guard for the
+  (`dbt/models/silver/trades.sql`), this wrapper is the equivalent guard for the
   ad-hoc/manual path (QNT-476). It does not change bronze's partition strategy (out of
-  scope — current cost is well within budget); it only stops unbounded scans at the
+  scope, current cost is well within budget); it only stops unbounded scans at the
   query layer.
 
 ## `make check` green locally, `ci.yml` red

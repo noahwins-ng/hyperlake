@@ -19,13 +19,13 @@ sources:
 models:
   - name: trades
     description: >
-      Silver — one row per trade, exactly-once on `tid`. Iceberg incremental merge on
+      Silver, one row per trade, exactly-once on `tid`. Iceberg incremental merge on
       athena (ADR-002), bounded by `var('silver_lookback_days')`; plain table with
       row_number dedup on duckdb. `backfill` outranks `ws` on update (ADR-005,
       `source_rank`); `first_seen_source` is insert-only lineage (ADR-003).
     columns:
       - name: tid
-        description: Trade id — the dedup key.
+        description: Trade id, the dedup key.
         data_type: bigint
         tests:
           - unique
@@ -36,7 +36,7 @@ models:
         tests:
           - not_null
       - name: side
-        description: Taker side of the trade — `A` (ask/sell) or `B` (bid/buy).
+        description: Taker side of the trade, `A` (ask/sell) or `B` (bid/buy).
         data_type: varchar
         tests:
           - not_null
@@ -58,7 +58,7 @@ models:
         # TIME ZONE`; Athena/Hive has no tz-aware timestamp type -- the Glue column is
         # plain `timestamp` (src/hyperlake/envelope.py's `_glue_type`). One contract,
         # per-target type, same pattern as materialization_for_target's target.type branch.
-        description: Exchange event time (UTC) — never arrival/`ingested_at`. Every `dt=` partition and every gold window derives from this column.
+        description: Exchange event time (UTC), never arrival/`ingested_at`. Every `dt=` partition and every gold window derives from this column.
         data_type: "{{ 'timestamp with time zone' if target.type == 'duckdb' else 'timestamp' }}"
         tests:
           - not_null
@@ -69,13 +69,13 @@ models:
         description: True if the trade crossed the book (self-trade), when the source reports it.
         data_type: boolean
       - name: liquidation
-        description: True if this trade was a liquidation. Only ever true on a backfill-sourced row (FR-4) — the live WS feed carries no liquidation flag.
+        description: True if this trade was a liquidation. Only ever true on a backfill-sourced row (FR-4), the live WS feed carries no liquidation flag.
         data_type: boolean
       - name: fee
         description: Exchange fee charged on the trade, when the source reports it.
         data_type: decimal(18,6)
       - name: source
-        description: Which acquisition path wrote this row before the merge — `ws` (live Fargate ingester) or `backfill` (archive Lambda).
+        description: Which acquisition path wrote this row before the merge, `ws` (live Fargate ingester) or `backfill` (archive Lambda).
         data_type: varchar
         tests:
           - not_null
@@ -83,12 +83,12 @@ models:
               arguments:
                 values: ["ws", "backfill"]
       - name: source_rank
-        description: Gates the merge's `update_condition` — a null rank here would silently break precedence. Backfill outranks ws (ADR-005).
+        description: Gates the merge's `update_condition`, a null rank here would silently break precedence. Backfill outranks ws (ADR-005).
         data_type: integer
         tests:
           - not_null
       - name: first_seen_source
-        description: The source that first wrote this `tid` to bronze — insert-only lineage (ADR-003), never overwritten by a later update from the other source.
+        description: The source that first wrote this `tid` to bronze, insert-only lineage (ADR-003), never overwritten by a later update from the other source.
         data_type: varchar
         tests:
           - not_null

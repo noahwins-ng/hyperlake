@@ -1,8 +1,8 @@
-# Hyperlake — Product Requirements Document
+# Hyperlake: Product Requirements Document
 
 | | |
 |---|---|
-| **Status** | **v1.0 — frozen 2026-09-05.** OQ-1 closed by [ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md) (`tid` parity gate passed 1,986/1,986). Draft history: v0.4–v0.8 on 2026-09-04 (G3 proof at bronze, dbt runtime, seam + ops gaps, measured archives, ADR-001..004). Changes from here go through `flow-change-scope` + an ADR. |
+| **Status** | **v1.0; frozen 2026-09-05.** OQ-1 closed by [ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md) (`tid` parity gate passed 1,986/1,986). Draft history: v0.4–v0.8 on 2026-09-04 (G3 proof at bronze, dbt runtime, seam + ops gaps, measured archives, ADR-001..004). Changes from here go through `flow-change-scope` + an ADR. |
 | **Owner** | noahwins-ng |
 | **Created** | 2026-07-09 |
 | **Repo** | public (portfolio) |
@@ -21,18 +21,18 @@ queried with Athena + dbt.
 
 This is a **portfolio project**. The "user problem" it solves is a hiring one: demonstrate,
 in a single public repo a hiring manager can absorb in ten minutes, competence across the
-modern data engineering core — streaming ingestion, lakehouse table formats, batch/stream
-convergence, IaC, orchestration, data quality, and cost discipline — on a real, high-volume,
+modern data engineering core, streaming ingestion, lakehouse table formats, batch/stream
+convergence, IaC, orchestration, data quality, and cost discipline, on a real, high-volume,
 non-toy dataset.
 
 The secondary problem is cost: portfolio infra that runs 24/7 bleeds money and rots. Hyperlake
-is **ephemeral by design** — built up for a demo session or interview walkthrough, torn down
+is **ephemeral by design**: built up for a demo session or interview walkthrough, torn down
 after, with idle cost near zero.
 
 ### Why Hyperliquid data
 
-- Real production-scale volume — measured ~6.6 M trades/day network-wide across ~440
-  markets, ~1.1 M/day on the default 5-market watchlist — not a Kaggle CSV. Widening to
+- Real production-scale volume, measured ~6.6 M trades/day network-wide across ~440
+  markets, ~1.1 M/day on the default 5-market watchlist, not a Kaggle CSV. Widening to
   all markets is a config change on the same code path.
 - Two genuinely different acquisition paths (live WebSocket + requester-pays S3 archive),
   which forces the batch/stream convergence problem that makes lakehouse design interesting.
@@ -42,35 +42,35 @@ after, with idle cost near zero.
 
 | # | Goal | Success metric |
 |---|------|----------------|
-| G1 | One-command reproducibility | documented bootstrap + `terraform apply` + a **one-day sample backfill** → queryable tables in Athena in < 15 min, on any AWS account. The full FR-2 backfill window is timed separately and recorded in the session manifest — it is not part of the 15-minute claim |
-| G2 | Streaming path works | Two measurements, both during a demo session: (a) **emission → Kinesis < 5 s**, from the ingester's logged `PutRecords` latency; (b) **emission → visible in bronze < 3 min**, from a query on `ingested_at`. The bronze number is bounded below by Firehose's 60 s buffer interval + Parquet conversion — see Architecture → Landing |
-| G3 | Batch/stream convergence | Backfilled and streamed rows land in the **same** silver tables; verified by **replay reconciliation at bronze** — stream an hour live, later backfill the same hour from the archive, and a dbt test over bronze proves **`ws_only = 0`** and **every `backfill_only` trade falls inside a gap interval recorded in the session manifest** (a WS disconnect legitimately produces archive-only trades; anything outside a recorded gap is a real miss). The window covers only hours whose archive file has landed (`recon_trades`; [ADR-003](decisions/ADR-003-g3-reconciliation-at-bronze.md)) |
+| G1 | One-command reproducibility | documented bootstrap + `terraform apply` + a **one-day sample backfill** → queryable tables in Athena in < 15 min, on any AWS account. The full FR-2 backfill window is timed separately and recorded in the session manifest; it is not part of the 15-minute claim |
+| G2 | Streaming path works | Two measurements, both during a demo session: (a) **emission → Kinesis < 5 s**, from the ingester's logged `PutRecords` latency; (b) **emission → visible in bronze < 3 min**, from a query on `ingested_at`. The bronze number is bounded below by Firehose's 60 s buffer interval + Parquet conversion; see Architecture → Landing |
+| G3 | Batch/stream convergence | Backfilled and streamed rows land in the **same** silver tables; verified by **replay reconciliation at bronze**; stream an hour live, later backfill the same hour from the archive, and a dbt test over bronze proves **`ws_only = 0`** and **every `backfill_only` trade falls inside a gap interval recorded in the session manifest** (a WS disconnect legitimately produces archive-only trades; anything outside a recorded gap is a real miss). The window covers only hours whose archive file has landed (`recon_trades`; [ADR-003](decisions/ADR-003-g3-reconciliation-at-bronze.md)) |
 | G4 | Cost discipline | < $2 per demo session; < $2/month idle; every session's `cost_estimate` and next-day `cost_actual` committed to `costs/`; a forgotten session is bounded to ~6 h by the session reaper (FR-8) |
 | G5 | Data quality is enforced, not claimed | dbt tests gate the gold layer and failures are visible in the demo. **Freshness** = max event `time` in silver is within the session window; **volume** = the `recon_trades` counts (G3 and G5 share the same test). Plus schema/uniqueness/not-null tests on silver and OHLCV invariants on gold (`low ≤ open,close ≤ high`, candle volume = sum of trades) |
 | G6 | Legible to a recruiter | README with architecture diagram, demo runbook, and per-layer sample queries; PRD/ADRs show product thinking |
 
 ## 3. Non-goals
 
-Explicitly out of scope — reject in review if it creeps in:
+Explicitly out of scope, reject in review if it creeps in:
 
 - **No trading, signals, or execution.** Market data engineering only; no order placement,
   no wallets, no keys with financial power.
 - **No 24/7 operation.** No always-on dashboard, no uptime SLO. The artifact is the repo +
   a demo runbook, not a live service.
-- **No self-hosted Hyperliquid node.** The node requires x86 / 32 GB RAM / ~20 GB logs/day —
+- **No self-hosted Hyperliquid node.** The node requires x86 / 32 GB RAM / ~20 GB logs/day,
   a different project. WebSocket API + S3 archives only.
 - **No paid data sources.** Free feeds and requester-pays archive transfer only.
 - **No BI product.** Athena/DuckDB queries and dbt docs are the presentation layer; no
   QuickSight, no custom frontend.
-- **No multi-cloud.** AWS only, one region — **ap-northeast-1**, where both archive
+- **No multi-cloud.** AWS only, one region, **ap-northeast-1**, where both archive
   buckets live.
 
 ## 4. Audience
 
-1. **Hiring managers / recruiters** (primary) — skim README, diagram, maybe one workflow file.
-2. **Data engineers** (interviewers) — read the Terraform, the dbt models, the convergence
+1. **Hiring managers / recruiters** (primary), skim README, diagram, maybe one workflow file.
+2. **Data engineers** (interviewers), read the Terraform, the dbt models, the convergence
    logic; judge the trade-offs.
-3. **The owner** — learning vehicle for AWS-native streaming (Kinesis) and Iceberg. **AWS
+3. **The owner**: learning vehicle for AWS-native streaming (Kinesis) and Iceberg. **AWS
    fluency is beginner**: every design choice biases toward fewer, simpler managed services,
    and the first ticket of each phase is a bounded learning spike on that phase's new services.
 
@@ -112,16 +112,16 @@ Explicitly out of scope — reject in review if it creeps in:
 
 - **Ingestion (live):** a single containerized WebSocket consumer on Fargate (Lambda cannot
   hold sockets past 15 min). Runs only during demo sessions, in the **default VPC** with a
-  public IP and an egress-only security group — no subnets, NAT, or endpoints of our own.
+  public IP and an egress-only security group, no subnets, NAT, or endpoints of our own.
   **Confirmed (2026-09-04 capture):** the `trades` subscription replays recent trades on
   connect (first message carried a trade ~6 s older than the connect time), so the
   session manifest's `start` is the first trade `time` ≥ connect time; earlier replayed
   trades are kept (silver dedups them) and every reconnect re-delivers a short tail.
 - **Buffer:** Kinesis Data Streams, on-demand mode, **partition key = `coin`** so ordering
-  holds per market. Kafka-compatible alternatives (MSK Serverless) rejected on cost — see
+  holds per market. Kafka-compatible alternatives (MSK Serverless) rejected on cost, see
   cost model.
 - **Landing:** Firehose converts to Parquet natively (against a Glue schema) and
-  micro-batches to S3. Bronze is append-only **plain Parquet** with Hive-style partitions —
+  micro-batches to S3. Bronze is append-only **plain Parquet** with Hive-style partitions,
   deliberately *not* Iceberg, so nothing outside Athena ever needs an Iceberg writer.
   - **Why not a direct Fargate → S3 write:** Kinesis is the replay buffer, Firehose owns
     buffering/rotation/Parquet conversion; cost is pennies either way
@@ -129,22 +129,22 @@ Explicitly out of scope — reject in review if it creeps in:
   - **Buffer floor (drives G2):** Parquet conversion forces a 64 MB minimum buffer, so at
     watchlist volume every flush is interval-driven. Configured **60 s / 64 MB**; expect
     ~60–120 s emission→S3.
-  - **Partitioning:** the `coin=/dt=` layout comes from Firehose **dynamic partitioning** —
+  - **Partitioning:** the `coin=/dt=` layout comes from Firehose **dynamic partitioning**,
     a JQ expression over the envelope's `coin` and `time` (epoch ms → UTC date), never over
     arrival time (NFR-5). Dynamic partitioning is a separately-billed Firehose feature
-    (~$0.02/GB + per-object) — included in the cost model.
+    (~$0.02/GB + per-object), included in the cost model.
   - **Partition value normalisation:** HIP-3 markets are named `xyz:SP500`; a colon in a
     Hive partition value is awkward in Glue, Athena, and Firehose JQ keys. The `coin`
     column keeps the exact name; the partition value is the name with `:` → `_`
     (`coin=xyz_SP500`). One helper owns the mapping, used by ingester and backfill alike.
   - **Partition registration:** bronze uses **Glue partition projection** (`coin` as an
-    enum from the watchlist config, `dt` as a date range) — no crawler, no `MSCK REPAIR`,
+    enum from the watchlist config, `dt` as a date range), no crawler, no `MSCK REPAIR`,
     no per-partition writes to the catalog. New partitions are queryable the moment
     objects land.
   - **Small files are expected:** one Parquet object per coin per ~minute per session.
     Fine at this scale for Athena; compaction happens at silver by construction (the
     Iceberg merge rewrites into few, large files). No bronze compaction job.
-- **Backfill:** plain-Python Lambda jobs (no Glue Spark ETL — one less paradigm) read the
+- **Backfill:** plain-Python Lambda jobs (no Glue Spark ETL, one less paradigm) read the
   requester-pays archive and write the identical bronze Parquet layout. **Fan-out unit is
   one archive hour file** (official layout: every market in one ~46 MB LZ4 / ~235 MB JSON
   file per hour; 720 invocations for 30 days). The Lambda stream-decodes LZ4, filters the
@@ -159,26 +159,26 @@ Explicitly out of scope — reject in review if it creeps in:
   hour. Healing a gap must therefore fetch the gap's hours **plus the following hour**. Firehose objects carry their own generated names under
   `source=ws/`; bronze duplicates from the live path are expected and resolved downstream.
 - **Table format:** silver/gold are Apache Iceberg tables in the **Glue catalog**, created
-  and written exclusively through dbt-athena — one Iceberg write path, owned by dbt.
+  and written exclusively through dbt-athena, one Iceberg write path, owned by dbt.
 - **Transforms:** dbt-athena; medallion bronze → silver → gold. Dedup and the batch/stream
   seam are resolved at silver.
   - **Runtime:** a GitHub Actions `dbt-run` workflow over the OIDC role; no dbt container
     in AWS ([ADR-001](decisions/ADR-001-dbt-runtime-github-actions.md)).
   - **Iceberg maintenance:** `make iceberg-maintain` runs Athena `OPTIMIZE` + `VACUUM` on
     silver/gold as the last step of `session-down`.
-- **Orchestration:** EventBridge schedules + Step Functions — scoped to the **backfill
+- **Orchestration:** EventBridge schedules + Step Functions, scoped to the **backfill
   Lambda fan-out** (one invocation per archive hour file; a Map state over the requested
   hour list, also used by `make heal` for gap intervals). No Airflow/MWAA (cost). dbt is
-  not orchestrated from AWS — see Transforms.
+  not orchestrated from AWS, see Transforms.
 - **IaC:** Terraform, single root module, `apply`/`destroy` as the demo lifecycle. Optional
   persistent layer (S3 data + catalog) separated from the ephemeral layer (compute, streams)
   so data can survive teardown when desired.
 
 ### Data model (frozen 2026-09-05, ADR-005)
 
-- **Bronze — `trades_raw`** (plain Parquet, partitioned `coin=<market, colon→underscore>/dt=<utc-date>`, where
-  `dt` is derived from the **exchange event time**, not arrival time — see NFR-5): an
-  **ingester-owned envelope** (resolves OQ-7) — best-effort typed columns (`tid`, `coin`,
+- **Bronze, `trades_raw`** (plain Parquet, partitioned `coin=<market, colon→underscore>/dt=<utc-date>`, where
+  `dt` is derived from the **exchange event time**, not arrival time, see NFR-5): an
+  **ingester-owned envelope** (resolves OQ-7), best-effort typed columns (`tid`, `coin`,
   `side`, `px`, `sz`, `time`, etc.) plus a `raw_payload` JSON string column carrying the
   untouched source event, so the Firehose schema is owned by our ingester rather than by
   Hyperliquid. Source drift degrades to null typed fields instead of a lost record. Plus
@@ -189,20 +189,20 @@ Explicitly out of scope — reject in review if it creeps in:
     per *user fill*, two rows per `tid` (maker + taker), with ~2 % single-fill `tid`s in
     the official archive. The backfill Lambda **collapses before writing bronze**: keep
     the taker-side (`crossed = true`) fill as the canonical row, or whichever single fill
-    exists (`px`, `sz` are identical across a pair — nothing is summed), and record
+    exists (`px`, `sz` are identical across a pair, nothing is summed), and record
     `archive_rows_collapsed` (1 or 2) in the envelope. The collapse rule lives in the
     backfill reader, so both paths emit the same grain and silver never sees it.
   - **Feed carries fewer fields than the archive:** the WS `trades` message is
-    `coin, side, px, sz, time, hash, tid, users[2]` — no liquidation, crossed, or fee
+    `coin, side, px, sz, time, hash, tid, users[2]`, no liquidation, crossed, or fee
     fields. Those typed columns are null for `source = ws` rows and populated only when
     the archive replay upserts them at silver. `users` stays inside `raw_payload` only.
-  - **Retention:** bronze is never pruned for windows under reconciliation — it is the
+  - **Retention:** bronze is never pruned for windows under reconciliation, it is the
     evidence for G3.
-  - **Decimal precision:** `px decimal(18,8)`, `sz decimal(18,6)` — **confirmed** by the
+  - **Decimal precision:** `px decimal(18,8)`, `sz decimal(18,6)`, **confirmed** by the
     2026-09-04 spike (widest observed: px 5 int / 4 frac, sz 5 int / 5 frac across all
     `xyz:` markets and the core perps).
-- **Silver — `trades`** (Iceberg): one row per trade, exactly-once. Typed columns: `tid`
-  (trade id — the dedup key), `coin`, `side`, `px` (decimal), `sz` (decimal), `time` (UTC
+- **Silver, `trades`** (Iceberg): one row per trade, exactly-once. Typed columns: `tid`
+  (trade id, the dedup key), `coin`, `side`, `px` (decimal), `sz` (decimal), `time` (UTC
   timestamp), liquidation/crossed flags if the source provides them, and
   `first_seen_source` (insert-only lineage). Built by dbt incremental merge on `tid`,
   bounded by a config-driven `dt` lookback (default 2 days); late or replayed data upserts
@@ -214,7 +214,7 @@ Explicitly out of scope — reject in review if it creeps in:
     (`when matched and source.rank >= target.rank then update`), not via
     `merge_update_columns` alone. This is what lets a late feed duplicate arrive after the
     backfill without nulling the flags it filled.
-- **Reconciliation — `recon_trades`** (dbt model over **bronze**): per **distinct** `tid`
+- **Reconciliation, `recon_trades`** (dbt model over **bronze**): per **distinct** `tid`
   per source (bronze may hold duplicates from the live path), counts `ws_only` /
   `backfill_only` / `both` over the **reconcilable window** = session hours whose archive
   hour file has landed (trailing partial hour excluded). Tests: `ws_only = 0`; every
@@ -223,7 +223,7 @@ Explicitly out of scope — reject in review if it creeps in:
   ([ADR-003](decisions/ADR-003-g3-reconciliation-at-bronze.md)). Output goes into the
   session manifest.
 - **Gold** (Iceberg marts): `ohlcv_1m` / `ohlcv_1h` / `ohlcv_1d` per coin, `volume_daily`,
-  and `liquidations_daily` — the last is **backfill-only** (FR-4): the feed carries no
+  and `liquidations_daily`, the last is **backfill-only** (FR-4): the feed carries no
   liquidation flag, so the mart is complete only for hours the archive has healed.
 
 ### Ingestion contract & failure modes
@@ -258,7 +258,7 @@ Contract: **at-least-once into bronze, exactly-once at silver** (dedup on `tid`)
   (`terraform destroy`) with a checklist proving nothing billable is left behind.
 - **FR-7** Per-run cost captured (Cost Explorer, filtered on the `project=hyperlake` cost
   allocation tag) and committed to a `costs/` log in the repo. **Phase 0 must activate the
-  cost allocation tag** — activation takes up to 24 h and Cost Explorer lags a further day,
+  cost allocation tag**, activation takes up to 24 h and Cost Explorer lags a further day,
   so the manifest records cost as `pending` at session end and a `make cost-backfill`
   target fills it in the next day.
 - **FR-8** Session lifecycle is scripted and first-class: `make session-up` /
@@ -267,18 +267,18 @@ Contract: **at-least-once into bronze, exactly-once at silver** (dedup on `tid`)
   cost) committed to the repo. `session-down` ends with `dbt-run` (via `gh workflow run`)
   and `iceberg-maintain`. A separate **`make heal`** target, run ≥ 1 h after session end,
   backfills the manifest's unhealed gap hours and the session's trailing hour, re-runs
-  `dbt-run`, and updates the manifest — this is what makes G3's assertion hold for a
+  `dbt-run`, and updates the manifest, this is what makes G3's assertion hold for a
   session that had disconnects.
   - **Workflow completion contract:** `gh workflow run` is asynchronous, so every caller
     (`session-down`, `heal`) passes a unique `run_key` input, locates its run by that key
-    (never "latest" — two runs can be seconds apart), then `gh run watch --exit-status`
+    (never "latest", two runs can be seconds apart), then `gh run watch --exit-status`
     with a **20-minute timeout**. Failure or timeout exits non-zero and the manifest
     records the run URL with `status: failed`. One shared shell helper owns this.
   - **Two cost columns per session:** `cost_estimate` is computed at `session-down` from
     resource-hours × list price (Fargate, Kinesis, Firehose GB, Athena bytes) and is
     available immediately; `cost_actual` starts `pending` and is filled by
     `make cost-backfill` the next day. The demo shows the committed `costs/` table with
-    prior sessions' estimates beside actuals — a live number is not possible (Cost
+    prior sessions' estimates beside actuals, a live number is not possible (Cost
     Explorer lags ~24 h) and the estimate-vs-actual history is the stronger claim.
   - **Session reaper (dead-man's switch):** `session-up` creates a **one-time EventBridge
     Scheduler entry at start + `max_session_hours` (default 6)** that invokes a small
@@ -295,14 +295,14 @@ Contract: **at-least-once into bronze, exactly-once at silver** (dedup on `tid`)
     must tolerate the already-deleted stream. **Verify both paths in Phase 2** on a
     deliberately reaped session before the reaper is trusted.
 - **FR-9** Local development works without AWS via a **two-target dbt project**
-  (`duckdb` / `athena`, materialization switched by macro —
+  (`duckdb` / `athena`, materialization switched by macro,
   [ADR-002](decisions/ADR-002-two-target-dbt-project.md)). CI (GitHub Actions) runs
   pytest + `dbt build --target duckdb` on committed sample fixtures + `terraform
-  fmt/validate` on every PR — free, no cloud credentials. CI proves logic, uniqueness, and
+  fmt/validate` on every PR, free, no cloud credentials. CI proves logic, uniqueness, and
   OHLCV math. **Merge behaviour has its own automated test on Athena:** a `seam_test`
   schema seeded by dbt with a few dozen fixture rows, and `dbt build --select tag:seam`
   runs the silver merge twice covering (a) a late feed duplicate, (b) backfill arriving
-  after the feed row, (c) a feed row arriving after backfill — asserting
+  after the feed row, (c) a feed row arriving after backfill, asserting
   `first_seen_source`, flag preservation, and row counts. It runs in the `dbt-run`
   workflow **on every push to `main`** (needs the OIDC role, so not on PRs) and costs
   cents. Ingester unit-tested against recorded WS fixtures.
@@ -311,7 +311,7 @@ Contract: **at-least-once into bronze, exactly-once at silver** (dedup on `tid`)
 
 - **NFR-1 Cost:** hard budget $15/month during active development; AWS Budgets alarm at $10
   provisioned by Terraform on day one. The alarm is a **lagging backstop** (Budgets data
-  refreshes on a multi-hour delay, typically 8–12 h) — the primary guardrails are the
+  refreshes on a multi-hour delay, typically 8–12 h), the primary guardrails are the
   scripted `session-down` (FR-8), the **session reaper** that tears down a session left
   running past `max_session_hours` (FR-8), and the post-destroy checklist (FR-6).
 - **NFR-2 No bill-surprise services:** NAT Gateway, MWAA, MSK provisioned, OpenSearch, and
@@ -323,7 +323,7 @@ Contract: **at-least-once into bronze, exactly-once at silver** (dedup on `tid`)
   stack from the README alone.
 - **NFR-5 Timestamps:** UTC everywhere in storage; rendering concerns don't exist (no UI).
   Partitioning (`dt=`) and every gold time window derive **exclusively from exchange event
-  time (`time`)**, never `ingested_at`/arrival time — otherwise the streamed hour and the
+  time (`time`)**, never `ingested_at`/arrival time, otherwise the streamed hour and the
   backfilled hour disagree at bucket boundaries and G3 reconciliation shows phantom gaps.
 - **NFR-6 Process/code hygiene:** conventional commits; PRD → ADRs for every significant
   decision (this file's open questions each terminate in an ADR).
@@ -335,15 +335,15 @@ Contract: **at-least-once into bronze, exactly-once at silver** (dedup on `tid`)
 
 | Phase | Deliverable | Proves |
 |-------|-------------|--------|
-| **0 — Scaffold** | Repo, Terraform bootstrap (state, budget alarm, OIDC, **cost allocation tag activated**), CI skeleton (two-target dbt project compiles), `costs/` log with the `cost_estimate` / `cost_actual` schema and `make cost-backfill` | Cost guardrails exist before any resource does |
-| **1 — Lakehouse (batch)** | Lambda backfill (per hour file, taker-fill collapse; source/identity fixed by [ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md)) → bronze Parquet → silver Iceberg via dbt (`dbt-run` workflow) → Athena queries. Stretch: Reservoir fallback reader | Lakehouse fundamentals, requester-pays handling |
-| **2 — Streaming** | Fargate ingester → Kinesis → Firehose → same bronze; `session-up`/`session-down` with manifest; **session reaper** (Scheduler + Lambda) and ingester self-exit | Streaming ingestion, live demo capability, bounded blast radius |
-| **3 — Convergence + transforms** | dbt silver/gold, dedup at the seam, data quality tests | The actual hard problem; the interview talking point |
-| **4 — Presentation** | README + diagram, **demo runbook** (`docs/demo-runbook.md`: session-up → stream → heal → recon → query, with timings) as the demo artifact, cost report, dbt docs | Legibility to the hiring audience |
+| **0; Scaffold** | Repo, Terraform bootstrap (state, budget alarm, OIDC, **cost allocation tag activated**), CI skeleton (two-target dbt project compiles), `costs/` log with the `cost_estimate` / `cost_actual` schema and `make cost-backfill` | Cost guardrails exist before any resource does |
+| **1; Lakehouse (batch)** | Lambda backfill (per hour file, taker-fill collapse; source/identity fixed by [ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md)) → bronze Parquet → silver Iceberg via dbt (`dbt-run` workflow) → Athena queries. Stretch: Reservoir fallback reader | Lakehouse fundamentals, requester-pays handling |
+| **2; Streaming** | Fargate ingester → Kinesis → Firehose → same bronze; `session-up`/`session-down` with manifest; **session reaper** (Scheduler + Lambda) and ingester self-exit | Streaming ingestion, live demo capability, bounded blast radius |
+| **3; Convergence + transforms** | dbt silver/gold, dedup at the seam, data quality tests | The actual hard problem; the interview talking point |
+| **4; Presentation** | README + diagram, **demo runbook** (`docs/demo-runbook.md`: session-up → stream → heal → recon → query, with timings) as the demo artifact, cost report, dbt docs | Legibility to the hiring audience |
 
 Phases ship sequentially; each ends with a working, demoable state and a teardown test.
 
-## 8. Cost model (approximate, **ap-northeast-1** list prices — both archive buckets live there; ~10–15 % above us-east-1)
+## 8. Cost model (approximate, **ap-northeast-1** list prices: both archive buckets live there; ~10–15 % above us-east-1)
 
 Volume basis (measured, [spike 2026-09-04](spikes/2026-09-04-oq1-archive-desk-spike.md)):
 watchlist ≈ **1.1 M trades/day ≈ 17 trades/s**, ~300 B/trade raw → ~300 MB/day JSON,
@@ -367,9 +367,9 @@ One-time 30-day backfill, deployed in ap-northeast-1 (S3 → Lambda transfer is 
 | Official (primary) | ~33 GB LZ4, 720 hour files | ~58 k GB-s ≈ **$1** | negligible |
 | Reservoir (fallback) | ~22 GB Parquet, 60 daily files | ~7 k GB-s ≈ **$0.15** | negligible |
 
-Idle: S3 storage only — bronze + silver + gold for 30 days ≈ **< 5 GB ≈ $0.15/month**
+Idle: S3 storage only, bronze + silver + gold for 30 days ≈ **< 5 GB ≈ $0.15/month**
 (prior 20–50 GB estimate was before measurement). No free-tier credits assumed (account's
-credits are exhausted) — the budget alarm (NFR-1) is the backstop.
+credits are exhausted), the budget alarm (NFR-1) is the backstop.
 
 ## 9. Risks
 
@@ -378,7 +378,7 @@ credits are exhausted) — the budget alarm (NFR-1) is the backstop.
 | Teardown misses a billable resource | Silent monthly burn | Everything in one Terraform state; budget alarm; post-destroy checklist (FR-6) |
 | WS feed schema drift / undocumented changes | Broken ingester mid-demo | Ingester-owned envelope (OQ-7): drift degrades to null typed fields, `raw_payload` retains the source event, nothing dies at Firehose conversion; schema enforcement proper happens at silver |
 | Archive format differs from WS format | Convergence complexity explodes | Measured 2026-09-04: official archive fields are WS-identical; only the fill→trade collapse differs and it is isolated in the backfill reader |
-| Reservoir (fallback) layout drifts — already reorganised once (`_pre_hip4_unification_backup/`) | Fallback reader breaks silently | Fallback reader pinned to a path pattern + schema assertion; failure is loud, not null-filled |
+| Reservoir (fallback) layout drifts; already reorganised once (`_pre_hip4_unification_backup/`) | Fallback reader breaks silently | Fallback reader pinned to a path pattern + schema assertion; failure is loud, not null-filled |
 | Kinesis/Fargate left running after a session | ~$30+/month | Session start/stop is a scripted pair; destroy is part of the demo script, not an afterthought |
 | Free-tier credit assumptions wrong | Unplanned spend | Budget alarm at $10 is independent of credits |
 | Scope creep toward a "product" (dashboards, alerts, 24/7) | Never ships | Non-goals section; PRD freeze after OQs resolve |
@@ -393,20 +393,20 @@ dated otherwise.
 
 | Decision | Choice | ADR |
 |---|---|---|
-| Name | `hyperlake` (collision-checked; no affiliation claim on "Hyperliquid") | — |
-| Platform | AWS serverless, ephemeral apply/destroy — over VPS for hiring signal + near-zero idle | Phase 0 |
+| Name | `hyperlake` (collision-checked; no affiliation claim on "Hyperliquid") | - |
+| Platform | AWS serverless, ephemeral apply/destroy; over VPS for hiring signal + near-zero idle | Phase 0 |
 | AWS account | owner's existing account; dedicated IAM role + `project=hyperlake` tags; no free-tier credits assumed | Phase 0 |
-| Tracker | Linear (Quant team); process private, repo public | — |
+| Tracker | Linear (Quant team); process private, repo public | - |
 | Watchlist (OQ-3) | BTC, ETH, HYPE + `xyz:SP500`, `xyz:XYZ100` (HIP-3); config-driven; **measured ~1.1 M trades/day, ~17/s** (2026-09-04) | Phase 1 |
-| Region (2026-09-04, from OQ-1 spike) | **ap-northeast-1** — both archive buckets live there; in-region S3→Lambda transfer is free | Phase 0 |
-| Backfill source + trade identity (OQ-1, 2026-09-05) | official `hl-mainnet-node-data` primary (~1 h lag, WS-identical fields); Reservoir fallback via column mapping; **dedup key `tid`** — gate passed 1,986/1,986; taker (`crossed`) fill is canonical | [ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md) |
-| Ingester language | Python | — |
-| License (OQ-5, 2026-07-10) | MIT | — |
-| Catalog (OQ-2, 2026-07-10) | Glue catalog; S3 Tables parked — beginner fluency + dbt-athena maturity | Phase 1 |
+| Region (2026-09-04, from OQ-1 spike) | **ap-northeast-1**; both archive buckets live there; in-region S3→Lambda transfer is free | Phase 0 |
+| Backfill source + trade identity (OQ-1, 2026-09-05) | official `hl-mainnet-node-data` primary (~1 h lag, WS-identical fields); Reservoir fallback via column mapping; **dedup key `tid`**; gate passed 1,986/1,986; taker (`crossed`) fill is canonical | [ADR-005](decisions/ADR-005-backfill-source-and-trade-identity.md) |
+| Ingester language | Python | - |
+| License (OQ-5, 2026-07-10) | MIT | - |
+| Catalog (OQ-2, 2026-07-10) | Glue catalog; S3 Tables parked; beginner fluency + dbt-athena maturity | Phase 1 |
 | Write path (2026-07-10) | bronze = plain Parquet, Hive partitions; Iceberg only at silver/gold, written only by dbt-athena; backfill = plain-Python Lambda | Phase 1 |
 | Bronze drift posture (OQ-7, 2026-09-01) | ingester-owned envelope: typed columns + `raw_payload`; drift → nulls, never lost records | Phase 2 |
-| Demo artifact (OQ-4, 2026-09-01; amended 2026-09-15) | `docs/demo-runbook.md` (real measured timings + G3 walkthrough + data-quality failure sidebar) is the demo artifact — recorded-video requirement dropped: low expected watch-through vs. production cost, and the runbook already carries the same evidence as reproducible text rather than a recording | Phase 4 |
-| Timeline (OQ-6, 2026-09-01) | no deadline; ~1–2 weekends per phase; Phase 3 uncompressed | — |
+| Demo artifact (OQ-4, 2026-09-01; amended 2026-09-15) | `docs/demo-runbook.md` (real measured timings + G3 walkthrough + data-quality failure sidebar) is the demo artifact; recorded-video requirement dropped: low expected watch-through vs. production cost, and the runbook already carries the same evidence as reproducible text rather than a recording | Phase 4 |
+| Timeline (OQ-6, 2026-09-01) | no deadline; ~1–2 weekends per phase; Phase 3 uncompressed | - |
 | dbt runtime (2026-09-04) | GitHub Actions `dbt-run` workflow over OIDC; Step Functions = backfill fan-out only | [ADR-001](decisions/ADR-001-dbt-runtime-github-actions.md) |
 | Local dbt parity (2026-09-04) | two targets `duckdb`/`athena`; CI proves logic, Athena proves merge | [ADR-002](decisions/ADR-002-two-target-dbt-project.md) |
 | G3 proof location (2026-09-04) | reconciliation over bronze (`recon_trades`); silver keeps `first_seen_source` for lineage only | [ADR-003](decisions/ADR-003-g3-reconciliation-at-bronze.md) |
@@ -426,9 +426,9 @@ as plan B should `tid` semantics change upstream. New questions reopen the PRD t
 
 ## 12. Parking lot
 
-Explicitly parked — reopen the PRD before building any of these:
+Explicitly parked, reopen the PRD before building any of these:
 
-- Schema-evolution demo (add a column at silver via Iceberg evolution — the strongest
+- Schema-evolution demo (add a column at silver via Iceberg evolution, the strongest
   stretch goal if Phase 3 lands early; it's Iceberg's headline feature)
 - L2 order-book data (`hyperliquid-archive` market_data), funding rates, HyperEVM data
 - All-markets scope (watchlist is config-driven; widening is a config change, not a build)
@@ -437,7 +437,7 @@ Explicitly parked — reopen the PRD before building any of these:
 
 ## 13. References
 
-- Hyperliquid historical data docs — https://hyperliquid.gitbook.io/hyperliquid-docs/historical-data
-- Hyperliquid WebSocket API — https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket
-- Hydromancer Reservoir archive — https://hydromancer.xyz/historical-data
-- Owner's prior ops patterns (SOPS, deploy, health checks) — private repos `equity-data-agent`, `argus-agent`
+- Hyperliquid historical data docs, https://hyperliquid.gitbook.io/hyperliquid-docs/historical-data
+- Hyperliquid WebSocket API, https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket
+- Hydromancer Reservoir archive, https://hydromancer.xyz/historical-data
+- Owner's prior ops patterns (SOPS, deploy, health checks), private repos `equity-data-agent`, `argus-agent`

@@ -1,6 +1,6 @@
 .PHONY: check lint format types test audit tf-check docs-check demo-runbook-check dbt-build dbt-docs dbt-demo-fail cost-backfill cost-report tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
 
-# Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
+# Everything ci.yml runs, in order, the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
 
 lint:
@@ -22,7 +22,7 @@ audit:
 	uv run pip-audit -r requirements-audit.txt --disable-pip --no-deps --progress-spinner off
 
 # `--group dbt` makes `uv run` install the dbt group on the fly, so this needs no separate
-# `uv sync --group dbt` step — relies on that uv auto-sync behavior.
+# `uv sync --group dbt` step, relies on that uv auto-sync behavior.
 dbt-build:
 	cd dbt && uv run --group dbt dbt build --profiles-dir . --target duckdb
 
@@ -174,7 +174,7 @@ tf-check:
 			(cd $$dir && terraform init -backend=false -input=false >/dev/null && terraform validate) || exit 1; \
 		done; \
 	else \
-		echo "tf-check: no *.tf files yet — skipping"; \
+		echo "tf-check: no *.tf files yet, skipping"; \
 	fi
 
 # QNT-467 AC3: relative markdown links in README.md + docs/ must resolve to a real file;

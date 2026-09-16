@@ -36,8 +36,8 @@ event `time`, not from the file name.
 ## Live feed (WS `trades` channel, 30 s capture)
 
 - One message per trade: `{coin, side, px, sz, time, hash, tid, users: [buyer, seller]}`.
-- **No liquidation / crossed / fee fields** on the feed — those exist only in the archives.
-- HIP-3 markets subscribe and emit as `xyz:SP500`, `xyz:XYZ100` — identical to archive naming.
+- **No liquidation / crossed / fee fields** on the feed, those exist only in the archives.
+- HIP-3 markets subscribe and emit as `xyz:SP500`, `xyz:XYZ100`, identical to archive naming.
 - `tid` is an integer of the same magnitude as the archive (`4.3e14`–`1.1e15`); `hash`
   present on both sides.
 - Rate over 30 s: BTC 162, HYPE 143, XYZ100 63, ETH 57, SP500 55 → **~17 trades/s**.
@@ -88,10 +88,10 @@ Requester-pays GET/LIST requests are negligible at these object counts.
 3. Backfill fan-out is **per hour file**, not per coin × day; filter the watchlist inside
    the Lambda and write per-coin partitions.
 4. Bronze grain collapse must accept **1 or 2** fills per `tid`.
-5. Liquidation marts are **backfill-only** — the feed carries no flag.
+5. Liquidation marts are **backfill-only**: the feed carries no flag.
 6. Watchlist estimate becomes ~1.1 M trades/day; idle storage estimate drops to < 5 GB.
 
-## Gate result (2026-09-05) — PASS
+## Gate result (2026-09-05): PASS
 
 `scripts/spike/capture_ws_trades.py --seconds 90` at 15:05 UTC 2026-09-04 → 1,986 trades
 (BTC 680, ETH 797, HYPE 323, xyz:SP500 114, xyz:XYZ100 72).
@@ -103,7 +103,7 @@ Requester-pays GET/LIST requests are negligible at these object counts.
 
 Two facts learned on the way:
 
-- The first run reported 548 `side` mismatches — all because the indexer kept the
+- The first run reported 548 `side` mismatches, all because the indexer kept the
   **maker** fill. The pair shares `px, sz, time` but has opposite `side`; the WS feed
   reports the **taker's** side (`crossed = true`). Preferring the crossed fill gives a
   100 % match. This confirms the PRD's collapse rule exactly.

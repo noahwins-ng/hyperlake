@@ -15,7 +15,7 @@ models:
         tests:
           - not_null
       - name: tid
-        description: Trade id being reconciled — one row per distinct `tid` seen in the window, deduped per source.
+        description: Trade id being reconciled, one row per distinct `tid` seen in the window, deduped per source.
         tests:
           - not_null
       - name: coin
@@ -23,11 +23,11 @@ models:
         tests:
           - not_null
       - name: time
-        description: Exchange event time (UTC) of the trade — never arrival/`ingested_at`.
+        description: Exchange event time (UTC) of the trade, never arrival/`ingested_at`.
         tests:
           - not_null
       - name: membership
-        description: Which acquisition path(s) saw this `tid` in the window — `ws_only`, `backfill_only`, or `both`. `ws_only = 0` and every `backfill_only` inside a manifest-recorded gap is what proves G3 (ADR-003).
+        description: Which acquisition path(s) saw this `tid` in the window, `ws_only`, `backfill_only`, or `both`. `ws_only = 0` and every `backfill_only` inside a manifest-recorded gap is what proves G3 (ADR-003).
         tests:
           - not_null
           - accepted_values:

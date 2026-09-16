@@ -1,5 +1,5 @@
 -- Sample Athena queries over silver.trades (FR-5). Run in the `hyperlake` workgroup.
--- The `-2` below mirrors dbt/dbt_project.yml's `silver_lookback_days` default — update
+-- The `-2` below mirrors dbt/dbt_project.yml's `silver_lookback_days` default, update
 -- both if that default changes.
 
 -- Exactly-once check: row count equals distinct tid count (proves the merge, QNT-453 AC2).

@@ -1,4 +1,4 @@
-# Dev workflow — weekly cadence
+# Dev workflow: weekly cadence
 
 A cheat sheet for how the flow skills chain together (the command reference itself is CLAUDE.md).
 
@@ -15,4 +15,4 @@ A cheat sheet for how the flow skills chain together (the command reference itse
 `flow-gen-claudemd` → `flow-cycle-start`.
 
 ## Ops
-- `flow-server-audit` — periodic prod durability/security/drift snapshot → tracked tickets.
+- `flow-server-audit`: periodic prod durability/security/drift snapshot → tracked tickets.

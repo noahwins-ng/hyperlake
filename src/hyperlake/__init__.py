@@ -1,1 +1,1 @@
-"""Hyperlake — streaming lakehouse for Hyperliquid market data."""
+"""Hyperlake, streaming lakehouse for Hyperliquid market data."""

@@ -15,8 +15,8 @@ future reader understands the situation without re-deriving it.>
 
 ## Alternatives considered
 
-- **<Option>** — <why not>.
-- **<Option>** — <why not>.
+- **<Option>**: <why not>.
+- **<Option>**: <why not>.
 
 ## Consequences
 

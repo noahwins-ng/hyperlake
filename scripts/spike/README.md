@@ -2,7 +2,7 @@
 
 The one open question the PRD cannot settle by design work: does the official archive
 carry the same `tid` the WebSocket feed emits for the same trade? Everything else in
-OQ-1 was measured on 2026-09-04 — see `docs/spikes/2026-09-04-oq1-archive-desk-spike.md`.
+OQ-1 was measured on 2026-09-04, see `docs/spikes/2026-09-04-oq1-archive-desk-spike.md`.
 
 ## Run it (one evening)
 

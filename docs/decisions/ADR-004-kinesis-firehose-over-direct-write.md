@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Date:** 2026-09-04 (raised in PRD v0.4 review; lands in Phase 2)
-- **Ticket:** —
+- **Ticket:** none
 
 ## Context
 
@@ -20,7 +20,7 @@ behaviour, exactly what the ingestion contract already requires:
   does not lose in-flight trades; they stay in the stream for replay. This is the
   at-least-once half of the contract.
 - **Firehose** owns crash-safe buffering, file rotation, native Parquet conversion against
-  a Glue schema, and event-time dynamic partitioning — all of which the ingester would
+  a Glue schema, and event-time dynamic partitioning, all of which the ingester would
   otherwise hand-roll and unit-test.
 
 Firehose is configured at **60 s / 64 MB** (the 64 MB floor is imposed by Parquet
@@ -31,12 +31,12 @@ wiring consuming disproportionate time against the weekend-pace budget.
 
 ## Alternatives considered
 
-- **Fargate writes Parquet to S3 directly** — fewest services, but the ingester then owns
+- **Fargate writes Parquet to S3 directly**: fewest services, but the ingester then owns
   buffering, rotation, partial-file recovery on crash, and Parquet writing. Every one of
   those is a place to lose trades silently, and there is no replay buffer.
-- **Fargate → Firehose directly (no Kinesis)** — removes the replay buffer; a Firehose
+- **Fargate → Firehose directly (no Kinesis)**: removes the replay buffer; a Firehose
   `PutRecordBatch` failure during a task crash is lost data. Saves ~$0.04/hr.
-- **MSK Serverless** — Kafka is the stronger resume signal, but the idle floor is
+- **MSK Serverless**: Kafka is the stronger resume signal, but the idle floor is
   ~$0.75/hr, which alone violates G4.
 
 ## Consequences
@@ -51,6 +51,6 @@ wiring consuming disproportionate time against the weekend-pace budget.
   upstream drift never fails conversion.
 - Firehose's dynamic-partitioning JQ engine can't call `hyperlake.partitions.coin_partition_value`
   directly, so the `':' -> '_'` normalisation is re-expressed as a JQ `gsub` in the delivery
-  stream's `MetadataExtractionQuery` (QNT-455 spike) — a second, necessarily-duplicated
+  stream's `MetadataExtractionQuery` (QNT-455 spike), a second, necessarily-duplicated
   implementation of the one-helper rule, not an ad hoc one. `infra/main/persistent/glue.tf`'s
   `replace()` call for the same reason is the only other exception.

@@ -58,7 +58,7 @@ jobs:
         run: |
           BANNED='aws_nat_gateway|aws_mwaa_environment|aws_msk_cluster|aws_opensearch_domain|aws_elasticsearch_domain|aws_quicksight_'
           if grep -rEn --include='*.tf' --exclude-dir=.terraform "$BANNED" infra/; then
-            echo "banned AWS service resource type found under infra/ — see CLAUDE.md architecture rules" >&2
+            echo "banned AWS service resource type found under infra/, see CLAUDE.md architecture rules" >&2
             exit 1
           fi
 
@@ -70,7 +70,7 @@ jobs:
         run: |
           BANNED='resource "aws_vpc"|resource "aws_subnet"|resource "aws_nat_gateway"|resource "aws_vpc_endpoint"'
           if grep -rEn --include='*.tf' --exclude-dir=.terraform "$BANNED" infra/; then
-            echo "VPC resource found under infra/ — Fargate must use the default VPC via data sources, see CLAUDE.md NFR-2" >&2
+            echo "VPC resource found under infra/, Fargate must use the default VPC via data sources, see CLAUDE.md NFR-2" >&2
             exit 1
           fi
 
@@ -78,7 +78,7 @@ jobs:
         run: |
           uv run python -c "from hyperlake.watchlist import load_watchlist; print(chr(10).join(load_watchlist()))" > /tmp/watchlist_markets.txt
           if grep -rFwnf /tmp/watchlist_markets.txt --include='*.tf' --exclude-dir=.terraform infra/; then
-            echo "watchlist market literal found under infra/** — must come from yamldecode(config/watchlist.yaml), never typed into .tf" >&2
+            echo "watchlist market literal found under infra/**, must come from yamldecode(config/watchlist.yaml), never typed into .tf" >&2
             exit 1
           fi
 
@@ -90,6 +90,6 @@ jobs:
           AKIA_KEY="AKIA[0-9A-Z]{16}"
           if grep -rEn --exclude-dir=.git --exclude-dir=.venv --exclude-dir=.terraform \
               "($KEY_ID_VAR|$SECRET_VAR|$AKIA_KEY)" .; then
-            echo "long-lived AWS credential reference found — this repo uses OIDC only" >&2
+            echo "long-lived AWS credential reference found, this repo uses OIDC only" >&2
             exit 1
           fi

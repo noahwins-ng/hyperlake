@@ -40,7 +40,7 @@ def test_schema_pins_decimal_precisions():
 
 def test_schema_ws_optional_fields_are_nullable():
     # The WS `trades` feed carries no liquidation/crossed/fee, and archive_rows_collapsed
-    # only applies to backfill rows — these must stay nullable so source drift degrades to
+    # only applies to backfill rows, these must stay nullable so source drift degrades to
     # null instead of a dropped record (PRD Data model).
     for name in ("crossed", "liquidation", "fee", "archive_rows_collapsed"):
         assert SCHEMA.field(name).nullable, f"{name} must be nullable for WS-sourced rows"

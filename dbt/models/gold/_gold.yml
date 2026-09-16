@@ -3,7 +3,7 @@ version: 2
 models:
   - name: ohlcv_1m
     description: >
-      Gold — 1-minute OHLCV candles per coin, bucketed on silver `time` only (NFR-5).
+      Gold, 1-minute OHLCV candles per coin, bucketed on silver `time` only (NFR-5).
       `low <= open,close <= high` and `volume = sum(sz)` are proven by the singular tests
       `assert_ohlcv_bounds` / `assert_ohlcv_volume_reconciles` (dbt/tests/).
     columns:
@@ -12,7 +12,7 @@ models:
         tests:
           - not_null
       - name: bucket
-        description: Start of the 1-minute window (UTC), bucketed on silver `time` only — never arrival time.
+        description: Start of the 1-minute window (UTC), bucketed on silver `time` only, never arrival time.
         tests:
           - not_null
       - name: open
@@ -40,14 +40,14 @@ models:
           column_name: "coin || '|' || cast(bucket as varchar)"
 
   - name: ohlcv_1h
-    description: Gold — 1-hour OHLCV candles per coin. Same grain/invariants as ohlcv_1m.
+    description: Gold, 1-hour OHLCV candles per coin. Same grain/invariants as ohlcv_1m.
     columns:
       - name: coin
         description: Market symbol, from `config/watchlist.yaml` (see silver `trades.coin`).
         tests:
           - not_null
       - name: bucket
-        description: Start of the 1-hour window (UTC), bucketed on silver `time` only — never arrival time.
+        description: Start of the 1-hour window (UTC), bucketed on silver `time` only, never arrival time.
         tests:
           - not_null
       - name: open
@@ -75,14 +75,14 @@ models:
           column_name: "coin || '|' || cast(bucket as varchar)"
 
   - name: ohlcv_1d
-    description: Gold — 1-day OHLCV candles per coin. Same grain/invariants as ohlcv_1m.
+    description: Gold, 1-day OHLCV candles per coin. Same grain/invariants as ohlcv_1m.
     columns:
       - name: coin
         description: Market symbol, from `config/watchlist.yaml` (see silver `trades.coin`).
         tests:
           - not_null
       - name: bucket
-        description: Start of the 1-day window (UTC), bucketed on silver `time` only — never arrival time.
+        description: Start of the 1-day window (UTC), bucketed on silver `time` only, never arrival time.
         tests:
           - not_null
       - name: open
@@ -110,14 +110,14 @@ models:
           column_name: "coin || '|' || cast(bucket as varchar)"
 
   - name: volume_daily
-    description: Gold — total traded volume per coin per day, bucketed on silver `time` only.
+    description: Gold, total traded volume per coin per day, bucketed on silver `time` only.
     columns:
       - name: coin
         description: Market symbol, from `config/watchlist.yaml` (see silver `trades.coin`).
         tests:
           - not_null
       - name: day
-        description: Calendar day (UTC), bucketed on silver `time` only — never arrival time.
+        description: Calendar day (UTC), bucketed on silver `time` only, never arrival time.
         tests:
           - not_null
       - name: volume
@@ -130,7 +130,7 @@ models:
 
   - name: liquidations_daily
     description: >
-      Gold — daily liquidation volume/count per coin. **Backfill-only by construction**
+      Gold, daily liquidation volume/count per coin. **Backfill-only by construction**
       (FR-4): the live WS feed carries no liquidation flag, so `liquidation` is only ever
       true on a row the backfill archive has upserted. This mart is therefore complete only
       for coin/day combinations inside an hour range the backfill has healed -- a day with
@@ -141,7 +141,7 @@ models:
         tests:
           - not_null
       - name: day
-        description: Calendar day (UTC), bucketed on silver `time` only — never arrival time.
+        description: Calendar day (UTC), bucketed on silver `time` only, never arrival time.
         tests:
           - not_null
       - name: liquidation_volume

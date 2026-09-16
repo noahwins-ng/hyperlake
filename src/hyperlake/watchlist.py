@@ -1,10 +1,10 @@
-"""Config-driven watchlist loader — the only place a market list may live (CLAUDE.md)."""
+"""Config-driven watchlist loader, the only place a market list may live (CLAUDE.md)."""
 
 from pathlib import Path
 
 import yaml
 
-# Resolved against the repo's src-layout checkout — valid for local dev, CI, and the dbt
+# Resolved against the repo's src-layout checkout, valid for local dev, CI, and the dbt
 # GitHub Actions run. A packaged deployment (e.g. the backfill Lambda) must pass `path=`
 # explicitly rather than rely on this default.
 DEFAULT_WATCHLIST_PATH = Path(__file__).resolve().parents[2] / "config" / "watchlist.yaml"
