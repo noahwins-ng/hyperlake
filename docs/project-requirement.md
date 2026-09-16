@@ -71,7 +71,7 @@ The spec: *what* we're building and *why*, organized by phase. This is the sourc
 - **README** — diagram, per-layer sample queries, bootstrap path, timed G1 (< 15 min). *Why:* G1, G6, NFR-4.
 - **Demo artifact** — `docs/demo-runbook.md` with real measured timings, the G3 recon walkthrough, and the data-quality failure sidebar (`make dbt-demo-fail`). *Why:* PRD §7 Phase 4; OQ-4 (amended 2026-09-15) — the recorded-video requirement was dropped in favor of this runbook, which already carries the same evidence as literal, reproducible command + output rather than a recording.
 - **Cost report** — `make cost-report` renders `costs/sessions.csv`, asserts per-session and idle spend stay under the PRD G4 ceiling, and reconciles the Cost Explorer all-time total (`project=hyperlake` tag) against `sum(cost_actual)` in `costs/sessions.csv`, explaining any gap. *Why:* G4 evidence. The reconciliation guards against `costs/sessions.csv` looking clean while non-session-scoped spend (e.g. the ad-hoc Athena query cost QNT-476 found and fixed) goes unreported.
-- **dbt docs on Pages** — lineage graph published from CI. *Why:* G6; the presentation layer without a BI product.
+- **dbt docs generated in CI, lineage graph in the README** — `dbt docs generate --target duckdb` on every push to `main` keeps the manifest/catalog current; the lineage graph is captured as a static screenshot for the README rather than hosted on GitHub Pages (scope change 2026-09-16, QNT-470 amended) — GitHub Pages cannot serve from a private repository on the GitHub Free plan, and the repo stays private. *Why:* G6; the presentation layer without a BI product.
 
 ## Ops & Reliability (perpetual)
 

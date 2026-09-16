@@ -8,24 +8,31 @@ models:
       `assert_ohlcv_bounds` / `assert_ohlcv_volume_reconciles` (dbt/tests/).
     columns:
       - name: coin
+        description: Market symbol, from `config/watchlist.yaml` (see silver `trades.coin`).
         tests:
           - not_null
       - name: bucket
+        description: Start of the 1-minute window (UTC), bucketed on silver `time` only — never arrival time.
         tests:
           - not_null
       - name: open
+        description: Price of the first trade in the bucket, ordered by `time`.
         tests:
           - not_null
       - name: high
+        description: Highest trade price in the bucket.
         tests:
           - not_null
       - name: low
+        description: Lowest trade price in the bucket.
         tests:
           - not_null
       - name: close
+        description: Price of the last trade in the bucket, ordered by `time`.
         tests:
           - not_null
       - name: volume
+        description: Sum of trade size (`sz`) over the bucket.
         tests:
           - not_null
     tests:
@@ -36,24 +43,31 @@ models:
     description: Gold — 1-hour OHLCV candles per coin. Same grain/invariants as ohlcv_1m.
     columns:
       - name: coin
+        description: Market symbol, from `config/watchlist.yaml` (see silver `trades.coin`).
         tests:
           - not_null
       - name: bucket
+        description: Start of the 1-hour window (UTC), bucketed on silver `time` only — never arrival time.
         tests:
           - not_null
       - name: open
+        description: Price of the first trade in the bucket, ordered by `time`.
         tests:
           - not_null
       - name: high
+        description: Highest trade price in the bucket.
         tests:
           - not_null
       - name: low
+        description: Lowest trade price in the bucket.
         tests:
           - not_null
       - name: close
+        description: Price of the last trade in the bucket, ordered by `time`.
         tests:
           - not_null
       - name: volume
+        description: Sum of trade size (`sz`) over the bucket.
         tests:
           - not_null
     tests:
@@ -64,24 +78,31 @@ models:
     description: Gold — 1-day OHLCV candles per coin. Same grain/invariants as ohlcv_1m.
     columns:
       - name: coin
+        description: Market symbol, from `config/watchlist.yaml` (see silver `trades.coin`).
         tests:
           - not_null
       - name: bucket
+        description: Start of the 1-day window (UTC), bucketed on silver `time` only — never arrival time.
         tests:
           - not_null
       - name: open
+        description: Price of the first trade in the bucket, ordered by `time`.
         tests:
           - not_null
       - name: high
+        description: Highest trade price in the bucket.
         tests:
           - not_null
       - name: low
+        description: Lowest trade price in the bucket.
         tests:
           - not_null
       - name: close
+        description: Price of the last trade in the bucket, ordered by `time`.
         tests:
           - not_null
       - name: volume
+        description: Sum of trade size (`sz`) over the bucket.
         tests:
           - not_null
     tests:
@@ -92,12 +113,15 @@ models:
     description: Gold — total traded volume per coin per day, bucketed on silver `time` only.
     columns:
       - name: coin
+        description: Market symbol, from `config/watchlist.yaml` (see silver `trades.coin`).
         tests:
           - not_null
       - name: day
+        description: Calendar day (UTC), bucketed on silver `time` only — never arrival time.
         tests:
           - not_null
       - name: volume
+        description: Sum of trade size (`sz`) over the day.
         tests:
           - not_null
     tests:
@@ -113,15 +137,19 @@ models:
       unhealed hours will silently undercount, not error.
     columns:
       - name: coin
+        description: Market symbol, from `config/watchlist.yaml` (see silver `trades.coin`).
         tests:
           - not_null
       - name: day
+        description: Calendar day (UTC), bucketed on silver `time` only — never arrival time.
         tests:
           - not_null
       - name: liquidation_volume
+        description: Sum of trade size (`sz`) over the day's liquidation-flagged rows.
         tests:
           - not_null
       - name: liquidation_count
+        description: Count of the day's liquidation-flagged rows.
         tests:
           - not_null
     tests:

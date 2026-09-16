@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check dbt-build dbt-demo-fail cost-backfill cost-report tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
+.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check dbt-build dbt-docs dbt-demo-fail cost-backfill cost-report tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down recon heal bronze-query
 
 # Everything ci.yml runs, in order — the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check
@@ -25,6 +25,13 @@ audit:
 # `uv sync --group dbt` step — relies on that uv auto-sync behavior.
 dbt-build:
 	cd dbt && uv run --group dbt dbt build --profiles-dir . --target duckdb
+
+# QNT-470: dbt docs on duckdb -- offline, no AWS credentials. Run in CI on every push to
+# main so the manifest/catalog stay current; run locally (`make dbt-docs && cd dbt && uv
+# run --group dbt dbt docs serve`) to capture the lineage graph screenshot (AC6) -- no
+# GitHub Pages hosting (dropped 2026-09-16: GitHub Free can't serve Pages from a private repo).
+dbt-docs:
+	cd dbt && uv run --group dbt dbt docs generate --profiles-dir . --target duckdb
 
 # QNT-464 AC2/G5: seeds one bad row (an invalid `side`) via a demo-only bronze fixture and
 # runs `dbt build` so the run summary shows the red silver test and gold SKIPping downstream
