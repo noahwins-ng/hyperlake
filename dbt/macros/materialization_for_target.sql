@@ -1,8 +1,8 @@
 {#
   ADR-002: the one place the duckdb/athena targets diverge. `kind='merge'` (default): duckdb
   builds a plain table (no Iceberg/merge support), athena builds an incremental Iceberg
-  merge. `kind='table'`: a plain table on both targets (Iceberg on athena, per gold/recon -
-  QNT-463/QNT-462, which have no merge/dedup concern of their own). Every model configures
+  merge. `kind='table'`: a plain table on both targets (Iceberg on athena, for gold/recon,
+  which have no merge/dedup concern of their own). Every model configures
   itself with `{{ config(**materialization_for_target(kind=..., unique_key=...)) }}` rather
   than branching on target.type itself.
 #}

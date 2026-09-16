@@ -1,4 +1,4 @@
-"""Session lifecycle helpers for `make session-up` / `make session-down` (QNT-458, FR-8):
+"""Session lifecycle helpers for `make session-up` / `make session-down` (FR-8):
 cost estimation and the manifest-state guard that keeps overlapping sessions from
 outrunning the reaper's 6h bound.
 """
@@ -27,6 +27,12 @@ ATHENA_MAINTENANCE_USD = 0.0075
 # "Session total ~= $0.50-1" (docs/prd.md S8), rather than the ~$0.30 the itemized
 # rows alone sum to.
 OVERHEAD_HOURLY_USD = 0.075
+# Fixed per-session floor. Twelve finalized sessions in costs/sessions.csv never came in under
+# ~$0.25 regardless of length (a 5-minute session and a 27-minute one both billed $0.25-0.29):
+# Cost Explorer attributes a day's worth of tag-allocated charges (CloudWatch, S3 requests,
+# per-resource minimums) to the session, and none of it scales with duration. A purely
+# per-hour model under-estimated every short session by an order of magnitude.
+SESSION_FIXED_USD = 0.25
 
 # Measured throughput (docs/prd.md S8, 2026-09-04 spike): a 4h session streams
 # ~185k trades ~= 55 MB raw. Used to scale Kinesis/Firehose GB-based charges by duration.
@@ -37,15 +43,15 @@ FIREHOSE_AVG_OBJECT_BYTES = 64_000_000
 
 # >= one Firehose buffer window (60s, infra/main/ephemeral/kinesis_firehose.tf) with margin,
 # so records already in flight when the ingester stops still land in S3 before the stream
-# that carries them is destroyed. Shared by `session-down` and the session reaper
-# (QNT-459) -- both scale the ingester to 0 then wait this long before touching the stream.
+# that carries them is destroyed. Shared by `session-down` and the session reaper,
+# which both scale the ingester to 0 then wait this long before touching the stream.
 DRAIN_SECONDS = 120
 
 
 def reap_marker_key(session_id: str) -> str:
     """S3 key (under the data bucket's `sessions/` prefix) the reaper Lambda writes to
     signal a fired dead-man's switch -- the Lambda has no git/repo access, so this is how
-    `session-down` (own ticket, QNT-458) learns a session was reaped out-of-band."""
+    `session-down` learns a session was reaped out-of-band."""
     return f"sessions/{session_id}.reaped.json"
 
 
@@ -63,7 +69,16 @@ def estimate_cost_usd(duration_hours: float) -> float:
     )
     overhead = OVERHEAD_HOURLY_USD * duration_hours
 
-    return round(fargate + kinesis + firehose + partitioning + ATHENA_MAINTENANCE_USD + overhead, 2)
+    return round(
+        SESSION_FIXED_USD
+        + fargate
+        + kinesis
+        + firehose
+        + partitioning
+        + ATHENA_MAINTENANCE_USD
+        + overhead,
+        2,
+    )
 
 
 def latest_manifest(sessions_dir: Path) -> Path | None:
@@ -102,7 +117,7 @@ def latest_image_tag(ecr_client) -> str:
     not `git rev-parse HEAD`, since that workflow only fires on ingester-relevant path
     changes and HEAD can advance past the last commit that actually built an image.
     Shared by `session-up` (a live session's ingester) and `heal` (re-applying just the
-    backfill sub-stack, QNT-461) -- both need whatever image is already in ECR, not a
+    backfill sub-stack) -- both need whatever image is already in ECR, not a
     new build of their own."""
     images = ecr_client.describe_images(repositoryName=ECR_REPOSITORY)["imageDetails"]
     tagged = [i for i in images if i.get("imageTags")]

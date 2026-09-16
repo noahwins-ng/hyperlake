@@ -1,4 +1,4 @@
-"""Gap -> hour-file expansion + dbt lookback sizing for `make heal` (QNT-461, FR-8).
+"""Gap -> hour-file expansion + dbt lookback sizing for `make heal` (FR-8).
 
 Backfill hour files are cut by block *arrival* time (see `hyperlake.backfill.hour_list`'s
 docstring) -- a WS gap ending near the top of hour `H` can have its events land in hour

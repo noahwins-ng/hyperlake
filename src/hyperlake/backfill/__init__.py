@@ -1,1 +1,1 @@
-"""Backfill readers: official archive (primary) and Reservoir (fallback, QNT-465)."""
+"""Backfill readers: official archive (primary) and Reservoir (fallback)."""

@@ -7,7 +7,7 @@
 | `session_id`         | Unique id for the session (from the session manifest, Phase 2).         |
 | `start`              | Session start, ISO 8601 UTC (e.g. `2026-09-01T10:00:00Z`).              |
 | `end`                | Session end, ISO 8601 UTC.                                              |
-| `cost_estimate_usd`  | Resource-hours × list price, computed at `session-down` (Phase 2; out of scope for QNT-447). |
+| `cost_estimate_usd`  | Resource-hours × list price plus a fixed $0.25 per-session floor, computed at `session-down`. The floor was added 2026-09-17 after twelve finalized sessions showed actuals never fall below ~$0.25 however short the session; rows before that date carry the older per-hour-only estimate. |
 | `cost_actual_usd`    | Cost Explorer's `UnblendedCost` for the session window, tag-filtered on `project=hyperlake`. Blank until backfilled. |
 | `cost_status`        | `pending` until `cost_actual_usd` is filled, then `final`. A session ended by the reaper (`docs/guides/ops-runbook.md`) starts `reaper-terminated` instead of `pending`, and keeps that label even after backfill -- distinct from a normal teardown, not a fourth "unfilled" state. |
 | `ce_query_date`      | UTC date `cost_actual_usd` was queried. Blank until backfilled.         |
@@ -50,14 +50,15 @@ prices from PRD §8), at 720 h. A model, not a measurement.
 | Kinesis + Firehose per-GB (~9.9 GB raw/month) | $1.80 |
 | Athena maintenance (`iceberg-maintain`) | $0.01 |
 | Overhead margin | $54.00 |
-| **Model total** | **$101.89** |
-| Model total, excluding the overhead margin | $47.89 |
+| Fixed per-session floor (`SESSION_FIXED_USD`, once) | $0.25 |
+| **Model total** | **$102.14** |
+| Model total, excluding the overhead margin | $48.14 |
 
 Measured sessions have consistently come in under the estimator (the overhead margin is
 padded), so the realistic range is $50–100/month. Of the metered spend, Kinesis's on-demand
-hourly charge is ~72% ($34.56 of $47.89) and accrues whether or not a trade arrives.
+hourly charge is ~72% ($34.56 of $48.14) and accrues whether or not a trade arrives.
 
-Receipt (2026-09-16, regenerated from the estimator, not hand-typed):
+Receipt (2026-09-17, regenerated from the estimator, not hand-typed):
 
 ```
 $ uv run python -c "
@@ -68,5 +69,5 @@ per_gb = KINESIS_PER_GB_USD * raw_gb + (FIREHOSE_INGEST_PER_GB_USD + FIREHOSE_CO
 overhead = OVERHEAD_HOURLY_USD * h; total = estimate_cost_usd(h)
 print(f'fargate={fargate:.2f} kinesis_stream_hours={kinesis_hourly:.2f} kinesis_firehose_per_gb={per_gb:.2f} overhead_margin={overhead:.2f} total={total} total_excl_overhead={round(total-overhead,2)}')
 "
-fargate=11.52 kinesis_stream_hours=34.56 kinesis_firehose_per_gb=1.80 overhead_margin=54.00 total=101.89 total_excl_overhead=47.89
+fargate=11.52 kinesis_stream_hours=34.56 kinesis_firehose_per_gb=1.80 overhead_margin=54.00 total=102.14 total_excl_overhead=48.14
 ```

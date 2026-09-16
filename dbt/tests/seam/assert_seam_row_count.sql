@@ -1,4 +1,4 @@
--- ADR-002 seam test (QNT-462): round 2 merges into an existing 3-row target (tids
+-- ADR-002 seam test: round 2 merges into an existing 3-row target (tids
 -- 1001/1002/1003) without inserting or dropping rows -- a merge bug that duplicated
 -- the late feed row (case a) or dropped a row would slip past the other singular tests,
 -- which only check per-tid column values. Singular dbt test convention: a result set

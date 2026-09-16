@@ -1,5 +1,5 @@
 {#
-  QNT-462: the silver merge's select body (source-side pre-dedup, source_rank precedence,
+  The silver merge's select body (source-side pre-dedup, source_rank precedence,
   first_seen_source lineage), factored out of models/silver/trades.sql so the Athena seam
   test (models/seam/seam_trades.sql) runs the exact same logic silver runs, over a
   different source -- a hand-copied twin could drift from silver's real behavior and the

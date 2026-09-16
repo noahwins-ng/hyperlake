@@ -1,4 +1,4 @@
-"""Session reaper Lambda (QNT-459, FR-8 dead-man's switch): tears down a session left
+"""Session reaper Lambda (FR-8 dead-man's switch): tears down a session left
 running past `max_session_hours`. Invoked once by the per-session EventBridge Scheduler
 `at()` schedule (`aws_scheduler_schedule.session_reaper`, infra/main/ephemeral/
 session_reaper.tf) that every `session-up` apply creates and every `session-down` destroy

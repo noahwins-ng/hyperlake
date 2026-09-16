@@ -1,4 +1,4 @@
--- ADR-002 / ADR-003 seam test (QNT-462): `first_seen_source` is insert-only lineage --
+-- ADR-002 / ADR-003 seam test: `first_seen_source` is insert-only lineage --
 -- it must equal the source of each tid's round-1 row regardless of which source won the
 -- round-2 merge. Singular dbt test convention: rows returned are failures.
 select *

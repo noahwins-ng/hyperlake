@@ -9,6 +9,9 @@ works. Run once per AWS account; every later phase depends on its output.
   bucket, a DynamoDB table, an OIDC provider, and AWS Budgets resources (an admin-ish bootstrap
   identity, this is the one place in the project a human credential is expected).
 - Terraform >= 1.9, AWS CLI v2.
+- `uv` with the project synced (`uv sync`): `infra/main/persistent` derives the bronze Glue
+  table's columns from `src/hyperlake/envelope.py` through a `data "external"` block, so
+  `terraform plan`/`apply` there fails without a working Python environment.
 - Admin access to the `noahwins-ng/hyperlake` GitHub repo (to set one repo variable).
 
 ## Steps

@@ -1,4 +1,4 @@
--- ADR-002 seam test (QNT-462), case (a): tid 1001's round-2 row is a late `ws`
+-- ADR-002 seam test, case (a): tid 1001's round-2 row is a late `ws`
 -- re-delivery of the same trade (identical values, later ingested_at) -- it must not
 -- change any value on the merged row. Singular dbt test convention: rows returned are
 -- failures.

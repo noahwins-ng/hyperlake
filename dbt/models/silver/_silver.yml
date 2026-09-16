@@ -7,10 +7,10 @@ sources:
       - name: trades_raw
         description: >
           Bronze envelope (append-only, plain Parquet, Hive partitions coin=/dt=/source=).
-          On athena this is the real Glue table (QNT-450); on duckdb it resolves to the
+          On athena this is the real Glue table; on duckdb it resolves to the
           committed fixture dbt/fixtures/bronze_trades_sample.parquet, which contains
-          duplicate `tid`s across `ws`/`backfill` sources to prove the dedup (QNT-453 AC1).
-          `make dbt-demo-fail` (QNT-464 AC2) points this at
+          duplicate `tid`s across `ws`/`backfill` sources to prove the dedup.
+          `make dbt-demo-fail` points this at
           bronze_trades_demo_fail.parquet instead -- the same fixture plus one row with an
           invalid `side` ('X'), to show the red test + gold SKIP live.
         meta:

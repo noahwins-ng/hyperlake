@@ -129,7 +129,7 @@ def to_envelope_row(row: BronzeRow, *, ingested_at_ms: int, session_id: str) -> 
         "time": fill["time"],
         "hash": fill.get("hash"),
         "crossed": fill.get("crossed"),
-        # QNT-466 (2026-09-11 live session): a liquidation-driven trade carries
+        # 2026-09-11 live session: a liquidation-driven trade carries
         # `liquidation` as a nested {liquidatedUser, markPx, method} object, not the
         # boolean the schema declares (contra the 2026-09-04 spike, which never observed
         # one) -- coerce to presence/absence; raw_payload keeps the full detail.

@@ -7,7 +7,7 @@
 ) }}
 {% endif %}
 
--- ADR-002 amendment (QNT-462): a `seam_test.trades` instance of silver's real merge
+-- ADR-002 amendment: a `seam_test.trades` instance of silver's real merge
 -- (macros/silver_trades_select.sql), run twice per dbt-run.yml `seam` job invocation
 -- against two fixture seeds picked by `var('seam_round')` -- round 1 resets to
 -- seam_fixture_round1's values (a plain create on the very first-ever run, an idempotent

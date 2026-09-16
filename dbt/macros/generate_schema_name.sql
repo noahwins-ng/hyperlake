@@ -1,5 +1,5 @@
 {#
-  QNT-462: standard dbt override so a model's `schema:` config resolves to exactly that
+  Standard dbt override so a model's `schema:` config resolves to exactly that
   name (dbt's default behavior prefixes it with the target schema, e.g. `silver_seam_test`
   instead of `seam_test`) -- ADR-002's amendment names the seam schema literally.
 #}

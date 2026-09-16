@@ -208,14 +208,23 @@ def render_readme_block(rows: list[dict], idle_report: list[dict], reconciliatio
     avg = sum(finals) / len(finals) if finals else 0.0
     highest = max(finals) if finals else 0.0
     worst_idle = max((period["idle"] for period in _active_months(idle_report)), default=0.0)
+    # A negative idle or gap only means Cost Explorer hasn't caught up with the latest session
+    # yet (~24h lag). In the README headline it reads like a bug, so show $0.00 and say why;
+    # docs/costs.md keeps the signed numbers.
+    if worst_idle < 0:
+        idle_cell = "$0.00/month (Cost Explorer still catching up on the latest session)"
+    else:
+        idle_cell = f"${worst_idle:.2f}/month"
+    gap = reconciliation["gap"]
+    gap_cell = f"${gap:.2f}" if gap >= 0 else f"-${-gap:.2f} (Cost Explorer lag, self-corrects)"
     lines = [
         "| | |",
         "|---|---|",
         f"| Average session cost | ${avg:.2f} |",
         f"| Highest session cost | ${highest:.2f} |",
-        f"| Idle cost (highest month, Cost Explorer) | ${worst_idle:.2f}/month |",
+        f"| Idle cost (highest month, Cost Explorer) | {idle_cell} |",
         "| Target ceiling | < $2/session, < $2/month idle |",
-        f"| Cost Explorer reconciliation gap | ${reconciliation['gap']:.2f} (full detail: "
+        f"| Cost Explorer reconciliation gap | {gap_cell} (full detail: "
         "[docs/costs.md](docs/costs.md)) |",
     ]
     return "\n".join(lines)

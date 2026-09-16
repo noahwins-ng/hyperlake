@@ -156,8 +156,8 @@ One line each; the reasoning lives in the linked ADR.
 ## Run it yourself
 
 **Prerequisites.** An AWS account with an admin-ish identity for the one-time bootstrap,
-Terraform ≥ 1.9, AWS CLI v2, `uv`, and `gh`. Region is `ap-northeast-1` (both archive
-buckets live there). Full walkthrough: [`docs/guides/bootstrap.md`](docs/guides/bootstrap.md).
+Terraform ≥ 1.9, AWS CLI v2, `uv` (Terraform itself shells out to it for the Glue schema), and
+`gh`. Region is `ap-northeast-1` (both archive buckets live there). Full walkthrough: [`docs/guides/bootstrap.md`](docs/guides/bootstrap.md).
 
 **Run.** Bootstrap once per account, then apply and backfill one day:
 
@@ -166,8 +166,8 @@ cd infra/bootstrap && terraform init && terraform apply   # one-time per AWS acc
 # wire infra/main/backend.hcl from the bootstrap outputs (see the bootstrap guide)
 make tf-apply-persistent
 make tf-apply-ephemeral
-make backfill FROM=<day> TO=<day>                         # e.g. 2026-09-10
-make dbt-run ARGS="-f vars='{\"freshness_window_start\": \"<day> 00:00:00\", \"freshness_window_end\": \"<day+1> 01:00:00\"}'"
+make backfill FROM=<day> TO=<day>                         # e.g. 2026-09-10; <N> below = days from <day> to today, plus 1
+make dbt-run ARGS="-f vars='{\"silver_lookback_days\": <N>, \"freshness_window_start\": \"<day> 00:00:00\", \"freshness_window_end\": \"<day+1> 01:00:00\"}'"
 ```
 
 **Verify.** `make bronze-query DT_FROM=<day>` for the day's bronze rows, then the
@@ -195,9 +195,9 @@ reconciliation are in [`docs/costs.md`](docs/costs.md).
 |---|---|
 | Average session cost | $0.30 |
 | Highest session cost | $0.76 |
-| Idle cost (highest month, Cost Explorer) | $-0.92/month |
+| Idle cost (highest month, Cost Explorer) | $0.00/month (Cost Explorer still catching up on the latest session) |
 | Target ceiling | < $2/session, < $2/month idle |
-| Cost Explorer reconciliation gap | $-0.92 (full detail: [docs/costs.md](docs/costs.md)) |
+| Cost Explorer reconciliation gap | -$0.92 (Cost Explorer lag, self-corrects) (full detail: [docs/costs.md](docs/costs.md)) |
 <!-- COST_REPORT:END -->
 
 **What this would cost you:**
