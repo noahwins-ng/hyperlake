@@ -1,5 +1,5 @@
 # Column schema comes from the shared package (src/hyperlake/envelope.py), not typed here
-# twice — `data.external` calls the same `glue_columns()` function the unit tests pin
+# twice, `data.external` calls the same `glue_columns()` function the unit tests pin
 # (tests/test_envelope.py::test_glue_columns_cover_every_field_with_a_glue_type).
 data "external" "envelope_schema" {
   program = [

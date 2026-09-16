@@ -1,20 +1,20 @@
 # Implicit AC templates
 
-Acceptance criteria that apply to a *class* of change automatically — appended by flow-sanity-check
+Acceptance criteria that apply to a *class* of change automatically, appended by flow-sanity-check
 and flow-review when `git diff --name-only <default_branch>...HEAD` matches a trigger glob, even if
 the issue author didn't list them. Referenced by `profile.docs.ac_templates`.
 
-<!-- derived: flow-tailor 2026-09-05, from PRD v1.0's dangerous surfaces + architecture_rules —
+<!-- derived: flow-tailor 2026-09-05, from PRD v1.0's dangerous surfaces + architecture_rules,
      replaces the deployed-service skeleton (no long-lived host here; the risk is cost blast
      radius, silent dedup/partition breakage, and stale reproducibility claims). Re-checked
      2026-09-06 (post-QNT-449/450): infra/**, dbt/models/staging/**, and src/hyperlake/** now
      exist for real. Re-checked 2026-09-07 (post-Phase-1 retro, QNT-473): added the IAM/OIDC
-     verification bullet to the Terraform group from a real incident, not a hypothetical — see
+     verification bullet to the Terraform group from a real incident, not a hypothetical, see
      docs/retros/phase-1-lakehouse.md. Re-checked 2026-09-09 (Phase 2 retro): broadened the CI
      workflow group's ACs to any scheduled/dispatched workflow from the tf-drift-check.yml
-     backend.hcl incident — see docs/retros/phase-2-streaming.md. `sessions/**` (QNT-458) now
+     backend.hcl incident, see docs/retros/phase-2-streaming.md. `sessions/**` (QNT-458) now
      exists for real. Re-checked 2026-09-11 (Phase 3 retro): added a Glue-schema-pairing bullet to
-     the dbt model group from the QNT-462/QNT-477 incident — see docs/retros/phase-3-convergence.md. -->
+     the dbt model group from the QNT-462/QNT-477 incident, see docs/retros/phase-3-convergence.md. -->
 
 ## Terraform / session-lifecycle changes
 
@@ -22,17 +22,17 @@ Apply when the diff touches `infra/**`, `sessions/**`, the session-lifecycle `Ma
 (`session-up`/`session-down`/`heal`), or the session reaper.
 
 ### Default AC
-- `terraform plan` shows only resources tagged `project=hyperlake` — no surprise resource, no
+- `terraform plan` shows only resources tagged `project=hyperlake`, no surprise resource, no
   banned service (NAT Gateway, MWAA, MSK provisioned, OpenSearch, QuickSight) reintroduced.
-- `session-down` actually destroys what it created — verified by a follow-up `terraform plan`
+- `session-down` actually destroys what it created, verified by a follow-up `terraform plan`
   (or the post-destroy audit, QNT-471), not assumed from the script exiting 0.
 - Cost guardrail intact: the session's `cost_estimate` is written to `costs/sessions.csv`.
 - Every CloudWatch log group the change's Lambda / Fargate / Firehose resources will write to is
   declared in Terraform with `retention_in_days <= 14`. Implicitly created log groups are not in
-  state, survive `destroy`, and grow forever — the one leak the post-destroy audit (QNT-471)
+  state, survive `destroy`, and grow forever, the one leak the post-destroy audit (QNT-471)
   would otherwise find only by accident.
 - Any IAM/OIDC policy change (`aws_iam_role_policy`, `aws_iam_policy_document`) is verified by
-  actually exercising the role — dispatch `dbt-run.yml`, don't just `terraform apply`/`dbt build`
+  actually exercising the role, dispatch `dbt-run.yml`, don't just `terraform apply`/`dbt build`
   under a developer's own broad AWS credentials. QNT-473's Glue policy gap sat wrong for ~46h of
   real build time specifically because nothing did this until the workflow first ran for real.
 
@@ -41,13 +41,13 @@ Apply when the diff touches `infra/**`, `sessions/**`, the session-lifecycle `Ma
 Apply when the diff touches `.github/workflows/*.yml`.
 
 ### Default AC
-- `ci.yml` still runs green with **zero AWS credentials** — the offline gate (lint/types/pytest/
+- `ci.yml` still runs green with **zero AWS credentials**: the offline gate (lint/types/pytest/
   `dbt build --target duckdb`/`terraform fmt -check`) must not gain a cloud dependency.
 - `dbt-run.yml` (OIDC, Athena target) completes under the `run_key` completion contract with no
   interactive prompt and a loud, non-silent failure on timeout.
 - Any new or modified scheduled/dispatched workflow (`schedule:`/`workflow_dispatch:` trigger) is
   exercised by an actual triggered run (`gh workflow run` or its natural trigger) with an observed
-  success, before the ticket is called done — running the underlying script/logic locally is not
+  success, before the ticket is called done, running the underlying script/logic locally is not
   sufficient proof of the workflow's own wiring (checkout state, secrets/vars, backend config).
   QNT-474's `tf-drift-check.yml` shipped with only its local-script ACs proven; the workflow itself
   silently failed at `terraform init` on every scheduled run for ~1 day (no `infra/main/backend.hcl`
@@ -61,15 +61,15 @@ Apply when the diff touches `dbt/models/silver/**`, `dbt/models/gold/**`, or `db
 
 ### Default AC
 - `dbt build` passes on **both** targets (`duckdb` local/CI, `athena` cloud).
-- Silver stays exactly-once per `tid` after the change — merge predicate still respects
+- Silver stays exactly-once per `tid` after the change, merge predicate still respects
   `source_rank` (backfill outranks ws) and `first_seen_source` stays insert-only lineage.
 - `recon_trades` still proves G3: `ws_only = 0`, and every `backfill_only` row falls inside a
   manifest-recorded gap.
 - If the change causes dbt-athena to auto-create a new Glue database/schema (a seam/fixture
   schema, a new environment target, etc.), the matching `infra/main/persistent/glue.tf`
-  declaration + `terraform import` lands in the **same PR** — not left for the nightly
+  declaration + `terraform import` lands in the **same PR**: not left for the nightly
   `tf-drift-check` to catch reactively. QNT-462 (Phase 3) shipped the `seam_test` schema this way;
-  `tf-drift-check` caught the drift within a day and QNT-477 fixed it — same shape as QNT-473
+  `tf-drift-check` caught the drift within a day and QNT-477 fixed it, same shape as QNT-473
   (Phase 1), a different trigger (auto-created by dbt, not hand-created in the console).
 
 ## Envelope / watchlist / partition-helper changes
@@ -79,9 +79,9 @@ helper) or `config/watchlist.yaml`.
 
 ### Default AC
 - `dt` is still derived from exchange event `time`, never arrival/`ingested_at`.
-- HIP-3 partition normalisation (`:` → `_`) still goes through the one shared helper — no new
+- HIP-3 partition normalisation (`:` → `_`) still goes through the one shared helper, no new
   ad hoc normalisation call site.
-- Watchlist stays config-driven — no market list hardcoded back into code.
+- Watchlist stays config-driven, no market list hardcoded back into code.
 
 ## Dependency changes
 
@@ -89,7 +89,7 @@ Apply when the diff touches a dependency manifest/lockfile (`pyproject.toml`, `u
 `requirements*.txt`).
 
 ### Default AC
-- Dependency audit is clean — no high/critical CVEs (`profile.verify.security`).
+- Dependency audit is clean, no high/critical CVEs (`profile.verify.security`).
 - The lockfile is updated and committed (no drift between manifest and lock).
 - A CVE-driven bump is folded into this PR, not split into a separate ticket.
 

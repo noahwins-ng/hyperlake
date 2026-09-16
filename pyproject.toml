@@ -1,7 +1,7 @@
 [project]
 name = "hyperlake"
 version = "0.1.0"
-description = "Streaming lakehouse for Hyperliquid market data — market data engineering only."
+description = "Streaming lakehouse for Hyperliquid market data, market data engineering only."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

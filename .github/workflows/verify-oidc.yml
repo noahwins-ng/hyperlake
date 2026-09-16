@@ -1,6 +1,6 @@
 name: verify-oidc
 
-# Manual proof that the bootstrap OIDC role works — no stored AWS key
+# Manual proof that the bootstrap OIDC role works, no stored AWS key
 # involved. Kept out of ci.yml, which must stay runnable with zero AWS
 # credentials (see AC-templates.md "CI / dbt-run workflow changes").
 on:

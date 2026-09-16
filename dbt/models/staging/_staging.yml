@@ -15,7 +15,7 @@ models:
   - name: stg_trades_sample
     description: >
       Placeholder staging model proving the two-target seam (ADR-002). Not part of the
-      real medallion pipeline — silver lands in QNT-453.
+      real medallion pipeline, silver lands in QNT-453.
     columns:
       - name: tid
         tests:

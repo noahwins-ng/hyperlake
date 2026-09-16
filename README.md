@@ -69,7 +69,7 @@ Every number below is a real measurement recorded in the repo, cited by date and
 
 - **8m 53s from `terraform apply` to a queryable Athena result.** A real 1-day backfill of
   867,681 trades, measured 2026-09-11 against the 15-minute target
-  ([ops runbook](docs/guides/ops-runbook.md#g1-stranger-path-timing--bootstrap--backfill--athena-query-qnt-467-ac1)).
+  ([ops runbook](docs/guides/ops-runbook.md#g1-stranger-path-timing-bootstrap--backfill--athena-query-qnt-467-ac1)).
 - **Convergence, proven by reconciliation.** A live session streamed one full clock hour,
   the same hour was backfilled from the archive, and the bronze-level set comparison came
   back `ws_only = 0`, `both = 132,823`, `backfill_only = 13,577`, all but one inside the
@@ -201,7 +201,7 @@ reconciliation are in [`docs/costs.md`](docs/costs.md).
 |---|---|---|
 | Idle, nothing running | under $1/month (transiently negative right after a session while Cost Explorer catches up) | [`docs/costs.md`](docs/costs.md) |
 | One demo session | $0.13–$0.76, avg $0.30 across 12 sessions | [`costs/sessions.csv`](costs/sessions.csv) |
-| One-day backfill | under $0.01 of Lambda compute | [ops runbook](docs/guides/ops-runbook.md#backfill-step-functions-fan-out--measured-wall-time--cost-qnt-452) |
+| One-day backfill | under $0.01 of Lambda compute | [ops runbook](docs/guides/ops-runbook.md#backfill-step-functions-fan-out-measured-wall-time--cost-qnt-452) |
 | 24×7 streaming, 30 days *(model, never run)* | $50–$100/month | [`costs/README.md`](costs/README.md#what-247-would-cost) |
 
 In the 24×7 model, Kinesis's on-demand hourly charge is ~72% of metered spend and accrues

@@ -2,7 +2,7 @@
 """Fill `cost_actual_usd` for costs/sessions.csv rows once Cost Explorer data is ready.
 
 Every `pending` row whose `end` is more than 24h old gets a Cost Explorer query (daily
-granularity, filtered on the `project=hyperlake` cost allocation tag — the tag lags billing
+granularity, filtered on the `project=hyperlake` cost allocation tag, the tag lags billing
 data by up to 24h, PRD FR-7) and is rewritten `final` with the summed cost. Already-`final`
 rows are never re-queried, so re-running is safe.
 """

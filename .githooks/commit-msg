@@ -6,7 +6,7 @@ set -euo pipefail
 
 msg=$(head -1 "$1")
 
-# <ID>: type(scope): description   — OR meta work (docs:/chore:) with no issue id.
+# <ID>: type(scope): description  , OR meta work (docs:/chore:) with no issue id.
 id_regex='QNT-[0-9]+'                                   # e.g. [A-Z]+-[0-9]+
 types='feat|fix|refactor|test|docs|chore'
 pattern="^((${id_regex}: )?(${types})(\(.+\))?: .+|(docs|chore): .+)"

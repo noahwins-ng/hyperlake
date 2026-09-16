@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Date:** 2026-09-04
-- **Ticket:** — (PRD v0.5 review; lands in Phase 0)
+- **Ticket:**: (PRD v0.5 review; lands in Phase 0)
 
 ## Context
 
@@ -18,36 +18,36 @@ the production materialization forever.
 The dbt project has **two explicit targets** with materialization switched by a small
 macro on `target.type`:
 
-- **`duckdb`** — silver is a plain `table`; dedup is
+- **`duckdb`**: silver is a plain `table`; dedup is
   `row_number() over (partition by tid order by source_rank desc, ingested_at desc) = 1`
-  *(amended 2026-09-06 — QNT-453: ordering by `ingested_at` alone could let a late `ws`
+  *(amended 2026-09-06, QNT-453: ordering by `ingested_at` alone could let a late `ws`
   duplicate outrank an already-applied `backfill` row; `source_rank` first keeps duckdb and
   athena agreeing on which row wins, per ADR-005's backfill-outranks-ws rule)*.
-- **`athena`** — silver is `incremental`, Iceberg, `merge` on `tid`, bounded by a
+- **`athena`**: silver is `incremental`, Iceberg, `merge` on `tid`, bounded by a
   config-driven `dt` lookback window (default 2 days) so the merge prunes partitions.
 
 CI runs `dbt build --target duckdb` on committed sample Parquet fixtures and proves
-**column logic, uniqueness, and OHLCV math**. **Merge behaviour is proven only on Athena**
-— but by an automated test, not by hoping the session script exercises it. Local merge
+**column logic, uniqueness, and OHLCV math**. **Merge behaviour is proven only on Athena**,
+but by an automated test, not by hoping the session script exercises it. Local merge
 parity is an explicit non-goal.
 
-*Amended 2026-09-04 — Athena seam test:* a `seam_test` schema is seeded by dbt with a few
+*Amended 2026-09-04, Athena seam test:* a `seam_test` schema is seeded by dbt with a few
 dozen fixture rows; `dbt build --select tag:seam` runs the silver merge twice, covering
 (a) a late feed duplicate, (b) backfill arriving after the feed row, (c) a feed row
 arriving after backfill, and asserts `first_seen_source`, flag preservation (source
 precedence: backfill wins), and row counts. It runs inside the `dbt-run` workflow on
-**every push to `main`**, using the OIDC role — not on pull requests. Cost per run is
+**every push to `main`**, using the OIDC role, not on pull requests. Cost per run is
 cents (a few KB scanned).
 
 ## Alternatives considered
 
-- **Single target, Athena only** — no local development; every model edit costs an AWS
+- **Single target, Athena only**: no local development; every model edit costs an AWS
   round-trip and CI needs cloud credentials on every PR. Violates FR-9 and slows the
   weekend pace.
-- **Make DuckDB write Iceberg too** — DuckDB's Iceberg extension is read-mostly and
+- **Make DuckDB write Iceberg too**: DuckDB's Iceberg extension is read-mostly and
   would introduce a second Iceberg writer, which the PRD forbids (only dbt-athena writes
   Iceberg).
-- **Dispatch macros for every dialect difference** — works for functions, not for the
+- **Dispatch macros for every dialect difference**: works for functions, not for the
   merge itself; still leaves the seam untested locally while adding macro sprawl.
 
 ## Consequences

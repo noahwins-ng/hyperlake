@@ -5,7 +5,7 @@ records, reconnects with backoff while recording gap intervals, and self-exits a
 `--max-session-hours`.
 
 The WS `trades` message carries fewer fields than the archive fill (measured 2026-09-04
-spike, PRD Data model): `coin, side, px, sz, time, hash, tid, users[2]` — no `crossed`,
+spike, PRD Data model): `coin, side, px, sz, time, hash, tid, users[2]`, no `crossed`,
 `liquidation`, or `fee`. Those typed columns stay null for `source = "ws"` rows; the
 archive replay (backfill Lambda) populates them at the silver merge. `users` is not a
 typed envelope column, so it survives only inside `raw_payload`.

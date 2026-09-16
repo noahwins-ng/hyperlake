@@ -1,6 +1,6 @@
 # Costs Log
 
-`sessions.csv` — one row per demo session, committed to the repo (PRD G4, FR-7, FR-8).
+`sessions.csv`, one row per demo session, committed to the repo (PRD G4, FR-7, FR-8).
 
 | Column              | Meaning                                                                 |
 |---------------------|--------------------------------------------------------------------------|

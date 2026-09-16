@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Date:** 2026-09-04
-- **Ticket:** — (PRD v0.5 review; lands in Phase 3)
+- **Ticket:**: (PRD v0.5 review; lands in Phase 3)
 
 ## Context
 
@@ -10,7 +10,7 @@ G3 is the project's central claim: stream an hour live, backfill the same hour f
 archive, and prove 0 missing / 0 duplicate trades. Earlier PRD drafts placed that proof at
 silver. But silver is built by a `MERGE` on `tid`: when the backfilled row arrives for a
 `tid` the stream already wrote, the merge upserts and one `source` value wins. After the
-merge, silver cannot distinguish "seen by both paths" from "seen by one path only" — the
+merge, silver cannot distinguish "seen by both paths" from "seen by one path only", the
 evidence G3 needs is destroyed by the mechanism that produces exactly-once.
 
 ## Decision
@@ -38,12 +38,12 @@ Reconciliation is asserted over **bronze**, which is append-only and keeps one r
 
 ## Alternatives considered
 
-- **Keep proving at silver with a `sources` array column** — the merge must then append
+- **Keep proving at silver with a `sources` array column**: the merge must then append
   to an array on update, which is awkward in Athena `MERGE` and means the "exactly-once"
   table carries multi-valued lineage. Mixes two concerns in one table.
-- **Prove at silver by counting rows before and after the backfill merge** — depends on
+- **Prove at silver by counting rows before and after the backfill merge**: depends on
   run ordering, and cannot tell a duplicate from a late trade absorbed by the same merge.
-- **A separate silver table per source, unioned at gold** — doubles the Iceberg surface
+- **A separate silver table per source, unioned at gold**: doubles the Iceberg surface
   and moves the dedup problem to gold, which is the opposite of the medallion intent.
 
 ## Consequences

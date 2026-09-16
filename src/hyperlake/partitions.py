@@ -1,7 +1,7 @@
 """Partition-key helpers shared by the ingester and the backfill Lambda.
 
 The one place that normalises a HIP-3 market name's colon separator to its partition
-value's underscore, and derives `dt` from exchange event time — never
+value's underscore, and derives `dt` from exchange event time, never
 arrival/`ingested_at` (CLAUDE.md, PRD NFR-5).
 """
 
