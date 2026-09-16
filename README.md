@@ -5,26 +5,26 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB.svg)](pyproject.toml)
 [![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.9-7B42BC.svg)](infra)
 
-Streaming lakehouse for Hyperliquid market data — live WebSocket trades and S3 archive
+Streaming lakehouse for Hyperliquid market data: live WebSocket trades and S3 archive
 backfill converging into the same Iceberg tables on AWS serverless, reproducible from zero
 with one `terraform apply` and torn down after every session.
 
 ## Why this exists
 
 Most portfolio data pipelines run on a Kaggle CSV, and most that run in the cloud bleed money
-24/7 until they rot. Hyperlake avoids both. It ingests a real, high-volume feed — Hyperliquid
-trades, ~6.6 M/day network-wide, ~1.1 M/day on the default watchlist — through two genuinely
+24/7 until they rot. Hyperlake avoids both. It ingests a real, high-volume feed (Hyperliquid
+trades, ~6.6 M/day network-wide, ~1.1 M/day on the default watchlist) through two genuinely
 different paths: a live WebSocket stream and a requester-pays S3 archive. Landing both in one
 table with exactly-once semantics is the batch/stream convergence problem that makes lakehouse
 design interesting, and proving it (not asserting it) is the project's central claim.
 
 Nothing runs 24/7: a session is `terraform apply` → work → `destroy`, bounded by a
 dead-man's-switch reaper if nobody runs the teardown. Sessions cost about $0.30; idle is near
-zero. Market-data engineering only — no trading, signals, or execution anywhere.
+zero. Market-data engineering only, with no trading, signals, or execution anywhere.
 
 **Data scope.** The `trades` WebSocket channel only (no order book, no candles), for the five
 markets in [`config/watchlist.yaml`](config/watchlist.yaml): BTC, ETH, HYPE, and the HIP-3
-markets `xyz:SP500` and `xyz:XYZ100` — ~17 trades/s. Backfill reads the official
+markets `xyz:SP500` and `xyz:XYZ100`, about 17 trades/s in total. Backfill reads the official
 `hl-mainnet-node-data` hourly archive. Widening to more of Hyperliquid's ~440 markets is a
 config change, not a code change.
 
@@ -36,12 +36,12 @@ Functions orchestrates the backfill fan-out only.
 
 ```mermaid
 flowchart LR
-    subgraph batch["Batch — archive backfill"]
+    subgraph batch["Batch: archive backfill"]
         ARC[("hl-mainnet-node-data<br/>archive hour files")] --> SFN["Step Functions Map<br/>(make backfill / make heal)"]
         SFN --> LAM["Backfill Lambda<br/>(official reader + Reservoir fallback)"]
     end
 
-    subgraph live["Streaming — session-scoped"]
+    subgraph live["Streaming: session-scoped"]
         WS(["Hyperliquid WS trades"]) --> FARGATE["Fargate ingester"]
         FARGATE --> KIN["Kinesis"]
         KIN --> FH["Firehose"]
@@ -67,16 +67,16 @@ Component-by-component detail of what is deployed today is in
 
 Every number below is a real measurement recorded in the repo, cited by date and session.
 
-- **8m 53s from `terraform apply` to a queryable Athena result** — a real 1-day backfill of
+- **8m 53s from `terraform apply` to a queryable Athena result.** A real 1-day backfill of
   867,681 trades, measured 2026-09-11 against the 15-minute target
   ([ops runbook](docs/guides/ops-runbook.md#g1-stranger-path-timing--bootstrap--backfill--athena-query-qnt-467-ac1)).
-- **Convergence, proven by reconciliation** — a live session streamed one full clock hour,
+- **Convergence, proven by reconciliation.** A live session streamed one full clock hour,
   the same hour was backfilled from the archive, and the bronze-level set comparison came
-  back `ws_only = 0`, `both = 132,823`, `backfill_only = 13,577` — all but one inside the
+  back `ws_only = 0`, `both = 132,823`, `backfill_only = 13,577`, all but one inside the
   session's recorded WebSocket-disconnect gap; the one residual (534 ms past the gap end) is
   documented, not hidden (2026-09-11, session `qnt-466-20260911124320`;
   [spike report](docs/spikes/2026-09-11-qnt466-g3-live-replay.md)).
-- **$0.30 average session cost** over 12 finalized sessions, against a $2 ceiling — see
+- **$0.30 average session cost** over 12 finalized sessions, against a $2 ceiling. See
   [Cost](#cost).
 - **dbt docs regenerated on every push to `main`**, offline on DuckDB; every silver/gold/recon
   column is described, enforced by
@@ -102,24 +102,24 @@ Full per-layer query sets: [`bronze.sql`](docs/queries/bronze.sql) ·
 One line each; the reasoning lives in the linked ADR.
 
 - **dbt runs from GitHub Actions, not from AWS.** No always-on runtime, no container to
-  host; Step Functions only fans out the backfill —
+  host; Step Functions only fans out the backfill.
   [ADR-001](docs/decisions/ADR-001-dbt-runtime-github-actions.md).
 - **Two dbt targets, one macro owning the seam.** DuckDB proves the logic offline in CI;
-  the Iceberg merge is proven on Athena by a seam test on every push to `main` —
+  the Iceberg merge is proven on Athena by a seam test on every push to `main`.
   [ADR-002](docs/decisions/ADR-002-two-target-dbt-project.md).
 - **Convergence is proven at bronze, not silver.** Silver's merge keeps one row per trade,
-  so only the append-only raw layer can still show which sources saw it —
+  so only the append-only raw layer can still show which sources saw it.
   [ADR-003](docs/decisions/ADR-003-g3-reconciliation-at-bronze.md).
 - **Kinesis + Firehose over a direct Fargate → S3 write.** Firehose owns buffering, Parquet
-  conversion, and partitioning; the ingester stays a thin WebSocket client —
+  conversion, and partitioning; the ingester stays a thin WebSocket client.
   [ADR-004](docs/decisions/ADR-004-kinesis-firehose-over-direct-write.md).
 - **Official node archive as backfill source, `tid` as trade identity.** The identity gate
-  passed 1,986/1,986 between feed and archive before the schema was frozen —
+  passed 1,986/1,986 between feed and archive before the schema was frozen.
   [ADR-005](docs/decisions/ADR-005-backfill-source-and-trade-identity.md).
 - **Guardrails.** One Iceberg writer (bronze is plain Parquet; only dbt-athena writes
   Iceberg). Event time everywhere, never arrival time. No NAT Gateway, MWAA, MSK, OpenSearch,
-  or QuickSight — Fargate runs with a public IP and an egress-only security group. No
-  long-lived AWS keys — GitHub Actions assumes a role over OIDC, CI runs with none.
+  or QuickSight; Fargate runs with a public IP and an egress-only security group. No
+  long-lived AWS keys; GitHub Actions assumes a role over OIDC, CI runs with none.
 
 ## Stack
 
@@ -128,7 +128,7 @@ One line each; the reasoning lives in the linked ADR.
 | Live ingest | ECS Fargate (Python, `websockets`) | Only compute that exists during a session; no VPC plumbing of its own |
 | Streaming | Kinesis Data Streams (on-demand) → Firehose | Managed buffering + Parquet conversion; ~17 trades/s never needs a shard plan |
 | Batch backfill | Lambda + Step Functions Map + EventBridge | Plain-Python per archive hour; no Spark cluster to size or pay for |
-| Storage | S3 — Parquet (bronze), Iceberg (silver/gold) | Hive partitions where append-only is enough; Iceberg where merge semantics are needed |
+| Storage | S3: Parquet (bronze), Iceberg (silver/gold) | Hive partitions where append-only is enough; Iceberg where merge semantics are needed |
 | Catalog + query | Glue Data Catalog, Athena (cloud) · DuckDB (local, CI) | Serverless per-query billing; same dbt models run offline |
 | Transform + tests | dbt (`dbt-athena`, `dbt-duckdb`) | Contract, freshness, reconciliation, and OHLCV-invariant tests gate gold |
 | Infrastructure | Terraform (bootstrap · persistent · ephemeral roots) | Everything tagged `project=hyperlake`; nothing hand-created |
@@ -154,7 +154,7 @@ One line each; the reasoning lives in the linked ADR.
 Terraform ≥ 1.9, AWS CLI v2, `uv`, and `gh`. Region is `ap-northeast-1` (both archive
 buckets live there). Full walkthrough: [`docs/guides/bootstrap.md`](docs/guides/bootstrap.md).
 
-**Run** — bootstrap once per account, then apply and backfill one day:
+**Run.** Bootstrap once per account, then apply and backfill one day:
 
 ```
 cd infra/bootstrap && terraform init && terraform apply   # one-time per AWS account
@@ -165,12 +165,12 @@ make backfill FROM=<day> TO=<day>                         # e.g. 2026-09-10
 make dbt-run ARGS="-f vars='{\"freshness_window_start\": \"<day> 00:00:00\", \"freshness_window_end\": \"<day+1> 01:00:00\"}'"
 ```
 
-**Verify** — `make bronze-query DT_FROM=<day>` for the day's bronze rows, then the
+**Verify.** `make bronze-query DT_FROM=<day>` for the day's bronze rows, then the
 exactly-once check from [`silver.sql`](docs/queries/silver.sql): row count equals distinct
-`tid` count. For the streaming path — `session-up` → stream → `heal` → `recon` → query —
+`tid` count. For the streaming path (`session-up` → stream → `heal` → `recon` → query)
 follow [`docs/demo-runbook.md`](docs/demo-runbook.md).
 
-**Tear down** — the ephemeral stack is the only thing that costs money while idle:
+**Tear down.** The ephemeral stack is the only thing that costs money while idle:
 
 ```
 make tf-destroy-ephemeral          # after a backfill; `make session-down` does this for sessions
@@ -199,13 +199,13 @@ reconciliation are in [`docs/costs.md`](docs/costs.md).
 
 | Scenario | Cost | Source |
 |---|---|---|
-| Idle — nothing running | under $1/month (transiently negative right after a session while Cost Explorer catches up) | [`docs/costs.md`](docs/costs.md) |
+| Idle, nothing running | under $1/month (transiently negative right after a session while Cost Explorer catches up) | [`docs/costs.md`](docs/costs.md) |
 | One demo session | $0.13–$0.76, avg $0.30 across 12 sessions | [`costs/sessions.csv`](costs/sessions.csv) |
 | One-day backfill | under $0.01 of Lambda compute | [ops runbook](docs/guides/ops-runbook.md#backfill-step-functions-fan-out--measured-wall-time--cost-qnt-452) |
 | 24×7 streaming, 30 days *(model, never run)* | $50–$100/month | [`costs/README.md`](costs/README.md#what-247-would-cost) |
 
 In the 24×7 model, Kinesis's on-demand hourly charge is ~72% of metered spend and accrues
-whether or not a trade arrives — which is exactly why the stream is torn down between sessions.
+whether or not a trade arrives, which is exactly why the stream is torn down between sessions.
 
 ## Testing and CI
 
@@ -237,10 +237,10 @@ whether or not a trade arrives — which is exactly why the stream is torn down 
 
 ## Further reading
 
-- [PRD](docs/prd.md) — scope, goals, cost model, and the frozen decisions
-- [System overview](docs/architecture/system-overview.md) — how it works now, component by component
-- [Demo runbook](docs/demo-runbook.md) — the streaming path with real timings and a data-quality failure demo
-- [ADR index](docs/INDEX.md#decisions-adrs) — every significant decision and its reasoning
+- [PRD](docs/prd.md): scope, goals, cost model, and the frozen decisions
+- [System overview](docs/architecture/system-overview.md): how it works now, component by component
+- [Demo runbook](docs/demo-runbook.md): the streaming path with real timings and a data-quality failure demo
+- [ADR index](docs/INDEX.md#decisions-adrs): every significant decision and its reasoning
 
 ## License
 
