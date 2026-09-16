@@ -151,9 +151,11 @@ sessions/             one manifest JSON per demo session
   `QNT-123: type(scope): description`, `type` ∈ `feat|fix|refactor|test|docs|chore`.
   WIP: `QNT-123: type(scope): wip - description`. Meta work with no issue may use bare
   `docs: …` / `chore: …`. Plain `QNT-123: wip:` is rejected.
-- `.githooks/pre-push` refuses direct pushes to `main` (the repo is private on GitHub Free, so
-  branch protection is unavailable). Ticket work goes through a PR; meta `docs:`/`chore:`
-  commits push with `ALLOW_MAIN_PUSH=1 git push`.
+- `main` is branch-protected on GitHub (public since 2026-09-17): the `ci` workflow's `checks`
+  job is a required status, linear history, no force pushes; admins are exempt so meta
+  commits can still land directly. `.githooks/pre-push` is the local fast-fail that refuses
+  direct pushes to `main`. Ticket work goes through a PR; meta `docs:`/`chore:` commits push
+  with `ALLOW_MAIN_PUSH=1 git push`.
 - PR title `QNT-123: <title>`; body contains `Closes QNT-123`; no tool-generated footers, ever.
   Every execution AC in the PR needs a Command + Output receipt (see `.github/PULL_REQUEST_TEMPLATE.md`).
 - Tracker: Linear, team Quant, project **Hyperlake**. Issue IDs match `QNT-\d+`.

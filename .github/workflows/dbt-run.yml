@@ -3,8 +3,8 @@ name: dbt-run
 # QNT-454: `build` job is manual dispatch only, driven by scripts/gh_run.sh (session-down,
 # heal, and the backfill runner all call it the same way). QNT-462 (ADR-002 amendment)
 # adds the `seam` job below: automatic on every push to main (the Athena seam test's
-# "required status" -- branch protection is unavailable on this private/Free repo, per
-# CLAUDE.md, so this push trigger + a red run in Actions is the enforcement), and also
+# post-merge gate: it needs OIDC and runs on push to main, so it is not a PR-time required
+# status check; the push trigger + a red run in Actions is the enforcement), and also
 # dispatchable pre-merge from any branch via `-f job=seam` (the free escape hatch ADR-002
 # describes). Failure notification: GitHub's own default run-failure email to the repo
 # owner -- no bespoke notification infra exists or is needed for a single-owner repo.
