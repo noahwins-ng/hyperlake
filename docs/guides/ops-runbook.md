@@ -173,9 +173,9 @@ already-applied state is the equivalent proof; see `docs/guides/bootstrap.md` AC
   locates its run by matching `run_key` against `run-name` (never "latest"), which is what makes
   the two cases distinguishable in the first place.
 - **Response:** re-run `make dbt-run` (or `make heal`); a fresh `run_key` gets a fresh run.
-- **Prevention (required status + failure notification, FR-8):** this repo is private on GitHub
-  Free, so there is no server-side branch-protection "required status check" to attach --
-  loudness comes from two other places instead: (1) `gh_run.sh` exits non-zero synchronously in
+- **Prevention (required status + failure notification, FR-8):** `dbt-run.yml` runs over OIDC
+  on push to main, so it can't be a PR-time required status check (only the offline `checks`
+  job is, since the repo went public 2026-09-17); loudness comes from two other places instead: (1) `gh_run.sh` exits non-zero synchronously in
   the caller's own terminal (`session-down`/`heal`/CI), so a failure can't pass silently, and
   (2) GitHub's default email notification to the triggering actor on a failed workflow run,
   which needs no branch protection to fire. Both are exercised by `tests/test_gh_run_script.py`'s
@@ -184,8 +184,8 @@ already-applied state is the equivalent proof; see `docs/guides/bootstrap.md` AC
 ## `git push` refused: "Direct push to main refused"
 
 - **Symptom:** `.githooks/pre-push` blocks the push; `error: failed to push some refs`.
-- **Diagnosis:** you are pushing to `refs/heads/main`. The repo is private on GitHub Free, so
-  there is no server-side branch protection; the hook is the local substitute.
+- **Diagnosis:** you are pushing to `refs/heads/main`. GitHub also protects `main` server-side
+  (required `checks` status; admins exempt), the hook is the local fast-fail in front of it.
 - **Response:** ticket work → open a PR (`gh pr create`, then `gh pr merge --squash
   --delete-branch`). Meta `docs:`/`chore:` commits → `ALLOW_MAIN_PUSH=1 git push`.
 - **Prevention:** by design. Fresh clones need `git config core.hooksPath .githooks` or the

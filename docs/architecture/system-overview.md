@@ -97,7 +97,7 @@ GitHub Actions
                       timeout, uploads run_results.json, invoked by session-down, make heal, and
                       by hand (QNT-454). `seam` job: automatic on every push to main (also
                       dispatchable pre-merge via `-f job=seam`), runs the Athena seam test over
-                      OIDC, the private repo's stand-in for a branch-protection required check
+                      OIDC, a post-merge gate rather than a PR-time required check
                       (QNT-462)
   ingester-image.yml  push-to-main (OIDC), builds + pushes the ingester image to ECR tagged by
                       commit SHA (QNT-457)
@@ -182,7 +182,7 @@ costs/            sessions.csv log (cost_estimate_usd / cost_actual_usd / cost_s
 - GitHub Actions → AWS via OIDC (`hyperlake-github-actions`), role ARN in repo variable
   `AWS_OIDC_ROLE_ARN`. Three workflow files exercise it for real: `dbt-run.yml` (`build` job:
   manual dispatch, or called by `session-down`/`make heal`; `seam` job: automatic on every push to
-  main, QNT-462, the private repo's stand-in for a branch-protection required check),
+  main, QNT-462, a post-merge gate; the PR-time required status is `ci.yml`'s `checks` job),
   `ingester-image.yml` (auto on push to main), and `tf-drift-check.yml` (nightly cron + manual
   dispatch).
 - The archive bucket (`hl-mainnet-node-data`, requester-pays, ap-northeast-1) is read by the
