@@ -79,6 +79,7 @@ class SessionDownDeps:
     git_commit: Callable[[list[str], str], None]
     append_cost_row: Callable[..., None]
     check_reaped: Callable[[str], dict | None]
+    run_audit_teardown: Callable[[], None]
     sleep: Callable[[float], None] = time.sleep
     now: Callable[[], datetime] = field(default=lambda: datetime.now(UTC))
 
@@ -151,6 +152,9 @@ def run_session_down(manifest_path: Path, deps: SessionDownDeps) -> dict:
             [str(manifest_path), str(COSTS_CSV)],
             f"chore(session): record session {session_id}{reaped_note} (dbt-run failed)",
         )
+        # QNT-471: the ephemeral stack is already destroyed above regardless of dbt's
+        # outcome, so the billable-leftover audit still runs -- and still gates -- here.
+        deps.run_audit_teardown()
         raise RuntimeError(f"session-down: dbt-run failed: {dbt_result['url']}")
 
     deps.run_iceberg_maintain()
@@ -159,6 +163,7 @@ def run_session_down(manifest_path: Path, deps: SessionDownDeps) -> dict:
         [str(manifest_path), str(COSTS_CSV)],
         f"chore(session): record session {session_id}{reaped_note}",
     )
+    deps.run_audit_teardown()
     return manifest
 
 
@@ -239,6 +244,10 @@ def _real_run_iceberg_maintain() -> None:
     _run("make", "iceberg-maintain")
 
 
+def _real_run_audit_teardown() -> None:
+    _run("make", "audit-teardown")
+
+
 def _real_git_commit(paths: list[str], message: str) -> None:
     _run("git", "add", *paths)
     _run("git", "commit", "-m", message)
@@ -300,6 +309,7 @@ def main() -> None:
         git_commit=_real_git_commit,
         append_cost_row=_real_append_cost_row,
         check_reaped=_real_check_reaped,
+        run_audit_teardown=_real_run_audit_teardown,
     )
     try:
         manifest = run_session_down(manifest_path, deps)

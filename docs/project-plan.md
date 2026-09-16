@@ -114,7 +114,7 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
 
 ### Ops & Reliability  <!-- perpetual milestone: hardening that cuts across phases -->
 
-- [ ] QNT-471: chore(ops): post-destroy audit, list any live project=hyperlake billable resources and fail loudly
+- [x] QNT-471: chore(ops): post-destroy audit, list any live project=hyperlake billable resources and fail loudly
   - wired as the last step of `session-down`
 - [x] QNT-474: chore(ops): Terraform state drift check on the persistent layer
   - compares live project=hyperlake resources (Glue databases/tables) against `terraform state list`; fails on drift in either direction
