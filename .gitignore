@@ -32,3 +32,6 @@ dbt/.user.yml
 # Claude Code local/personal settings
 .claude/settings.local.json
 .claude/worktrees/
+
+# personal resume scratch
+docs/project_resume.md
