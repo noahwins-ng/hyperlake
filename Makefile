@@ -29,7 +29,7 @@ dbt-build:
 # QNT-470: dbt docs on duckdb -- offline, no AWS credentials. Run in CI on every push to
 # main so the manifest/catalog stay current; run locally (`make dbt-docs && cd dbt && uv
 # run --group dbt dbt docs serve`) to capture the lineage graph screenshot (AC6) -- no
-# GitHub Pages hosting (dropped 2026-09-16: GitHub Free can't serve Pages from a private repo).
+# GitHub Pages hosting (dropped 2026-09-16 while the repo was private; kept after it went public).
 dbt-docs:
 	cd dbt && uv run --group dbt dbt docs generate --profiles-dir . --target duckdb
 
