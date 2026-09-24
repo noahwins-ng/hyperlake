@@ -1,7 +1,7 @@
-.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check dbt-build dbt-docs dbt-demo-fail cost-backfill cost-report tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down audit-teardown recon heal bronze-query
+.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check portfolio-lint dbt-build dbt-docs dbt-demo-fail cost-backfill cost-report tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down audit-teardown recon heal bronze-query
 
 # Everything ci.yml runs, in order, the local sanity gate (workflow-profile.yaml verify.*).
-check: lint format types test audit dbt-build tf-check
+check: lint format types test audit dbt-build tf-check portfolio-lint
 
 lint:
 	uv run ruff check .
@@ -194,3 +194,8 @@ docs-check:
 # network call); standalone like docs-check above -- not part of `check`/CI.
 demo-runbook-check:
 	uv run python scripts/demo_runbook_check.py
+
+# QNT-479: stray ticket-id comments in src/hyperlake or dbt/, and a real-looking AWS account
+# id in an ARN or hyperlake-* bucket name -- offline (git ls-files only), part of `check`/CI.
+portfolio-lint:
+	uv run python scripts/portfolio_lint.py
