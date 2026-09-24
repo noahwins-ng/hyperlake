@@ -3,18 +3,23 @@
 How the system actually works *now*. Kept current by `change-scope` (on scope changes) and `retro`
 (against what actually shipped). If this drifts from reality it is worse than nothing.
 
-> **As of 2026-09-11 (Phase 3 complete, QNT-460..466 shipped):** both paths are live and converge.
-> Batch, archive hour file → Lambda backfill (official reader, Reservoir fallback on drift) →
-> bronze Parquet → silver Iceberg via `dbt-run` over OIDC, queryable in Athena. Streaming, Fargate
-> ingester → Kinesis → Firehose → the same bronze table, under a scripted
-> `session-up`/`session-down` lifecycle with a committed manifest, cost estimate, and a one-time
-> EventBridge Scheduler dead-man's switch (the reaper). Convergence, `recon_trades` proves G3
-> (`ws_only = 0`, every `backfill_only` inside a manifest gap) over the reconcilable window;
+> **As of 2026-09-17 (Phase 4 complete, QNT-467..470/478 shipped, all five PRD phases now done):**
+> both paths are live and converge. Batch, archive hour file → Lambda backfill (official reader,
+> Reservoir fallback on drift) → bronze Parquet → silver Iceberg via `dbt-run` over OIDC, queryable
+> in Athena. Streaming, Fargate ingester → Kinesis → Firehose → the same bronze table, under a
+> scripted `session-up`/`session-down` lifecycle with a committed manifest, cost estimate, and a
+> one-time EventBridge Scheduler dead-man's switch (the reaper). Convergence, `recon_trades` proves
+> G3 (`ws_only = 0`, every `backfill_only` inside a manifest gap) over the reconcilable window;
 > `make heal` backfills unhealed gap hours and re-proves it; silver contract tests gate gold; gold
 > marts (`ohlcv_1m/1h/1d`, `volume_daily`, `liquidations_daily`) build from silver; the Athena seam
 > test proves the silver merge behaviour on every push to `main`. QNT-466 ran the full sequence live
-> end-to-end (stream → gap → heal → recon → manifest). Presentation (README, demo, dbt docs) is
-> Phase 4.
+> end-to-end (stream → gap → heal → recon → manifest). Presentation shipped: the README is the
+> portfolio landing page (architecture diagram, per-layer sample queries, timed < 15 min bootstrap
+> path), `docs/demo-runbook.md` is the demo artifact (a recorded video was dropped, OQ-4 amended),
+> `docs/costs.md` + `costs/README.md` carry the cost reconciliation, and `dbt docs generate` runs in
+> CI with the lineage graph captured as a static screenshot (GitHub Pages from a private repo wasn't
+> available at the time; the repo is public as of 2026-09-17 but the static-screenshot approach
+> stuck). Remaining work is reactive only, the perpetual Ops & Reliability milestone.
 > The target design is in [`docs/prd.md`](../prd.md) §5; this file describes only what is deployed
 > or runnable today.
 
