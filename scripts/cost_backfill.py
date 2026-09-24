@@ -3,13 +3,16 @@
 
 Every `pending` row whose `end` is more than 24h old gets a Cost Explorer query (daily
 granularity, filtered on the `project=hyperlake` cost allocation tag, the tag lags billing
-data by up to 24h, PRD FR-7) and is rewritten `final` with the summed cost. Already-`final`
-rows are never re-queried, so re-running is safe.
+data by up to 24h, PRD FR-7) and is rewritten `final` with its share of the cost. Daily is
+the finest granularity Cost Explorer offers, so each day's total is split across every
+session in the CSV that overlaps that day, weighted by overlap time; giving every
+same-day session the whole day's total would count that day once per session.
+Already-`final` rows are never re-queried, so re-running is safe.
 """
 
 import argparse
 import csv
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import boto3
 
@@ -40,17 +43,38 @@ def write_rows(path: str, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
-def query_cost(ce_client, start: str, end: str) -> float:
-    """Sum UnblendedCost over the session's date range, tag-filtered on project=hyperlake."""
-    start_date = datetime.fromisoformat(start).date()
-    end_date = datetime.fromisoformat(end).date() + timedelta(days=1)  # CE End is exclusive
+def query_day_cost(ce_client, day: date) -> float:
+    """UnblendedCost for one UTC day, tag-filtered on project=hyperlake."""
     resp = ce_client.get_cost_and_usage(
-        TimePeriod={"Start": start_date.isoformat(), "End": end_date.isoformat()},
+        TimePeriod={"Start": day.isoformat(), "End": (day + timedelta(days=1)).isoformat()},
         Granularity="DAILY",
         Metrics=["UnblendedCost"],
         Filter={"Tags": {"Key": "project", "Values": [PROJECT_TAG_VALUE]}},
     )
-    return sum(float(day["Total"]["UnblendedCost"]["Amount"]) for day in resp["ResultsByTime"])
+    return sum(float(d["Total"]["UnblendedCost"]["Amount"]) for d in resp["ResultsByTime"])
+
+
+def _days(row: dict) -> list[date]:
+    start = datetime.fromisoformat(row["start"]).date()
+    end = datetime.fromisoformat(row["end"]).date()
+    return [start + timedelta(days=n) for n in range((end - start).days + 1)]
+
+
+def _overlap_seconds(row: dict, day: date) -> float:
+    day_start = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
+    start = max(datetime.fromisoformat(row["start"]), day_start)
+    end = min(datetime.fromisoformat(row["end"]), day_start + timedelta(days=1))
+    return max((end - start).total_seconds(), 0.0)
+
+
+def session_share(row: dict, day: date, rows: list[dict]) -> float:
+    """This row's fraction of `day`'s cost: its overlap time over the summed overlap of
+    every row touching that day (an even split if every overlap is zero-length)."""
+    sharing = [r for r in rows if day in _days(r)]
+    total = sum(_overlap_seconds(r, day) for r in sharing)
+    if total == 0:
+        return 1 / len(sharing)
+    return _overlap_seconds(row, day) / total
 
 
 def backfill(rows: list[dict], ce_client, now: datetime) -> int:
@@ -62,6 +86,7 @@ def backfill(rows: list[dict], ce_client, now: datetime) -> int:
     docs/guides/ops-runbook.md).
     """
     filled = 0
+    day_costs: dict[date, float] = {}
     for row in rows:
         if row["cost_status"] not in ("pending", "reaper-terminated"):
             continue
@@ -72,7 +97,11 @@ def backfill(rows: list[dict], ce_client, now: datetime) -> int:
         end = datetime.fromisoformat(row["end"])
         if now - end < BACKFILL_DELAY:
             continue
-        cost = query_cost(ce_client, row["start"], row["end"])
+        cost = 0.0
+        for day in _days(row):
+            if day not in day_costs:
+                day_costs[day] = query_day_cost(ce_client, day)
+            cost += day_costs[day] * session_share(row, day, rows)
         row["cost_actual_usd"] = f"{cost:.2f}"
         if row["cost_status"] == "pending":
             row["cost_status"] = "final"

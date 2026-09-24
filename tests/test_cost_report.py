@@ -2,9 +2,9 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 from scripts.cost_report import (
-    UNATTRIBUTED_GAP_CEILING_USD,
+    DOUBLE_ATTRIBUTION_TOLERANCE_USD,
     idle_month_report,
-    is_gap_unattributed,
+    is_double_attributed,
     over_budget_rows,
     query_ce_monthly,
     reconcile,
@@ -88,14 +88,10 @@ def test_reconcile_sums_ce_total_against_session_actuals() -> None:
     assert result == {"ce_total": 1.00, "session_sum": 0.30, "gap": 0.70}
 
 
-def test_is_gap_unattributed_is_symmetric_around_zero() -> None:
-    within = UNATTRIBUTED_GAP_CEILING_USD - 0.01
-    over = UNATTRIBUTED_GAP_CEILING_USD + 0.01
-
-    assert is_gap_unattributed(within) is False
-    assert is_gap_unattributed(-within) is False
-    assert is_gap_unattributed(over) is True
-    assert is_gap_unattributed(-over) is True
+def test_only_a_negative_gap_beyond_rounding_is_double_attribution() -> None:
+    assert is_double_attributed(5.00) is False
+    assert is_double_attributed(-(DOUBLE_ATTRIBUTION_TOLERANCE_USD - 0.01)) is False
+    assert is_double_attributed(-(DOUBLE_ATTRIBUTION_TOLERANCE_USD + 0.01)) is True
 
 
 def test_query_ce_monthly_shapes_the_ce_response() -> None:

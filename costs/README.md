@@ -8,7 +8,7 @@
 | `start`              | Session start, ISO 8601 UTC (e.g. `2026-09-01T10:00:00Z`).              |
 | `end`                | Session end, ISO 8601 UTC.                                              |
 | `cost_estimate_usd`  | Resource-hours × list price plus a fixed $0.25 per-session floor, computed at `session-down`. The floor was added 2026-09-17 after twelve finalized sessions showed actuals never fall below ~$0.25 however short the session; rows before that date carry the older per-hour-only estimate. |
-| `cost_actual_usd`    | Cost Explorer's `UnblendedCost` for the session window, tag-filtered on `project=hyperlake`. Blank until backfilled. |
+| `cost_actual_usd`    | The session's share of Cost Explorer's daily `UnblendedCost` (tag-filtered on `project=hyperlake`) for each day it touches, split across that day's sessions by overlap time; daily is Cost Explorer's finest grain. Blank until backfilled. |
 | `cost_status`        | `pending` until `cost_actual_usd` is filled, then `final`. A session ended by the reaper (`docs/guides/ops-runbook.md`) starts `reaper-terminated` instead of `pending`, and keeps that label even after backfill -- distinct from a normal teardown, not a fourth "unfilled" state. |
 | `ce_query_date`      | UTC date `cost_actual_usd` was queried. Blank until backfilled.         |
 

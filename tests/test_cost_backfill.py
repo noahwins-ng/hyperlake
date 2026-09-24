@@ -136,3 +136,40 @@ def test_rerun_is_idempotent() -> None:
     assert first == 1
     assert second == 0
     ce.get_cost_and_usage.assert_called_once()
+
+
+def test_same_day_sessions_split_the_day_by_duration() -> None:
+    # Daily is Cost Explorer's finest grain: two sessions on one day must share that day's
+    # total, not each claim all of it.
+    now = datetime(2026, 9, 10, tzinfo=UTC)
+    rows = [
+        {**_row("a", "2026-09-08T10:30:00+00:00"), "start": "2026-09-08T10:00:00+00:00"},
+        {**_row("b", "2026-09-08T12:10:00+00:00"), "start": "2026-09-08T12:00:00+00:00"},
+    ]
+    ce = _mock_ce("0.40")
+
+    filled = backfill(rows, ce, now)
+
+    assert filled == 2
+    assert [r["cost_actual_usd"] for r in rows] == ["0.30", "0.10"]
+    ce.get_cost_and_usage.assert_called_once()
+
+
+def test_session_across_midnight_takes_a_share_of_each_day() -> None:
+    now = datetime(2026, 9, 10, tzinfo=UTC)
+    rows = [
+        {**_row("x", "2026-09-08T01:00:00+00:00"), "start": "2026-09-07T23:00:00+00:00"},
+        {**_row("y", "2026-09-08T03:00:00+00:00"), "start": "2026-09-08T02:00:00+00:00"},
+    ]
+    ce = MagicMock()
+    totals = {"2026-09-07": "0.20", "2026-09-08": "0.60"}
+    ce.get_cost_and_usage.side_effect = lambda **kw: {
+        "ResultsByTime": [
+            {"Total": {"UnblendedCost": {"Amount": totals[kw["TimePeriod"]["Start"]]}}}
+        ]
+    }
+
+    backfill(rows, ce, now)
+
+    # x: all of 09-07 plus half of 09-08 (1h of 2h); y: the other half of 09-08.
+    assert [r["cost_actual_usd"] for r in rows] == ["0.50", "0.30"]

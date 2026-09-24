@@ -23,7 +23,7 @@ trades/s across five markets, enough that the storage and merge choices actually
 
 The second constraint is that it must cost almost nothing when nobody is looking. Nothing
 runs 24/7: a session is `terraform apply`, work, `destroy`, with a dead-man's-switch reaper
-if the teardown is forgotten. Sessions cost about $0.30; idle is near zero.
+if the teardown is forgotten. Sessions average $0.14; idle is about $0.25/month.
 
 Market data only. No trading, signals, or execution anywhere.
 
@@ -81,7 +81,7 @@ Every number below is a real measurement recorded in the repo, cited by date and
   session's recorded WebSocket-disconnect gap; the one residual (534 ms past the gap end) is
   documented, not hidden (2026-09-11, session `qnt-466-20260911124320`;
   [spike report](docs/spikes/2026-09-11-qnt466-g3-live-replay.md)).
-- **$0.30 average session cost** over 12 finalized sessions, against a $2 ceiling. See
+- **$0.14 average session cost** over 12 finalized sessions, against a $2 ceiling. See
   [Cost](#cost).
 - **dbt docs regenerated on every push to `main`**, offline on DuckDB; every silver/gold/recon
   column is described, enforced by
@@ -193,19 +193,19 @@ reconciliation are in [`docs/costs.md`](docs/costs.md).
 <!-- COST_REPORT:START -->
 | | |
 |---|---|
-| Average session cost | $0.30 |
+| Average session cost | $0.14 |
 | Highest session cost | $0.76 |
-| Idle cost (highest month, Cost Explorer) | $0.00/month (Cost Explorer still catching up on the latest session) |
+| Idle cost (highest month, Cost Explorer) | $1.16/month |
 | Target ceiling | < $2/session, < $2/month idle |
-| Cost Explorer reconciliation gap | -$0.92 (Cost Explorer lag, self-corrects) (full detail: [docs/costs.md](docs/costs.md)) |
+| Cost Explorer reconciliation gap | $1.16 (full detail: [docs/costs.md](docs/costs.md)) |
 <!-- COST_REPORT:END -->
 
 **What this would cost you:**
 
 | Scenario | Cost | Source |
 |---|---|---|
-| Idle, nothing running | under $1/month (transiently negative right after a session while Cost Explorer catches up) | [`docs/costs.md`](docs/costs.md) |
-| One demo session | $0.13–$0.76, avg $0.30 across 12 sessions | [`costs/sessions.csv`](costs/sessions.csv) |
+| Idle, nothing running | about $0.25/month steady state (September's $1.16 is mostly development on days with no session) | [`docs/costs.md`](docs/costs.md) |
+| One demo session | $0.02–$0.76, avg $0.14 across 12 sessions (each day's cost split across that day's sessions by duration) | [`costs/sessions.csv`](costs/sessions.csv) |
 | One-day backfill | under $0.01 of Lambda compute | [ops runbook](docs/guides/ops-runbook.md#backfill-step-functions-fan-out-measured-wall-time--cost-qnt-452) |
 | 24×7 streaming, 30 days *(model, never run)* | $50–$100/month | [`costs/README.md`](costs/README.md#what-247-would-cost) |
 
