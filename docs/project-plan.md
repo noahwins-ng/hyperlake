@@ -128,8 +128,9 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
 - [x] QNT-477: fix(infra): declare + import seam_test Glue database, tf-drift-check flags it as hand-created
   - `seam_test` (auto-created live by QNT-462's seam job) declared in `glue.tf` and `terraform import`ed, same fix shape as QNT-473's `silver` import
   - **Triggered by:** QNT-474's scheduled `tf-drift-check` catching real drift for the first time, 2026-09-10
-- [ ] QNT-479: chore(ops): portfolio-hygiene CI check, no stray ticket-id comments, no real AWS account id, no negative cost-report figures
-  - **Triggered by:** Phase 4 retro invariant audit, three hygiene defects (stray `QNT-` comments in `.github/workflows/`, the real AWS account id briefly in `tests/test_audit_teardown.py`, a negative `$` figure in the README cost block) were all caught only by manual review the night before the repo went public, none by `make check`
+- [x] QNT-479: chore(ops): portfolio-hygiene CI check, no stray ticket-id comments in src/hyperlake or dbt/, no real AWS account id, no negative cost-report figures
+  - **Triggered by:** Phase 4 retro invariant audit, three hygiene defects (the real AWS account id briefly in `tests/test_audit_teardown.py`, a negative `$` figure in the README cost block, and stray `QNT-` comments the `cc2e8c1` sweep could reintroduce into `src/hyperlake`/`dbt/`) were all caught only by manual review the night before the repo went public, none by `make check`
+  - `make portfolio-lint` (new); AC3 needed no new code, already pinned by `tests/test_cost_report.py`'s existing negative-headline regression test
 
 ## Parking lot (no tickets: reopen the PRD before building)
 

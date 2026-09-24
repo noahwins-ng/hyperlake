@@ -74,6 +74,14 @@ status, linear history, no force push).
    workflows. Same shape as the QNT-469 video-drop sweep that missed 5 doc references (see
    `hyperlake-scope-change-full-sweep` in memory) — a sweep scoped to the files a commit/skill
    happened to name, not the whole repo. **Disposition:** guard drafted, folded into QNT-479.
+   **Correction (QNT-479 implementation, 2026-09-24):** the guard that shipped covers only
+   `src/hyperlake/` and `dbt/`, not `.github/workflows/*.yml` itself. Re-reading `cc2e8c1` showed
+   the repo deliberately keeps ticket-id comments in `scripts/`, `tests/`, `infra/*.tf`, and
+   `.github/workflows/*.yml` as operational history (dozens of files, consistent since Phase 0) —
+   only the reader-facing library/model code (`src/hyperlake/`, `dbt/`) was ever meant to stay
+   clean. A repo-wide guard would have flagged that entire deliberate convention. So the workflow
+   file this finding names is, and remains, intentionally uncovered — see QNT-479's ticket
+   description and `tests/test_portfolio_lint.py` for the corrected scope.
 3. **The README cost headline rendered a raw negative figure (`$-0.92/month`) from Cost Explorer
    lag.** Invariant: computed report figures never render as user-facing nonsense. — guard: NONE;
    caught by manual review, fixed ad hoc (81f10ca clamps it with an explanatory note).

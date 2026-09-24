@@ -51,6 +51,13 @@ jobs:
       - name: Terraform check
         run: make tf-check
 
+      # QNT-479 (Phase 4 retro): stray ticket-id comments in src/hyperlake or dbt/, and a
+      # real-looking AWS account id in an ARN or hyperlake-* bucket name -- both slipped past
+      # `make check` until the portfolio-review pass caught them by eye right before the repo
+      # went public.
+      - name: Portfolio lint
+        run: make portfolio-lint
+
       # Greps .tf source rather than a live `terraform plan` JSON: CI has no AWS credentials
       # (offline gate), and every banned resource type is unconditionally forbidden, so a
       # static source grep gives the same guarantee without needing a real plan.
