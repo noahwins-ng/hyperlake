@@ -40,7 +40,8 @@ jobs:
 
       # QNT-470: keeps the manifest/catalog current on every push -- the lineage graph is
       # captured locally as a screenshot for the README (no GitHub Pages hosting: dropped
-      # 2026-09-16, GitHub Free can't serve Pages from a private repo).
+      # 2026-09-16 while the repo was private; the screenshot approach stayed after it
+      # went public).
       - name: dbt docs generate (duckdb)
         run: make dbt-docs
 

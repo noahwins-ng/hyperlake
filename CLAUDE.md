@@ -37,10 +37,8 @@ See the flow package's `method/guidelines/scoping-and-tickets.md`.
 
 # Hyperlake: Project Conventions
 
-> **Status: pre-build** (generated 2026-09-04 from `docs/prd.md` v0.8 + `workflow-profile.yaml`;
-> no application code yet). Repo Structure below is the *target* layout from the spec.
-> Regenerate this file with `flow-gen-claudemd` once Phase 0 (QNT-444..447) lands the toolchain,
-> Code Style and Common Commands are intentionally absent until then.
+> **Status: Phases 0-4 shipped** (QNT-444..478); remaining work is reactive, on the perpetual
+> Ops & Reliability milestone. Regenerated 2026-09-24 with `flow-gen-claudemd`.
 
 ## Core Philosophy
 
@@ -69,9 +67,10 @@ aspirational (PRD §3, §5; `workflow-profile.yaml` `architecture_rules`):
   HIP-3 markets keep their exact name in the `coin` column (`xyz:SP500`); the partition value is
   normalised `:` → `_` by one shared helper.
 
+
 ## Architecture
 
-Target design (PRD §5; `docs/architecture/system-overview.md` is filled as components ship):
+As built (PRD §5; component detail in `docs/architecture/system-overview.md`):
 
 ```
 LIVE  (demo sessions only)
@@ -98,53 +97,58 @@ BATCH (per archive hour file, requester-pays, ap-northeast-1)                   
 - Hour files are cut by block **arrival** time; a reader mapping trades to hours fetches `H` and
   `H+1`, and keys `dt` from event `time`.
 
+
 ## Stack
 
-- **Python 3** (ingester, backfill Lambda, session scripts), uv, ruff, pyright, pytest (planned,
-  PRD FR-9; only `scripts/spike/requirements.txt` exists today: `websockets`, `boto3`, `lz4`).
-- **Terraform**, single root, `infra/bootstrap/` (local state) + `infra/main/` with
-  `persistent/` (S3 data, Glue) and `ephemeral/` (compute, streams) modules.
+- **Python 3.12**, managed with uv (`pyproject.toml`, `uv.lock`); runtime deps `websockets`,
+  `boto3`, `lz4`, `pyarrow`, `pyyaml`; dev group ruff, pyright, pytest, pip-audit; `dbt` group
+  `dbt-athena-community` + `dbt-duckdb` 1.11.
+- **Terraform** >= 1.9, three roots: `infra/bootstrap/` (local state: state bucket, OIDC role,
+  budgets, cost tag), `infra/main/persistent/` (data bucket, Glue, Athena, ECR) and
+  `infra/main/ephemeral/` (Fargate, Kinesis/Firehose, backfill Lambda + Step Functions, reaper),
+  both on the S3 backend.
 - **AWS ap-northeast-1**: Fargate, Kinesis Data Streams, Firehose, S3, Glue catalog, Athena,
   Lambda, Step Functions, EventBridge Scheduler, Budgets.
 - **dbt** with two targets, `duckdb` (local + CI, plain tables) and `athena` (Iceberg incremental
   merge). One macro owns the difference (ADR-002). Merge behaviour is proven by an Athena seam test
   on every push to `main`, not on PRs.
-- **GitHub Actions** for CI (offline: lint, types, pytest, `dbt build --target duckdb`,
-  `terraform fmt/validate`) and for the `dbt-run` workflow (OIDC).
+- **GitHub Actions**: `ci.yml` (offline gate, the required `checks` status), `dbt-run.yml`
+  (OIDC; build + seam jobs), `ingester-image.yml`, `tf-drift-check.yml` (daily),
+  `verify-oidc.yml`.
 
 ## Repo Structure
 
-Today:
-
 ```
-docs/                 prd.md (source PRD) · project-requirement.md (spec) · project-plan.md (tracker)
-  architecture/       system-overview.md, how it works *now* (skeleton until code ships)
-  decisions/          ADR-001..004 + TEMPLATE.md; index in docs/INDEX.md
-  spikes/             measured findings (2026-09-04 OQ-1 archive desk spike)
-  guides/             dev-workflow.md, ops-runbook.md
-  retros/             one per completed milestone
-  AC-templates.md     implicit AC per diff-path trigger (skeleton; flow-tailor re-derives)
-scripts/spike/        OQ-1 tid-parity gate (capture_ws_trades.py, check_tid_parity.py)
+src/hyperlake/        envelope, partitions, watchlist, ingester, session, session_reaper, heal, recon
+  backfill/           official (node archive), reservoir (fallback), hour_list, state_machine
+config/watchlist.yaml the only place markets are named
+dbt/                  models/{staging,silver,gold,recon,seam}, macros, seeds, tests, fixtures (gold-safe)
+infra/                bootstrap/ · main/persistent/ · main/ephemeral/
+scripts/              session_up/down, heal, recon, backfill, bronze_query, cost_backfill/report,
+                      tf_drift_check, audit_teardown, iceberg_maintain, gh_run.sh, doc checks
+scripts/spike/        OQ-1 tid-parity gate and Kinesis spike helpers
+tests/                pytest suite (+ fixtures/)
+sessions/             one committed manifest JSON per demo session
+costs/                sessions.csv (estimate vs Cost Explorer actual) + README
+docs/                 prd, project-requirement, project-plan, architecture/, decisions/ (ADR-001..005),
+                      spikes/, guides/, retros/, queries/, demo-runbook, costs.md (generated)
+.github/workflows/    ci, dbt-run, ingester-image, tf-drift-check, verify-oidc
 .githooks/            commit-msg enforces the commit convention; pre-push refuses direct pushes to main
 workflow-profile.yaml the flow suite's project profile, the only per-project config
 ```
 
-Target (from the spec and the Phase 0–2 tickets; create as tickets land, do not pre-create):
+## Code Style
 
-```
-src/hyperlake/        envelope, partitions, watchlist loader, ingester, backfill/{official,reservoir}
-config/watchlist.yaml
-infra/{bootstrap,main/{persistent,ephemeral}}
-dbt/                  models/{silver,gold,recon}, macros, seeds, fixtures (gold-safe only)
-scripts/              gh_run.sh, cost_backfill.py, heal.py, audit_teardown.py
-costs/                sessions.csv (cost_estimate / cost_actual per session)
-sessions/             one manifest JSON per demo session
-.github/workflows/    ci.yml, dbt-run.yml
-```
+- Lint `make lint`, format `make format`, types `make types` (ruff, line length 100, rules
+  E/F/I/UP; pyright basic over `src`, `scripts`, `tests`).
+- `make check` is the full offline CI gate (lint, format, types, pytest, pip-audit,
+  `dbt build --target duckdb`, `terraform fmt/validate`); `make test` is pytest alone;
+  targeted: `uv run pytest {path}`.
+- No em dashes anywhere in the repo, docs or code comments.
 
 ## Git Workflow
 
-- One branch per issue: `user/{id_lower}-{slug}` (Linear `branchName`). One PR per issue,
+- One branch per issue, named by Linear's `branchName` (`noahwinsdev/qnt-480-...`). One PR per issue,
   **squash merge**, branch deleted: `gh pr merge {pr} --squash --delete-branch`.
 - Commit format (enforced by `.githooks/commit-msg`; enable with
   `git config core.hooksPath .githooks`):
@@ -162,16 +166,18 @@ sessions/             one manifest JSON per demo session
 - Ticket structure: see the flow package's `method/conventions.md` ("Ticket structure"), reference
   it, don't restate it.
 
+
 ## Environment
 
 - **Local / CI** = DuckDB target, no AWS credentials. CI must stay runnable with zero cloud access.
-- **Cloud** = Athena target in ap-northeast-1, reached from GitHub Actions via the OIDC role
-  (Phase 0 bootstrap) or from a developer session with AWS credentials. Requester-pays reads on the
-  archive buckets need `s3:GetObject` and `RequestPayer=requester`.
-- There is no long-lived prod host; `profile.deploy.deployed_sha / health / rollback` are empty by
-  design and will be derived by `flow-tailor` from the Terraform stack (e.g. an SSM parameter or
-  resource tag stamped at apply). Empty gates are reported as profile-skipped, not silent.
-- No `.env.example` yet; add it with the Phase 0 toolchain ticket (QNT-444).
+- **Cloud** = Athena target in ap-northeast-1, reached from GitHub Actions via the OIDC role or
+  from a developer session with AWS credentials (`.env.example`: `AWS_PROFILE`, `AWS_REGION`).
+  Requester-pays reads on the archive buckets need `s3:GetObject` and `RequestPayer=requester`.
+- IAM/OIDC changes are verified by exercising the role (e.g. dispatching `dbt-run.yml`), never by
+  a local apply under personal credentials (QNT-473).
+- No long-lived prod host: "deployed" means a live session is up. `profile.deploy.deployed_sha`
+  and `runtime_id` are still empty; `rollback` is empty by design (a bad session is destroyed and
+  re-applied).
 
 ## Working Docs
 
@@ -186,3 +192,15 @@ sessions/             one manifest JSON per demo session
 - `docs/AC-templates.md`: implicit acceptance criteria appended by diff path.
 - Execution-AC keywords (never code AC): populated, backfill, no duplicates, returns, queryable,
   reconciles, deployed, destroyed, in athena, visible, healthy.
+
+## Common Commands
+
+- Gate: `make check`
+- Infra: `make tf-apply-persistent` / `tf-destroy-persistent`, `make tf-apply-ephemeral` /
+  `tf-destroy-ephemeral`, `make tf-drift-check`, `make audit-teardown`
+- Batch: `make backfill FROM=<day> TO=<day>`, `make dbt-run ARGS="..."`, `make iceberg-maintain`
+- Session: `make session-up LABEL=<prefix>` → stream → `make session-down` → `make heal` →
+  `make recon`
+- Query: `make bronze-query DT_FROM=<day>` (never query bronze without a `dt` bound)
+- Costs: `make cost-backfill`, `make cost-report`
+- Docs: `make docs-check`, `make demo-runbook-check`, `make dbt-docs`, `make dbt-demo-fail`
