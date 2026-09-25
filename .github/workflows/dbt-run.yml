@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload run_results.json
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dbt-run-results-${{ inputs.run_key }}
           path: dbt/target/run_results.json
@@ -170,7 +170,7 @@ jobs:
 
       - name: Upload run_results.json
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dbt-seam-results-${{ github.run_id }}
           path: dbt/target/run_results.json
