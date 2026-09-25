@@ -8,8 +8,9 @@ Three checks, each loud-not-silent (exits non-zero with the offending rows):
     every month's Cost Explorer total minus that month's summed session actuals (the idle
     spend) must be under the PRD G4 idle ceiling.
   - AC4 reconciliation: Cost Explorer's all-time `project=hyperlake` total is diffed against
-    `sum(cost_actual_usd)` across all sessions; a gap beyond a small tolerance is treated as
-    unattributed and fails loud rather than being silently reported.
+    `sum(cost_actual_usd)` across all sessions. A positive gap is idle spend, already bounded
+    per month by AC3; a negative gap beyond rounding means cost attributed twice, and fails
+    loud rather than being silently reported.
 
 Writes the full report to `docs/costs.md` and patches the generated block inside README's
 `## Cost` section (between `<!-- COST_REPORT:START/END -->` markers).
@@ -31,9 +32,10 @@ CE_REGION = "us-east-1"  # Cost Explorer is a global service with a single endpo
 # Before any AWS activity existed, so CE returns 0 for the empty months -- an anchor this
 # early is safe and avoids having to track down the exact tag-activation date.
 PROJECT_INCEPTION_DATE = date(2026, 1, 1)
-# Generous over the known ~$0.62 ad-hoc-Athena-query incident (docs/guides/ops-runbook.md,
-# now guarded by `make bronze-query`/QNT-476), plus slack for sessions still <48h pending.
-UNATTRIBUTED_GAP_CEILING_USD = 1.00
+# Per-session cent rounding of each day's split (scripts/cost_backfill.py) can push
+# sum(cost_actual_usd) a few cents past Cost Explorer's total; anything beyond is real
+# double attribution.
+DOUBLE_ATTRIBUTION_TOLERANCE_USD = 0.05
 
 README_START_MARKER = "<!-- COST_REPORT:START -->"
 README_END_MARKER = "<!-- COST_REPORT:END -->"
@@ -104,15 +106,13 @@ def reconcile(rows: list[dict], monthly: list[dict]) -> dict:
     return {"ce_total": ce_total, "session_sum": session_sum, "gap": ce_total - session_sum}
 
 
-def is_gap_unattributed(gap: float) -> bool:
-    """True once |gap| exceeds tolerance in either direction (AC4).
+def is_double_attributed(gap: float) -> bool:
+    """True when sessions.csv sums to more than Cost Explorer billed, beyond rounding (AC4).
 
-    A positive gap beyond tolerance means real spend CE saw isn't in sessions.csv (the
-    ad-hoc-query shape this AC was written to catch). A negative gap that large would mean
-    sessions.csv sums to more than CE has ever billed for this tag -- not explained by CE's
-    ~24h billing lag alone, so it's treated as equally unattributed.
+    A positive gap is spend outside any session (idle), and the all-time gap is exactly the
+    sum of every month's idle, so AC3's per-month idle ceiling already bounds it.
     """
-    return abs(gap) > UNATTRIBUTED_GAP_CEILING_USD
+    return gap < -DOUBLE_ATTRIBUTION_TOLERANCE_USD
 
 
 def _active_months(idle_report: list[dict]) -> list[dict]:
@@ -123,17 +123,16 @@ def _active_months(idle_report: list[dict]) -> list[dict]:
 def _reconciliation_cause(gap: float) -> str:
     if gap > 0:
         return (
-            "Known cause: ad-hoc Athena queries against `bronze.trades_raw` without a `dt` "
-            "bound (pre-QNT-476) generated S3 request-count cost that never appeared in any "
-            "session row -- see `docs/guides/ops-runbook.md`. That path is now guarded by "
-            "`make bronze-query`. Any remaining positive gap is expected to shrink toward zero "
-            "as sessions finalize."
+            "A positive gap is spend on no session's share of its days: persistent storage, "
+            "CI and seam-test Athena runs, and dev work on days with no session (for "
+            "2026-09, mostly 2026-09-09/10 development). It is bounded month by month by the "
+            "idle ceiling above, and grows slowly with idle storage; it never shrinks."
         )
     return (
-        "A negative gap (sessions.csv sums to more than Cost Explorer's current total) is "
-        "expected right after a session ends -- Cost Explorer lags actual billing by up to "
-        "~24h (PRD FR-7) -- and self-corrects on the next `make cost-report` run once CE "
-        "catches up."
+        "A negative gap means sessions.csv sums to more than Cost Explorer has billed for "
+        "this tag. Cost Explorer lag cannot cause it: each `cost_actual_usd` is itself read "
+        "from Cost Explorer, at least 24h after the session ends, and totals only grow "
+        "afterwards. Look for the same day's cost attributed to more than one session."
     )
 
 
@@ -188,9 +187,9 @@ def render_markdown(
             "to reconcile.)"
         )
     lines += [
-        f"Ceiling: < ${IDLE_CEILING_USD:.2f}/month idle (PRD G4). Cost Explorer lags actual "
-        "billing by up to ~24h (PRD FR-7), so the most recent month can show a small negative "
-        "idle number right after a session ends -- it self-corrects on the next run.",
+        f"Ceiling: < ${IDLE_CEILING_USD:.2f}/month idle (PRD G4). Idle is everything the "
+        "tag billed outside a session's share of its days: persistent storage, CI and seam "
+        "Athena runs, and dev work on days with no session.",
         "",
         "## Reconciliation (AC4)",
         "",
@@ -216,7 +215,7 @@ def render_readme_block(rows: list[dict], idle_report: list[dict], reconciliatio
     else:
         idle_cell = f"${worst_idle:.2f}/month"
     gap = reconciliation["gap"]
-    gap_cell = f"${gap:.2f}" if gap >= 0 else f"-${-gap:.2f} (Cost Explorer lag, self-corrects)"
+    gap_cell = f"${gap:.2f}" if gap >= 0 else f"-${-gap:.2f} (double-attributed cost)"
     lines = [
         "| | |",
         "|---|---|",
@@ -276,10 +275,10 @@ def main() -> None:
         )
 
     reconciliation = reconcile(rows, monthly)
-    if is_gap_unattributed(reconciliation["gap"]):
+    if is_double_attributed(reconciliation["gap"]):
         raise SystemExit(
-            f"cost-report: reconciliation gap ${reconciliation['gap']:.2f} exceeds "
-            f"±${UNATTRIBUTED_GAP_CEILING_USD:.2f} -- investigate before treating it as explained"
+            f"cost-report: sessions.csv sums to ${-reconciliation['gap']:.2f} more than Cost "
+            "Explorer billed -- some cost is attributed to more than one session"
         )
 
     Path(a.out).write_text(render_markdown(rows, idle_report, reconciliation, now))
