@@ -1,0 +1,120 @@
+name: seam-pr
+
+# ADR-002 amendment (QNT-481): the Athena seam test also runs on every same-repo PR that
+# touches dbt/**, so a merge regression fails before it lands instead of after (dbt-run.yml's
+# `seam` job stays the post-merge check on main). One job that always runs and reports: it
+# exits green without assuming the OIDC role when the PR doesn't touch dbt/** or comes from a
+# fork (GitHub gives fork PRs no id-token), so `seam-pr` can be a required status without
+# blocking unrelated PRs. ci.yml stays offline; the cloud step lives only here.
+on:
+  pull_request:
+
+# One run per PR at a time: a newer push cancels the older run, whose `if: always()` drop
+# step still runs, so the next run never shares a half-dropped schema.
+concurrency:
+  group: seam-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  seam-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DBT_ATHENA_S3_STAGING_DIR: ${{ vars.DBT_ATHENA_S3_STAGING_DIR }}
+      DBT_ATHENA_S3_DATA_DIR: ${{ vars.DBT_ATHENA_S3_DATA_DIR }}
+      DBT_ATHENA_WORKGROUP: hyperlake
+      # Per-PR isolation: seeds (target schema) and seam_trades (DBT_SEAM_SCHEMA) both land
+      # in seam_test_pr<N>, which the OIDC role's Glue policy scopes to (infra/bootstrap/oidc.tf).
+      DBT_ATHENA_SCHEMA: seam_test_pr${{ github.event.pull_request.number }}
+      DBT_SEAM_SCHEMA: seam_test_pr${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to run
+        id: scope
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # The diff is captured before the test, not piped into it: a failed `git diff` must fail
+        # the job (bash -e), never read as "no dbt/** change" and skip green.
+        run: |
+          if [ "$HEAD_REPO" != "${{ github.repository }}" ]; then
+            echo "fork PR ($HEAD_REPO): no id-token, skipping the seam test"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          if grep -q '^dbt/' <<< "$changed"; then
+            echo "dbt/** changed: running the seam test in $DBT_SEAM_SCHEMA"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no dbt/** change: nothing to prove, skipping the seam test"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install uv
+        if: steps.scope.outputs.run == 'true'
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        if: steps.scope.outputs.run == 'true'
+        run: uv sync --group dbt
+
+      - name: Configure AWS credentials via OIDC
+        if: steps.scope.outputs.run == 'true'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      - name: Table data dir is set and outside athena-results/
+        if: steps.scope.outputs.run == 'true'
+        run: scripts/check_athena_data_dir.sh
+
+      # Same seed -> round 1 -> round 2 -> test sequence as dbt-run.yml's `seam` job, which
+      # explains the two rounds. The schema starts empty, so round 1 is always a plain create.
+      - name: Seed seam fixtures
+        if: steps.scope.outputs.run == 'true'
+        working-directory: dbt
+        run: uv run --group dbt dbt seed --profiles-dir . --target athena --select tag:seam
+
+      - name: Round 1 -- load round-1 fixture values
+        if: steps.scope.outputs.run == 'true'
+        working-directory: dbt
+        run: |
+          uv run --group dbt dbt run --profiles-dir . --target athena --select seam_trades --vars '{seam_round: 1}'
+
+      - name: Round 2 -- exercise the merge
+        if: steps.scope.outputs.run == 'true'
+        working-directory: dbt
+        run: |
+          uv run --group dbt dbt run --profiles-dir . --target athena --select seam_trades --vars '{seam_round: 2}'
+
+      - name: Seam tests
+        if: steps.scope.outputs.run == 'true'
+        working-directory: dbt
+        run: |
+          uv run --group dbt dbt test --profiles-dir . --target athena --select tag:seam --vars '{seam_round: 2}'
+
+      - name: Upload run_results.json
+        if: always() && steps.scope.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-seam-pr-results-${{ github.run_id }}
+          path: dbt/target/run_results.json
+          if-no-files-found: warn
+
+      # Runs on failure and cancellation too, so no seam_test_pr<N> outlives its run; a leaked
+      # one shows up as a hand-created database in tf-drift-check (ops-runbook).
+      - name: Drop the per-PR schema
+        if: always() && steps.scope.outputs.run == 'true'
+        working-directory: dbt
+        run: |
+          uv run --group dbt dbt run-operation drop_seam_schema --profiles-dir . --target athena --args "{schema: $DBT_SEAM_SCHEMA}"

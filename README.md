@@ -110,7 +110,7 @@ One line each; the reasoning lives in the linked ADR.
   host; Step Functions only fans out the backfill.
   [ADR-001](docs/decisions/ADR-001-dbt-runtime-github-actions.md).
 - **Two dbt targets, one macro owning the seam.** DuckDB proves the logic offline in CI;
-  the Iceberg merge is proven on Athena by a seam test on every push to `main`.
+  the Iceberg merge is proven on Athena by a seam test on every `dbt/` PR and push to `main`.
   [ADR-002](docs/decisions/ADR-002-two-target-dbt-project.md).
 - **Convergence is proven at bronze, not silver.** Silver's merge keeps one row per trade,
   so only the append-only raw layer can still show which sources saw it.
@@ -217,8 +217,8 @@ whether or not a trade arrives, which is exactly why the stream is torn down bet
 - **Offline CI on every PR** (`make check` mirrors it exactly): ruff, pyright, pytest,
   pip-audit, `dbt build --target duckdb` (75 models and tests), `terraform fmt`/`validate`,
   and a grep that fails on any long-lived AWS key. Zero cloud credentials.
-- **Athena seam test on every push to `main`**: three merge-ordering cases run against a real
-  Iceberg table over OIDC, because DuckDB cannot prove `MERGE` semantics.
+- **Athena seam test on every `dbt/` PR and push to `main`**: three merge-ordering cases run
+  against a real Iceberg table over OIDC, because DuckDB cannot prove `MERGE` semantics.
 - **dbt contract tests gate gold**: schema, freshness, and volume tests on silver must pass
   before any gold mart builds; convergence tests run over bronze; OHLCV invariants on gold.
   `make dbt-demo-fail` shows a deliberate failure and the downstream skips.
@@ -233,8 +233,8 @@ whether or not a trade arrives, which is exactly why the stream is torn down bet
   early spend. A bounded query wrapper fixed the symptom; persisted metadata is the real fix.
 - **Kinesis + Firehose is more machinery than ~17 trades/s needs.** Chosen for managed
   Parquet conversion and learning value; a direct Parquet write would be simpler at this volume.
-- **Local merge parity is a real gap.** The seam test runs only on `main`, so a bad merge
-  change is caught after the PR. A Trino container in CI would close it.
+- **The seam test first ran only on `main`**, so a bad merge change was caught after the PR.
+  It now runs per PR in its own schema; a Trino container would have tested a different `MERGE`.
 - **Inducing a WebSocket disconnect took three attempts.** A gap-injection flag in the
   ingester would have replaced an afternoon of NACL edits.
 - **Short demo sessions cannot reconcile.** The archive lands ~1 h after a clock hour closes,

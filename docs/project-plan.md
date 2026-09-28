@@ -138,6 +138,9 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
   - `s3_data_dir` → `warehouse/` via the `DBT_ATHENA_S3_DATA_DIR` repo variable, guarded in
     `dbt-run.yml`; seeds Iceberg (the enforced workgroup places Hive tables under
     `athena-results/`); silver/gold rebuilt from bronze (29,086,722 trades, exactly-once)
+- [x] QNT-481: test(dbt): run the Athena seam test on PRs that touch dbt/
+  - `seam-pr.yml`: per-PR `seam_test_pr<N>` schema, dropped after the run; green no-op for non-`dbt/` and fork PRs; ADR-002 amended
+  - **Triggered by:** README "What I would do differently", a bad merge change was only caught after merge to `main`
 
 ## Parking lot (no tickets: reopen the PRD before building)
 
