@@ -131,6 +131,13 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
 - [x] QNT-479: chore(ops): portfolio-hygiene CI check, no stray ticket-id comments in src/hyperlake or dbt/, no real AWS account id, no negative cost-report figures
   - **Triggered by:** Phase 4 retro invariant audit, three hygiene defects (the real AWS account id briefly in `tests/test_audit_teardown.py`, a negative `$` figure in the README cost block, and stray `QNT-` comments the `cc2e8c1` sweep could reintroduce into `src/hyperlake`/`dbt/`) were all caught only by manual review the night before the repo went public, none by `make check`
   - `make portfolio-lint` (new); AC3 needed no new code, already pinned by `tests/test_cost_report.py`'s existing negative-headline regression test
+- [x] QNT-482: fix(dbt): Iceberg tables live under athena-results/ and are expired after 7 days
+  - **Triggered by:** the seam job failing with `ICEBERG_MISSING_METADATA` on every push to `main`
+    from 2026-09-24; dbt-athena had written every silver/gold/recon/seam table and seed under the
+    7-day-expiring `athena-results/` prefix, and all of them were deleted
+  - `s3_data_dir` → `warehouse/` via the `DBT_ATHENA_S3_DATA_DIR` repo variable, guarded in
+    `dbt-run.yml`; seeds Iceberg (the enforced workgroup places Hive tables under
+    `athena-results/`); silver/gold rebuilt from bronze (29,086,722 trades, exactly-once)
 
 ## Parking lot (no tickets: reopen the PRD before building)
 
