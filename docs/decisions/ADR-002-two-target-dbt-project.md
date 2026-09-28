@@ -39,6 +39,17 @@ precedence: backfill wins), and row counts. It runs inside the `dbt-run` workflo
 **every push to `main`**, using the OIDC role, not on pull requests. Cost per run is
 cents (a few KB scanned).
 
+*Amended 2026-09-24, QNT-481, seam test on pull requests:* the seam test also runs on every
+same-repo pull request that touches `dbt/**`, in a separate `seam-pr` workflow, so a merge
+regression fails before it lands instead of after. Each PR gets its own `seam_test_pr<N>`
+schema, dropped after the run, and a per-PR `concurrency:` group, so parallel PRs cannot
+race on one table. The OIDC role trusts the repo's `pull_request` subject; fork PRs
+receive no id-token and skip. The offline `ci.yml` `checks` job is unchanged: CI still
+runs with zero cloud credentials, and the cloud step lives in its own workflow. A Trino
+container in CI was rejected: dbt-athena generates the `MERGE` itself (`update_condition`,
+`merge_exclude_columns` are its own options), so a dbt-trino target would prove a
+different materialization than the one that runs in production.
+
 ## Alternatives considered
 
 - **Single target, Athena only**: no local development; every model edit costs an AWS
@@ -57,7 +68,10 @@ cents (a few KB scanned).
 - A merge-specific bug is caught on push to `main` by the Athena seam test, not on the
   PR. A PR that breaks the merge therefore fails *after* merge; the workflow must be
   loud (required status on `main`, notification on failure) so that is acceptable for a
-  single-owner repo.
+  single-owner repo. *(Superseded 2026-09-24, QNT-481: a PR touching `dbt/**` now runs the
+  seam test before merge; the push-to-`main` run stays as the post-merge check.)*
+- PR seam runs spend a few cents of Athena per dbt-touching PR and need the OIDC trust
+  policy, per-PR schema IAM, and Terraform declaration kept in step (QNT-473, QNT-477).
 - Sample fixtures must be small derived data (gold-safe), per the raw-data
   redistribution risk in the PRD.
 - Dialect drift shows up as CI failures on DuckDB before it reaches Athena, which is the
