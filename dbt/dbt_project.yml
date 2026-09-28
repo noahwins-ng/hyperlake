@@ -65,6 +65,11 @@ models:
 
 seeds:
   hyperlake:
+    # Iceberg on athena, not Hive: the workgroup enforces its output location, and dbt-athena
+    # then omits the location for Hive tables, so Athena writes them under athena-results/,
+    # which expires after 7 days. Iceberg tables always take s3_data_dir (warehouse/).
+    # duckdb ignores table_type.
+    +table_type: iceberg
     session_gaps:
       +tags: ["recon"]
     seam_fixture_round1:

@@ -21,6 +21,13 @@ def test_athena_profile_reads_table_data_dir_from_its_own_env_var() -> None:
     assert "athena-results" not in athena["s3_data_dir"]
 
 
+def test_seeds_are_iceberg_so_the_enforced_workgroup_cannot_place_them() -> None:
+    # The workgroup enforces its output location, and dbt-athena then omits the location for
+    # Hive tables, so a Hive seed lands under athena-results/ whatever s3_data_dir says.
+    project = yaml.safe_load((REPO_ROOT / "dbt" / "dbt_project.yml").read_text())
+    assert project["seeds"]["hyperlake"].get("+table_type") == "iceberg"
+
+
 def test_every_dbt_run_job_that_sets_the_staging_dir_sets_the_data_dir() -> None:
     workflow = (REPO_ROOT / ".github" / "workflows" / "dbt-run.yml").read_text()
     staging = workflow.count("DBT_ATHENA_S3_STAGING_DIR: ${{ vars.DBT_ATHENA_S3_STAGING_DIR }}")

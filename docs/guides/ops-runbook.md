@@ -273,7 +273,14 @@ written.
 bucket's lifecycle rule expires after 7 days. dbt-athena puts table data under
 `<s3_staging_dir>/tables/` unless `s3_data_dir` is set; before QNT-482 it wasn't, so every
 silver/gold/recon/seam table and seed was deleted a week after its last write. Glue kept
-pointing at the missing metadata. Bronze (`bronze/`) was never affected.
+pointing at the missing metadata. Bronze (`bronze/`) was never affected. `s3_data_dir` alone
+does not cover Hive tables: the `hyperlake` workgroup enforces its output location, and
+dbt-athena then omits the location for a Hive CTAS, so Athena writes it under
+`athena-results/tables/`. Seeds are therefore Iceberg (`dbt_project.yml`); any new Hive model
+would need the same. As Iceberg tables the seeds are also picked up by `make iceberg-maintain`
+(harmless). The data-dir guard below runs only inside `dbt-run.yml`; a hand-run
+`dbt build --target athena` from a dev session bypasses it, so export `DBT_ATHENA_S3_DATA_DIR`
+first.
 
 **Check:** `aws glue get-tables --database-name silver --query
 'TableList[].[Name,StorageDescriptor.Location]'`; every location must be under `warehouse/`.
