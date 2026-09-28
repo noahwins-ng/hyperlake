@@ -111,9 +111,10 @@ BATCH (per archive hour file, requester-pays, ap-northeast-1)                   
   Lambda, Step Functions, EventBridge Scheduler, Budgets.
 - **dbt** with two targets, `duckdb` (local + CI, plain tables) and `athena` (Iceberg incremental
   merge). One macro owns the difference (ADR-002). Merge behaviour is proven by an Athena seam test
-  on every push to `main`, not on PRs.
+  on every PR that touches `dbt/` (`seam-pr.yml`, per-PR `seam_test_pr<N>` schema) and again on
+  every push to `main`.
 - **GitHub Actions**: `ci.yml` (offline gate, the required `checks` status), `dbt-run.yml`
-  (OIDC; build + seam jobs), `ingester-image.yml`, `tf-drift-check.yml` (daily),
+  (OIDC; build + seam jobs), `seam-pr.yml` (OIDC), `ingester-image.yml`, `tf-drift-check.yml` (daily),
   `verify-oidc.yml`.
 
 ## Repo Structure

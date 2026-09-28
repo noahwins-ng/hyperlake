@@ -291,6 +291,16 @@ first.
 already gone), then `make dbt-run` with `silver_lookback_days` covering bronze's oldest `dt`, so
 silver rebuilds from bronze and gold rebuilds from silver.
 
+## `tf-drift-check` flags a `seam_test_pr<N>` database
+
+- **Symptom:** `DRIFT [hand_created_databases]: seam_test_pr<N>`.
+- **Cause:** a `seam-pr.yml` run for PR `<N>` ended without its `Drop the per-PR schema` step
+  succeeding (runner lost, or the OIDC step itself failed). The schema is per-PR and never
+  Terraform-declared (QNT-481), so a leaked one is drift by design.
+- **Response:** re-run the PR's `seam-pr` job (it recreates then drops the schema), or drop it
+  from a dev session: `cd dbt && DBT_ATHENA_S3_DATA_DIR=<warehouse dir> uv run --group dbt dbt
+  run-operation drop_seam_schema --profiles-dir . --target athena --args "{schema: seam_test_pr<N>}"`.
+
 ## `make check` green locally, `ci.yml` red
 
 - **Symptom:** the local gate passes but the same commit fails in Actions.

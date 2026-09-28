@@ -88,6 +88,9 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     # statement never actually covered the catalog until this fix (QNT-473). `seam_test`
     # (QNT-462, ADR-002 amendment) isn't Terraform-managed -- dbt-athena creates it itself
     # (glue:CreateDatabase, already granted above) the first time the seam job runs.
+    # `seam_test_pr*` is seam-pr.yml's per-PR schema (QNT-481, ADR-002 amendment), created
+    # and dropped within one run, so it's never Terraform-declared; a leaked one surfaces in
+    # tf-drift-check as a hand-created database.
     resources = [
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:catalog",
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/bronze",
@@ -98,6 +101,20 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/silver/*",
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/gold/*",
       "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/seam_test/*",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/seam_test_pr*",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/seam_test_pr*/*",
+    ]
+  }
+
+  # seam-pr.yml drops its per-PR schema after each run (dbt/macros/drop_seam_schema.sql).
+  # Scoped to that prefix alone: the role can never delete bronze/silver/gold/seam_test.
+  statement {
+    sid     = "GlueSeamPrTeardown"
+    actions = ["glue:DeleteDatabase"]
+    resources = [
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:database/seam_test_pr*",
+      "arn:aws:glue:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/seam_test_pr*/*",
     ]
   }
 

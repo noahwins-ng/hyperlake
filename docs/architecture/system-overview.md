@@ -102,8 +102,10 @@ GitHub Actions
                       timeout, uploads run_results.json, invoked by session-down, make heal, and
                       by hand (QNT-454). `seam` job: automatic on every push to main (also
                       dispatchable pre-merge via `-f job=seam`), runs the Athena seam test over
-                      OIDC, a post-merge gate rather than a PR-time required check
-                      (QNT-462)
+                      OIDC, the post-merge gate (QNT-462)
+  seam-pr.yml        `seam-pr` job on every pull_request: runs the same seam test in a per-PR
+                      `seam_test_pr<N>` schema (dropped after the run) when `dbt/**` changed,
+                      green no-op otherwise or for fork PRs (QNT-481)
   ingester-image.yml  push-to-main (OIDC), builds + pushes the ingester image to ECR tagged by
                       commit SHA (QNT-457)
   tf-drift-check.yml  daily cron + workflow_dispatch (OIDC), compares the persistent layer's Glue
@@ -162,7 +164,7 @@ costs/            sessions.csv log (cost_estimate_usd / cost_actual_usd / cost_s
 | `scripts/bronze_query.py` | `make bronze-query DT_FROM=...`: bounded ad-hoc Athena query wrapper, refuses unfiltered scans | in use (QNT-476), guards the cost class the QNT-476 investigation found |
 | `sessions/` | one committed manifest per demo session, gaps with `healed` flag | real rows land per session (QNT-458); first fully-populated manifest (QNT-466) |
 | `costs/` | session cost log schema + Cost Explorer backfill script | schema (QNT-447); real session rows land per session (QNT-458/459) |
-| CI (`ci.yml`, `ingester-image.yml`, `tf-drift-check.yml`, `dbt-run.yml` `seam` job) | offline gate; SHA-tagged image build/push; nightly Glue-vs-state drift check; Athena seam test on every push | green; `tf-drift-check.yml` fixed mid-Phase-2 (backend.hcl, PR #24); caught the `seam_test` Glue db drift mid-Phase-3, fixed by QNT-477 |
+| CI (`ci.yml`, `ingester-image.yml`, `tf-drift-check.yml`, `dbt-run.yml` `seam` job, `seam-pr.yml`) | offline gate; SHA-tagged image build/push; nightly Glue-vs-state drift check; Athena seam test on every push and every `dbt/` PR | green; `tf-drift-check.yml` fixed mid-Phase-2 (backend.hcl, PR #24); caught the `seam_test` Glue db drift mid-Phase-3, fixed by QNT-477 |
 
 ## Data stores
 
@@ -185,9 +187,9 @@ costs/            sessions.csv log (cost_estimate_usd / cost_actual_usd / cost_s
 ## External surfaces
 
 - GitHub Actions → AWS via OIDC (`hyperlake-github-actions`), role ARN in repo variable
-  `AWS_OIDC_ROLE_ARN`. Three workflow files exercise it for real: `dbt-run.yml` (`build` job:
+  `AWS_OIDC_ROLE_ARN`. Four workflow files exercise it for real: `dbt-run.yml` (`build` job:
   manual dispatch, or called by `session-down`/`make heal`; `seam` job: automatic on every push to
-  main, QNT-462, a post-merge gate; the PR-time required status is `ci.yml`'s `checks` job),
+  main, QNT-462, a post-merge gate), `seam-pr.yml` (every same-repo PR touching `dbt/**`, QNT-481),
   `ingester-image.yml` (auto on push to main), and `tf-drift-check.yml` (nightly cron + manual
   dispatch).
 - The archive bucket (`hl-mainnet-node-data`, requester-pays, ap-northeast-1) is read by the
