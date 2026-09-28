@@ -18,3 +18,4 @@
 -- seam-pr.yml sets DBT_SEAM_SCHEMA to a per-PR seam_test_pr<N> so concurrent PRs never
 -- merge into the same table; the push-to-main job keeps the default seam_test.
 {{ silver_trades_select(ref('seam_fixture_round' ~ var('seam_round', 1))) }}
+-- throwaway QNT-481 AC2 a
