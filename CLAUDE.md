@@ -157,7 +157,7 @@ workflow-profile.yaml the flow suite's project profile, the only per-project con
   WIP: `QNT-123: type(scope): wip - description`. Meta work with no issue may use bare
   `docs: …` / `chore: …`. Plain `QNT-123: wip:` is rejected.
 - `main` is branch-protected on GitHub (public since 2026-09-17): the `ci` workflow's `checks`
-  job is a required status, linear history, no force pushes; admins are exempt so meta
+  job and `seam-pr` (green no-op unless the PR touches `dbt/`) are required statuses, linear history, no force pushes; admins are exempt so meta
   commits can still land directly. `.githooks/pre-push` is the local fast-fail that refuses
   direct pushes to `main`. Ticket work goes through a PR; meta `docs:`/`chore:` commits push
   with `ALLOW_MAIN_PUSH=1 git push`.
