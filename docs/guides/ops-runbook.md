@@ -277,7 +277,10 @@ pointing at the missing metadata. Bronze (`bronze/`) was never affected. `s3_dat
 does not cover Hive tables: the `hyperlake` workgroup enforces its output location, and
 dbt-athena then omits the location for a Hive CTAS, so Athena writes it under
 `athena-results/tables/`. Seeds are therefore Iceberg (`dbt_project.yml`); any new Hive model
-would need the same.
+would need the same. As Iceberg tables the seeds are also picked up by `make iceberg-maintain`
+(harmless). The data-dir guard below runs only inside `dbt-run.yml`; a hand-run
+`dbt build --target athena` from a dev session bypasses it, so export `DBT_ATHENA_S3_DATA_DIR`
+first.
 
 **Check:** `aws glue get-tables --database-name silver --query
 'TableList[].[Name,StorageDescriptor.Location]'`; every location must be under `warehouse/`.
