@@ -108,11 +108,13 @@ jobs:
         working-directory: dbt
         env:
           DBT_ATHENA_S3_STAGING_DIR: ${{ vars.DBT_ATHENA_S3_STAGING_DIR }}
+          DBT_ATHENA_S3_DATA_DIR: ${{ vars.DBT_ATHENA_S3_DATA_DIR }}
           DBT_ATHENA_WORKGROUP: hyperlake
           TARGET: ${{ inputs.target }}
           SELECT: ${{ inputs.select }}
           DBT_VARS: ${{ inputs.vars }}
         run: |
+          if [ "$TARGET" = athena ]; then ../scripts/check_athena_data_dir.sh; fi
           uv run --group dbt dbt build --profiles-dir . --target "$TARGET" ${SELECT:+--select "$SELECT"} ${DBT_VARS:+--vars "$DBT_VARS"}
 
       - name: Upload run_results.json
@@ -128,6 +130,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DBT_ATHENA_S3_STAGING_DIR: ${{ vars.DBT_ATHENA_S3_STAGING_DIR }}
+      DBT_ATHENA_S3_DATA_DIR: ${{ vars.DBT_ATHENA_S3_DATA_DIR }}
       DBT_ATHENA_WORKGROUP: hyperlake
     steps:
       - uses: actions/checkout@v7
@@ -143,6 +146,9 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
           aws-region: ap-northeast-1
+
+      - name: Table data dir is set and outside athena-results/
+        run: scripts/check_athena_data_dir.sh
 
       - name: Seed seam fixtures
         working-directory: dbt

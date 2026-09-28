@@ -263,6 +263,27 @@ already-applied state is the equivalent proof; see `docs/guides/bootstrap.md` AC
   scope, current cost is well within budget); it only stops unbounded scans at the
   query layer.
 
+## `ICEBERG_MISSING_METADATA` on a silver, gold, or seam table
+
+**Symptom:** a `dbt-run` build or the `seam` job fails with `ICEBERG_MISSING_METADATA: Metadata
+not found in metadata location for table ...`, typically about a week after the table was last
+written.
+
+**Cause (2026-09-24, QNT-482):** the table's files were under `athena-results/`, which the data
+bucket's lifecycle rule expires after 7 days. dbt-athena puts table data under
+`<s3_staging_dir>/tables/` unless `s3_data_dir` is set; before QNT-482 it wasn't, so every
+silver/gold/recon/seam table and seed was deleted a week after its last write. Glue kept
+pointing at the missing metadata. Bronze (`bronze/`) was never affected.
+
+**Check:** `aws glue get-tables --database-name silver --query
+'TableList[].[Name,StorageDescriptor.Location]'`; every location must be under `warehouse/`.
+`dbt-run.yml` now refuses to run (`scripts/check_athena_data_dir.sh`) if the
+`DBT_ATHENA_S3_DATA_DIR` repo variable is unset or under `athena-results/`.
+
+**Recover:** delete the orphaned Glue table entries (`aws glue delete-table`; their files are
+already gone), then `make dbt-run` with `silver_lookback_days` covering bronze's oldest `dt`, so
+silver rebuilds from bronze and gold rebuilds from silver.
+
 ## `make check` green locally, `ci.yml` red
 
 - **Symptom:** the local gate passes but the same commit fails in Actions.

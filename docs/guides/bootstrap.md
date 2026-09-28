@@ -56,6 +56,15 @@ works. Run once per AWS account; every later phase depends on its output.
    gh variable set AWS_OIDC_ROLE_ARN --body "<paste the ARN>"
    ```
 
+   Then the two Athena locations the `dbt-run` workflow reads, from the persistent layer's data
+   bucket (`make tf-apply-persistent` first). Query results go to the expiring
+   `athena-results/` prefix; table data must go to `warehouse/`, which never expires:
+   ```
+   BUCKET=$(terraform -chdir=../main/persistent output -raw data_bucket_name)
+   gh variable set DBT_ATHENA_S3_STAGING_DIR --body "s3://$BUCKET/athena-results/"
+   gh variable set DBT_ATHENA_S3_DATA_DIR --body "s3://$BUCKET/warehouse/"
+   ```
+
 4. **Prove OIDC works with no stored key**: run the `verify-oidc` workflow:
    ```
    gh workflow run verify-oidc.yml
