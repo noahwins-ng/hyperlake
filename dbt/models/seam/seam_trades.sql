@@ -1,4 +1,4 @@
-{{ config(schema='seam_test', **materialization_for_target(kind='merge', unique_key='tid')) }}
+{{ config(schema=env_var('DBT_SEAM_SCHEMA', 'seam_test'), **materialization_for_target(kind='merge', unique_key='tid')) }}
 
 {% if target.type == 'athena' %}
 {{ config(
@@ -15,4 +15,6 @@
 -- three ordering cases (late feed duplicate, backfill-after-feed, feed-after-backfill).
 -- No dt lookback here: the fixture is a handful of rows, so every run scans the whole
 -- (tiny) source and target -- AC4's <10MB bound, not partition pruning.
+-- seam-pr.yml sets DBT_SEAM_SCHEMA to a per-PR seam_test_pr<N> so concurrent PRs never
+-- merge into the same table; the push-to-main job keeps the default seam_test.
 {{ silver_trades_select(ref('seam_fixture_round' ~ var('seam_round', 1))) }}

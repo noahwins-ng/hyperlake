@@ -58,7 +58,7 @@ The spec: *what* we're building and *why*, organized by phase. This is the sourc
 
 - **`recon_trades`**: distinct `tid` per source over the reconcilable window; tests `ws_only = 0` and every `backfill_only` inside a manifest gap. *Why:* ADR-003, this pair of assertions is G3.
 - **`make heal`**: backfill unhealed gap hours plus the following hour, re-run dbt, flip `healed`. *Why:* FR-8; makes G3 hold for sessions with disconnects.
-- **Athena seam test**: `seam_test` schema, three ordering cases, on every push to `main`. *Why:* ADR-002 amendment; merge behaviour cannot be proven on DuckDB.
+- **Athena seam test**: `seam_test` schema, three ordering cases, on every push to `main`; also on every PR touching `dbt/` in a per-PR `seam_test_pr<N>` schema (QNT-481). *Why:* ADR-002 amendment; merge behaviour cannot be proven on DuckDB.
 - **Gold marts**: OHLCV 1m/1h/1d, `volume_daily`, `liquidations_daily` (backfill-only) with invariant tests. *Why:* FR-4, G5, NFR-5.
 - **Silver contracts**: enforced schema, freshness, gold gated on silver tests, a demo-fail target. *Why:* G5, enforced, not claimed.
 - **Reservoir fallback**: column-mapped reader for the daily Parquet, layout-pinned, loud on drift. *Why:* failure mode "archive hour missing after 24 h"; Reservoir has reorganised once already.
