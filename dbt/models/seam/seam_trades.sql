@@ -3,7 +3,7 @@
 {% if target.type == 'athena' %}
 {{ config(
     merge_exclude_columns=['first_seen_source'],
-    update_condition='src.source_rank >= target.source_rank',
+    update_condition='src.source_rank <= target.source_rank',
 ) }}
 {% endif %}
 
