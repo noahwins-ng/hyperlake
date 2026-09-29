@@ -1,10 +1,11 @@
 name: seam-pr
 
 # ADR-002 amendment (QNT-481): the Athena seam test also runs on every same-repo PR that
-# touches dbt/**, so a merge regression fails before it lands instead of after (dbt-run.yml's
-# `seam` job stays the post-merge check on main). One job that always runs and reports: it
-# exits green without assuming the OIDC role when the PR doesn't touch dbt/** or comes from a
-# fork (GitHub gives fork PRs no id-token), so `seam-pr` can be a required status without
+# touches dbt/** or the seam test's own wiring (this file, infra/bootstrap/oidc.tf), so a
+# merge regression fails before it lands instead of after (dbt-run.yml's `seam` job stays
+# the post-merge check on main). One job that always runs and reports: it exits green
+# without assuming the OIDC role when the PR touches none of those or comes from a fork
+# (GitHub gives fork PRs no id-token), so `seam-pr` can be a required status without
 # blocking unrelated PRs. ci.yml stays offline; the cloud step lives only here.
 on:
   pull_request:
@@ -51,11 +52,11 @@ jobs:
             exit 0
           fi
           changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
-          if grep -q '^dbt/' <<< "$changed"; then
-            echo "dbt/** changed: running the seam test in $DBT_SEAM_SCHEMA"
+          if grep -qE '^(dbt/|\.github/workflows/seam-pr\.yml$|infra/bootstrap/oidc\.tf$)' <<< "$changed"; then
+            echo "dbt/** or the seam wiring changed: running the seam test in $DBT_SEAM_SCHEMA"
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
-            echo "no dbt/** change: nothing to prove, skipping the seam test"
+            echo "no dbt/** or seam wiring change: nothing to prove, skipping the seam test"
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
