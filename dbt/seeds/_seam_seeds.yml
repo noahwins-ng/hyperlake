@@ -20,6 +20,7 @@ seeds:
         fee: decimal(18,6)
         source: varchar
         ingested_at: timestamp
+        raw_payload: varchar
     columns:
       - name: tid
         tests:
@@ -47,6 +48,7 @@ seeds:
         fee: decimal(18,6)
         source: varchar
         ingested_at: timestamp
+        raw_payload: varchar
     columns:
       - name: tid
         tests:
