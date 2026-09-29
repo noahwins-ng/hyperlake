@@ -148,6 +148,12 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
     live proof `qnt-480-20260929124521`: ws_only = 0, no archive-only trade outside a per-coin gap
   - Found live: the seed wrote HIP-3 gap coins as `xyz:SP500` while bronze's `coin` is the
     partition value `xyz_SP500`; the seed now normalises via `coin_partition_value`
+- [x] QNT-485: fix(dbt): silver/gold carry the HIP-3 partition value (xyz_SP500) instead of the exact coin name
+  - **Triggered by:** QNT-480's live recon: on Athena bronze `coin` is only the Hive partition
+    key, so silver and gold inherited `xyz_SP500` against the PRD's exact-name rule
+  - Silver takes `coin` from `raw_payload` via a `json_string` helper (ADR-002 amended); fixtures
+    now mirror Athena's bronze shape; guard `assert_hip3_coin_exact_name` on silver + every gold
+    model; silver rebuilt (60-day lookback), still exactly-once at 29,200,254 trades
 
 ## Parking lot (no tickets: reopen the PRD before building)
 

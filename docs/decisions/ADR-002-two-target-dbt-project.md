@@ -65,6 +65,9 @@ different materialization than the one that runs in production.
 
 - One macro is the only place where the two targets differ; every model reads the same.
   Reviewers can see the seam in one file.
+  *(Amended 2026-09-30, QNT-485: a second dialect helper, `json_string`, lives in the same
+  file, `macros/materialization_for_target.sql`; no JSON function returns an unquoted string on
+  both engines. The seam is still one file.)*
 - A merge-specific bug is caught on push to `main` by the Athena seam test, not on the
   PR. A PR that breaks the merge therefore fails *after* merge; the workflow must be
   loud (required status on `main`, notification on failure) so that is acceptable for a
