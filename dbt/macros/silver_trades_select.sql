@@ -18,7 +18,9 @@ ranked as (
 
     select
         tid,
-        coin,
+        -- bronze `coin` is the Hive partition key on Athena (`xyz_SP500`); the exact
+        -- HIP-3 name only survives in the envelope's raw_payload
+        coalesce({{ json_string('raw_payload', '$.coin') }}, coin) as coin,
         side,
         px,
         sz,

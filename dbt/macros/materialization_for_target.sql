@@ -32,3 +32,18 @@
     {{ exceptions.raise_compiler_error('materialization_for_target: unsupported kind ' ~ kind) }}
   {% endif %}
 {% endmacro %}
+
+{#
+  ADR-002's other target seam, kept in this file so the divergence stays in one place: a JSON
+  string field. No JSON function returns an unquoted string on both engines (duckdb's
+  `json_value` keeps the quotes; Trino has no `json_extract_string`).
+#}
+{% macro json_string(column, path) %}
+  {% if target.type == 'duckdb' %}
+    json_extract_string({{ column }}, '{{ path }}')
+  {% elif target.type == 'athena' %}
+    json_extract_scalar({{ column }}, '{{ path }}')
+  {% else %}
+    {{ exceptions.raise_compiler_error('json_string: unsupported target.type ' ~ target.type) }}
+  {% endif %}
+{% endmacro %}
