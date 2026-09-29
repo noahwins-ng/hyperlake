@@ -7,6 +7,9 @@
 -- instantaneous, so other real trades sharing that exact millisecond can still be
 -- backfill-only. Inclusive upper bound so the closing millisecond counts as covered,
 -- not a real miss (confirmed live: 8 such rows, all at exactly `gap_end`).
+--
+-- Gaps are per coin (each coin's gap closes on its own first post-reconnect trade); a
+-- null `coin` is a manifest from before per-coin tracking and covers every coin.
 select r.*
 from {{ ref('recon_trades') }} as r
 where
@@ -16,6 +19,7 @@ where
         from {{ ref('session_gaps') }} as g
         where
             g.session_id = r.session_id
+            and (g.coin is null or g.coin = r.coin)
             and r.time >= g.gap_start
             and r.time <= g.gap_end
     )

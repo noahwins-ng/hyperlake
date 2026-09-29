@@ -17,6 +17,20 @@ variable "max_session_hours" {
   default     = 6
 }
 
+# Test-only gap injection (ops runbook): 0 = off. Passed through as the ingester's
+# --inject-disconnect-after-s / --inject-disconnect-for-s.
+variable "inject_disconnect_after_s" {
+  description = "Seconds after ingester start to close the WS once (0 = never)."
+  type        = number
+  default     = 0
+}
+
+variable "inject_disconnect_for_s" {
+  description = "Seconds the injected disconnect holds before reconnecting."
+  type        = number
+  default     = 0
+}
+
 # No defaults, mirroring image_tag -- both are per-session identity that must be supplied
 # explicitly at apply time (session_up.py), never silently reused from a prior apply.
 variable "session_id" {

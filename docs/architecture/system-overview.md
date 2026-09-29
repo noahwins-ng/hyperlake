@@ -54,7 +54,7 @@ BATCH
 STREAMING (session-scoped, make session-up ... make session-down)                │
   Hyperliquid WS `trades` ──► Fargate ingester (src/hyperlake/ingester.py, default VPC, public IP,   │
       (per watchlist market)  egress-only SG, image tagged by commit SHA) ──► Kinesis (on-demand,    │
-      envelope + PutRecords, reconnect w/ gap recording, self-exit at max_session_hours)             │
+      envelope + PutRecords, reconnect w/ per-coin gaps, self-exit at max_session_hours)             │
                                                         └─► Firehose (60s/64MB, JQ dynamic            │
                                                             partitioning, native Parquet vs Glue      │
                                                             schema) ───────────────────────────┐      │
@@ -129,7 +129,7 @@ src/hyperlake/    envelope (typed columns + raw_payload), watchlist loader, part
                   (xyz:SP500 -> xyz_SP500), backfill/{hour_list,official,state_machine} (QNT-449/451/452),
                   backfill/reservoir.py (column-mapped fallback reader, schema-pinned, loud on
                   layout drift, QNT-465), ingester.py (WS subscribe, envelope, Kinesis PutRecords,
-                  reconnect/gap, self-exit, QNT-456), session.py (manifest, cost estimate, overlap
+                  reconnect/per-coin gap, self-exit, QNT-456), session.py (manifest, cost estimate, overlap
                   guard, QNT-458), session_reaper.py (dead-man's-switch Lambda, QNT-459),
                   heal.py (gap_to_hours boundary-rule expansion, lookback_days sizing, QNT-461)
 
@@ -138,7 +138,7 @@ scripts/heal.py, scripts/recon.py, scripts/bronze_query.py  make heal (gap heali
                   (bounded-`dt` ad-hoc query wrapper, refuses to run unfiltered, QNT-476)
 
 sessions/         one committed manifest JSON per demo session (coins, start/end, deployed_sha,
-                  gaps (with healed: true/false), dbt_runs, cost_estimate_usd, reaped/reaped_at),
+                  gaps (per coin, with healed: true/false), dbt_runs, cost_estimate_usd, reaped/reaped_at),
                   lands QNT-458; QNT-466 produced the first fully populated manifest (gaps healed,
                   recon passing, real session)
 

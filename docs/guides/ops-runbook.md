@@ -310,3 +310,28 @@ silver rebuilds from bronze and gold rebuilds from silver.
 - **Response:** `uv sync --all-groups`, re-run `make check`.
 - **Prevention:** `workflow-profile.yaml` `verify.test` points at `make check`, so the ship
   pipeline's sanity gate and CI cannot drift apart without editing both files.
+
+## `assert_backfill_only_within_gaps` fails just past a recorded `gap_end`, or a gap needs inducing
+
+- **Symptom:** after `make heal` + `make recon`, a handful of archive-only trades sit a few
+  hundred ms after a recorded `gap_end`; or a demo/test needs a real WS gap on demand.
+- **Diagnosis:** gaps are per coin (`gap_recorded` carries `coin`; manifest `gaps[]` and the
+  `session_gaps` seed carry it too; the seed writes it as the partition value, `xyz_SP500`,
+  because bronze's `coin` is the Hive partition key). Check the failing trade's coin has its
+  own gap row: a null `coin` (manifests from before per-coin tracking) covers every coin. Measured
+  2026-09-29 against the live feed: every `trades` subscribe, first or re-, opens with a
+  snapshot of that coin's last 30 trades, ascending by `time`, before the live stream. A busy
+  coin's snapshot (BTC, 10 s down: starts 739 ms after the last pre-disconnect trade) does not
+  reach back to `gap_start`, so a real hole remains and the gap is needed. A quiet coin's
+  snapshot (xyz:SP500: 30 trades span ~49 s) replays trades at and before `gap_start`, so
+  only a trade strictly after `gap_start` closes a gap (the replayed last trade would
+  otherwise close it zero-length, which `heal` rejects).
+- **Response:** to induce a gap, `INJECT_DISCONNECT_AFTER_S=<s> INJECT_DISCONNECT_FOR_S=<s>
+  make session-up LABEL=<label>` (Terraform `inject_disconnect_after_s/for_s`, default 0
+  = off). The ingester really closes the socket once, so the normal disconnect, backoff
+  and gap path runs; expect `inject_disconnect`, `disconnected`, `reconnected`, then one
+  `gap_recorded` per coin as each coin trades again (a coin that never does is closed at
+  self-exit at the max observed event time).
+- **Prevention:** per-coin gap tracking (`hyperlake.ingester.GapTracker`), pinned by
+  `tests/test_ingester_reconnect.py` and the `recon-fixture-percoin*` scenarios in
+  `tests/test_recon_fixtures.py`.

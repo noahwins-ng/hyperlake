@@ -19,6 +19,8 @@ SCENARIOS = {
     "recon-fixture-clean": ("2026-02-01 00:00:00", "2026-02-01 01:00:00"),
     "recon-fixture-gap": ("2026-02-01 02:00:00", "2026-02-01 03:00:00"),
     "recon-fixture-miss": ("2026-02-01 04:00:00", "2026-02-01 05:00:00"),
+    "recon-fixture-percoin": ("2026-02-01 06:00:00", "2026-02-01 07:00:00"),
+    "recon-fixture-percoin-miss": ("2026-02-01 08:00:00", "2026-02-01 09:00:00"),
 }
 
 
@@ -76,6 +78,22 @@ def test_clean_scenario_passes_both_g3_tests():
 def test_legitimate_gap_scenario_passes_both_g3_tests():
     result = _dbt_build("recon-fixture-gap", *SCENARIOS["recon-fixture-gap"])
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_per_coin_gaps_cover_a_trade_after_another_coins_gap_end():
+    # The QNT-466 residual shape: ETH archive-only 534 ms after BTC's gap_end, inside
+    # ETH's own gap. recon-fixture-gap's coin-less row covering an ETH trade is the
+    # back-compat case for manifests from before per-coin gaps.
+    result = _dbt_build("recon-fixture-percoin", *SCENARIOS["recon-fixture-percoin"])
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_one_coins_gap_does_not_cover_another_coins_miss():
+    result = _dbt_build("recon-fixture-percoin-miss", *SCENARIOS["recon-fixture-percoin-miss"])
+    output = result.stdout + result.stderr
+
+    assert result.returncode != 0
+    assert "FAIL 1 assert_backfill_only_within_gaps" in output
 
 
 def test_real_miss_scenario_fails_only_the_gap_test():

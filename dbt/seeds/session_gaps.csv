@@ -1,2 +1,5 @@
-session_id,gap_start,gap_end
-recon-fixture-gap,2026-02-01T02:10:00Z,2026-02-01T02:15:00Z
+session_id,coin,gap_start,gap_end
+recon-fixture-gap,,2026-02-01T02:10:00Z,2026-02-01T02:15:00Z
+recon-fixture-percoin,BTC,2026-02-01T06:10:00Z,2026-02-01T06:15:00Z
+recon-fixture-percoin,ETH,2026-02-01T06:10:30Z,2026-02-01T06:15:01Z
+recon-fixture-percoin-miss,BTC,2026-02-01T08:10:00Z,2026-02-01T08:15:00Z

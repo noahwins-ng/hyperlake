@@ -72,6 +72,9 @@ seeds:
     +table_type: iceberg
     session_gaps:
       +tags: ["recon"]
+      # Rebuilt from a manifest every recon run, so always drop + recreate like athena
+      # already does; duckdb's default truncate-and-reload breaks on a column change.
+      +full_refresh: true
     seam_fixture_round1:
       +tags: ["seam"]
     seam_fixture_round2:

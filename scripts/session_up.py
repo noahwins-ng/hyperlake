@@ -89,6 +89,9 @@ def main() -> None:
 
     image_tag = latest_image_tag(boto3.client("ecr", region_name=REGION))
     max_session_hours = float(os.environ.get("MAX_SESSION_HOURS", DEFAULT_MAX_SESSION_HOURS))
+    # Test-only gap injection (ops runbook), off unless set.
+    inject_after_s = float(os.environ.get("INJECT_DISCONNECT_AFTER_S", 0))
+    inject_for_s = float(os.environ.get("INJECT_DISCONNECT_FOR_S", 0))
 
     # Computed before the apply (not after, as session-id/start normally would be) because
     # QNT-459's reaper schedule is a Terraform resource keyed on both -- `session_id` names
@@ -103,6 +106,8 @@ def main() -> None:
             "tf-apply-ephemeral",
             f"TF_ARGS=-auto-approve -var image_tag={image_tag} "
             f"-var max_session_hours={max_session_hours} "
+            f"-var inject_disconnect_after_s={inject_after_s} "
+            f"-var inject_disconnect_for_s={inject_for_s} "
             f"-var session_id={session_id} -var session_start={start_iso}",
         ],
         check=True,

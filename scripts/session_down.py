@@ -191,8 +191,9 @@ def _real_destroy_ephemeral(image_tag: str, session_id: str, session_start: str)
 
 def _real_collect_gaps(session_id: str, start: datetime, end: datetime) -> list[dict]:
     """`gap_recorded` events (hyperlake.ingester.log_event) the ingester logged to
-    CloudWatch Logs during `[start, end]`, as manifest-shaped `{start, end, healed}`
-    entries (`healed` is filled later, by the `heal` ticket)."""
+    CloudWatch Logs during `[start, end]`, as manifest-shaped `{coin, start, end, healed}`
+    entries (`healed` is filled later, by the `heal` ticket). `coin` is None for an event
+    from an ingester image older than per-coin gap tracking."""
     logs = boto3.client("logs", region_name=REGION)
     events = []
     kwargs = {
@@ -214,6 +215,7 @@ def _real_collect_gaps(session_id: str, start: datetime, end: datetime) -> list[
         gap = json.loads(e["message"])
         gaps.append(
             {
+                "coin": gap.get("coin"),
                 "start": datetime.fromtimestamp(gap["gap_start"] / 1000, tz=UTC)
                 .isoformat()
                 .replace("+00:00", "Z"),

@@ -128,6 +128,8 @@ resource "aws_ecs_task_definition" "ingester" {
       command = [
         "--stream-name", aws_kinesis_stream.trades.name,
         "--max-session-hours", tostring(var.max_session_hours),
+        "--inject-disconnect-after-s", tostring(var.inject_disconnect_after_s),
+        "--inject-disconnect-for-s", tostring(var.inject_disconnect_for_s),
       ]
       logConfiguration = {
         logDriver = "awslogs"

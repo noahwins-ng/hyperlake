@@ -236,7 +236,7 @@ whether or not a trade arrives, which is exactly why the stream is torn down bet
 - **The seam test first ran only on `main`**, so a bad merge change was caught after the PR.
   It now runs per PR in its own schema; a Trino container would have tested a different `MERGE`.
 - **Inducing a WebSocket disconnect took three attempts.** A gap-injection flag in the
-  ingester would have replaced an afternoon of NACL edits.
+  ingester would have replaced an afternoon of NACL edits; it now has one.
 - **Short demo sessions cannot reconcile.** The archive lands ~1 h after a clock hour closes,
   so the demo should have been designed around a session that spans one from the start.
 

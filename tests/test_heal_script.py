@@ -251,3 +251,23 @@ def test_already_healed_gaps_stay_healed_alongside_newly_healed_ones(tmp_path):
     result = run_heal(manifest_path, deps)
 
     assert all(g["healed"] is True for g in result["gaps"])
+
+
+def test_per_coin_gaps_over_the_same_hours_backfill_each_hour_once(tmp_path):
+    manifest_path = _manifest(
+        tmp_path,
+        gaps=[
+            {"coin": c, "start": s, "end": e, "healed": False}
+            for c, s, e in [
+                ("BTC", "2026-09-08T09:10:00Z", "2026-09-08T09:11:00Z"),
+                ("ETH", "2026-09-08T09:10:01Z", "2026-09-08T09:11:02Z"),
+            ]
+        ],
+    )
+    deps, calls = _deps()
+
+    run_heal(manifest_path, deps)
+
+    (backfill_call,) = [c for c in calls if c.startswith("start_backfill")]
+    hours = json.loads(backfill_call.split(":", 2)[2])
+    assert hours == [{"date": "20260908", "hour": "9"}, {"date": "20260908", "hour": "10"}]
