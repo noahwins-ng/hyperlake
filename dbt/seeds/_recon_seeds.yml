@@ -7,10 +7,15 @@ seeds:
       pre-step with the real session's manifest gaps before each real run; the
       committed content here is the AC1 fixture scenarios (recon-fixture-clean has
       no gaps, recon-fixture-gap has one covering its legitimate backfill_only trade,
-      recon-fixture-miss has none, making its backfill_only trade a real miss).
+      recon-fixture-miss has none, making its backfill_only trade a real miss;
+      recon-fixture-percoin has per-coin gaps covering an ETH trade after BTC's
+      gap_end, recon-fixture-percoin-miss has a BTC-only gap that does not cover a
+      HYPE trade). A null coin covers every coin (manifests from before per-coin gaps);
+      coin is the partition value (xyz_SP500), matching bronze's coin partition key.
     config:
       column_types:
         session_id: varchar
+        coin: varchar
         gap_start: timestamp
         gap_end: timestamp
     columns:

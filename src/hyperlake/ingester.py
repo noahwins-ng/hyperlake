@@ -17,7 +17,7 @@ import json
 import signal
 import time
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 from uuid import uuid4
@@ -138,35 +138,51 @@ def put_batch_with_retry(
 
 @dataclass
 class GapTracker:
-    """Tracks the last trade time seen on the live connection so a reconnect can emit
-    exactly one gap interval (AC2). One instance per ingester process -- the WS
-    connection carries every watchlist coin, so there is one gap timeline, not one per
-    coin."""
+    """Per-coin gap bounds across reconnects. The one WS connection carries every
+    watchlist coin, but each coin resumes on its own first post-reconnect trade, so one
+    shared timeline closed by whichever coin traded first left other coins' catch-up
+    trades outside the recorded gap (2026-09-11 live session, docs/spikes)."""
 
-    last_trade_time_ms: int | None = None
-    _pending_gap_start_ms: int | None = None
+    last_trade_time_ms: dict[str, int] = field(default_factory=dict)
+    _open_gap_start_ms: dict[str, int] = field(default_factory=dict)
 
-    def observe_trade(self, time_ms: int) -> dict[str, Any] | None:
-        """Record a trade's time; if this is the first trade after a disconnect, close
-        and return the gap interval. Replayed tail trades are never dropped -- this only
-        tracks bounds, the caller still emits every trade."""
+    def observe_trade(self, coin: str, time_ms: int) -> dict[str, Any] | None:
+        """Record a trade's time; if it is this coin's first trade after a disconnect,
+        close and return that coin's gap. Only a trade strictly after `gap_start` closes
+        it: every subscribe replays the coin's last 30 trades (ops runbook), which on a
+        quiet coin reach back to and past `gap_start`. Replayed trades are never
+        dropped -- this only tracks bounds, the caller still emits every trade."""
         closed_gap = None
-        if self._pending_gap_start_ms is not None:
-            closed_gap = {
-                "gap_start": self._pending_gap_start_ms,
-                "gap_end": time_ms,
-                "healed": False,
-            }
-            self._pending_gap_start_ms = None
-        if self.last_trade_time_ms is None or time_ms > self.last_trade_time_ms:
-            self.last_trade_time_ms = time_ms
+        gap_start = self._open_gap_start_ms.get(coin)
+        if gap_start is not None and time_ms > gap_start:
+            closed_gap = _gap(coin, gap_start, time_ms)
+            del self._open_gap_start_ms[coin]
+        if coin not in self.last_trade_time_ms or time_ms > self.last_trade_time_ms[coin]:
+            self.last_trade_time_ms[coin] = time_ms
         return closed_gap
 
     def on_disconnect(self) -> None:
-        """Mark the connection as dropped -- the next `observe_trade` after a successful
-        reconnect closes the gap. A no-op if no trade was ever seen (nothing to bound)."""
-        if self.last_trade_time_ms is not None:
-            self._pending_gap_start_ms = self.last_trade_time_ms
+        """Open a gap for every coin seen so far, at that coin's last trade time. A coin
+        whose gap from an earlier drop is still open keeps its earlier start."""
+        for coin, last in self.last_trade_time_ms.items():
+            self._open_gap_start_ms.setdefault(coin, last)
+
+    def close_open_gaps(self) -> list[dict[str, Any]]:
+        """At self-exit, close every still-open gap at the max observed event time so a
+        coin that never traded again is not dropped. A gap with no later event anywhere
+        has no evidenced end and is skipped (heal rejects a zero-length gap)."""
+        max_time = max(self.last_trade_time_ms.values(), default=None)
+        gaps = [
+            _gap(coin, start, max_time)
+            for coin, start in self._open_gap_start_ms.items()
+            if max_time is not None and max_time > start
+        ]
+        self._open_gap_start_ms.clear()
+        return gaps
+
+
+def _gap(coin: str, gap_start: int, gap_end: int) -> dict[str, Any]:
+    return {"coin": coin, "gap_start": gap_start, "gap_end": gap_end, "healed": False}
 
 
 def subscribe_messages(coins: list[str]) -> list[str]:
@@ -197,6 +213,8 @@ class Ingester:
         recv_timeout_s: float = 5.0,
         backoff_base_s: float = RECONNECT_BACKOFF_BASE_S,
         backoff_max_s: float = RECONNECT_BACKOFF_MAX_S,
+        inject_disconnect_after_s: float = 0,
+        inject_disconnect_for_s: float = 0,
     ) -> None:
         self.coins = coins
         self.kinesis_client = kinesis_client
@@ -206,6 +224,10 @@ class Ingester:
         self.recv_timeout_s = recv_timeout_s
         self.backoff_base_s = backoff_base_s
         self.backoff_max_s = backoff_max_s
+        self.inject_disconnect_after_s = inject_disconnect_after_s
+        self.inject_disconnect_for_s = inject_disconnect_for_s
+        self._inject_pending = inject_disconnect_after_s > 0
+        self._inject_hold_s: float | None = None
         self.gap_tracker = GapTracker()
         self._pending_rows: list[dict[str, Any]] = []
         self._stop = asyncio.Event()
@@ -216,6 +238,12 @@ class Ingester:
 
     def _session_expired(self) -> bool:
         return (time.monotonic() - self._started_monotonic) >= self.max_session_hours * 3600
+
+    def _inject_due(self) -> bool:
+        return (
+            self._inject_pending
+            and (time.monotonic() - self._started_monotonic) >= self.inject_disconnect_after_s
+        )
 
     def _flush(self) -> None:
         if not self._pending_rows:
@@ -236,7 +264,7 @@ class Ingester:
     def _ingest_trades(self, trades: list[dict]) -> None:
         now_ms = int(time.time() * 1000)
         for trade in trades:
-            gap = self.gap_tracker.observe_trade(trade["time"])
+            gap = self.gap_tracker.observe_trade(trade["coin"], trade["time"])
             if gap is not None:
                 log_event("gap_recorded", **gap)
             self._pending_rows.append(
@@ -264,6 +292,13 @@ class Ingester:
                     while not self._stop.is_set():
                         if self._session_expired():
                             break
+                        if self._inject_due():
+                            # One-shot test gap: a real close, so the normal
+                            # disconnect/backoff/gap path below runs, not a simulation of it.
+                            self._inject_pending = False
+                            self._inject_hold_s = self.inject_disconnect_for_s
+                            log_event("inject_disconnect", hold_s=self._inject_hold_s)
+                            await ws.close()
                         try:
                             raw = await asyncio.wait_for(ws.recv(), timeout=self.recv_timeout_s)
                         except TimeoutError:
@@ -277,10 +312,14 @@ class Ingester:
                             log_event("message_error", error=str(exc))
             except (websockets.WebSocketException, OSError) as exc:
                 self.gap_tracker.on_disconnect()
-                log_event("disconnected", error=str(exc), retry_in_s=backoff)
-                await asyncio.sleep(backoff)
+                delay = backoff if self._inject_hold_s is None else self._inject_hold_s
+                self._inject_hold_s = None
+                log_event("disconnected", error=str(exc), retry_in_s=delay)
+                await asyncio.sleep(delay)
                 backoff = min(backoff * 2, self.backoff_max_s)
         self._flush()
+        for gap in self.gap_tracker.close_open_gaps():
+            log_event("gap_recorded", **gap)
         log_event("self_exit", session_id=self.session_id, reason="max_session_hours_or_stop")
 
 
@@ -303,6 +342,18 @@ def main() -> None:
         help="self-exit after this many hours (default: %(default)s)",
     )
     parser.add_argument("--region", default="ap-northeast-1")
+    parser.add_argument(
+        "--inject-disconnect-after-s",
+        type=float,
+        default=0,
+        help="test only: close the socket once, this long after start (default: off)",
+    )
+    parser.add_argument(
+        "--inject-disconnect-for-s",
+        type=float,
+        default=0,
+        help="test only: stay disconnected this long before reconnecting",
+    )
     args = parser.parse_args()
 
     kinesis_client = boto3.client("kinesis", region_name=args.region)
@@ -311,6 +362,8 @@ def main() -> None:
         kinesis_client=kinesis_client,
         stream_name=args.stream_name,
         max_session_hours=args.max_session_hours,
+        inject_disconnect_after_s=args.inject_disconnect_after_s,
+        inject_disconnect_for_s=args.inject_disconnect_for_s,
     )
     asyncio.run(_run_with_signal_handling(ingester))
 

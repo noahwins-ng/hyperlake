@@ -141,6 +141,13 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
 - [x] QNT-481: test(dbt): run the Athena seam test on PRs that touch dbt/
   - `seam-pr.yml`: per-PR `seam_test_pr<N>` schema, dropped after the run; green no-op for non-`dbt/` and fork PRs; ADR-002 amended
   - **Triggered by:** README "What I would do differently", a bad merge change was only caught after merge to `main`
+- [x] QNT-480: feat(ingester): per-coin gap tracking and a gap-injection flag
+  - **Triggered by:** QNT-466's residual, one ETH trade 534 ms past a BTC-closed gap_end
+    (one shared gap timeline for all coins), and a disconnect that took three NACL edits to induce
+  - Per-coin `GapTracker`; `--inject-disconnect-after-s/-for-s` (Terraform vars, default off);
+    live proof `qnt-480-20260929124521`: ws_only = 0, no archive-only trade outside a per-coin gap
+  - Found live: the seed wrote HIP-3 gap coins as `xyz:SP500` while bronze's `coin` is the
+    partition value `xyz_SP500`; the seed now normalises via `coin_partition_value`
 
 ## Parking lot (no tickets: reopen the PRD before building)
 

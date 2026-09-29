@@ -4,6 +4,8 @@ import csv
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from hyperlake.partitions import coin_partition_value
+
 # PRD FR-8 / ADR-003: an hour's archive file lands ~1h after the hour ends.
 ARCHIVE_LAG_HOURS = 1.0
 
@@ -48,9 +50,14 @@ def reconcilable_window(
 def write_session_gaps_seed(gaps: list[dict], session_id: str, seed_path: Path) -> None:
     """Overwrite `dbt/seeds/session_gaps.csv` with this session's gap intervals --
     `make recon`'s pre-step. Not committed back; the file is re-read fresh by every
-    `make recon` run (the checked-in content is the AC1 fixture scenarios)."""
+    `make recon` run (the checked-in content is the AC1 fixture scenarios). `coin` is
+    written as its partition value: bronze's `coin` is the Hive partition key on Athena,
+    so recon_trades sees `xyz_SP500`, not the manifest's `xyz:SP500`. A gap with no
+    `coin` (pre-per-coin manifests) is written with an empty cell, which loads as null
+    and covers every coin."""
     with seed_path.open("w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["session_id", "gap_start", "gap_end"])
+        writer.writerow(["session_id", "coin", "gap_start", "gap_end"])
         for gap in gaps:
-            writer.writerow([session_id, gap["start"], gap["end"]])
+            coin = coin_partition_value(gap["coin"]) if gap.get("coin") else ""
+            writer.writerow([session_id, coin, gap["start"], gap["end"]])

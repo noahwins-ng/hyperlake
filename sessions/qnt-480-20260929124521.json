@@ -1,0 +1,71 @@
+{
+  "session_id": "qnt-480-20260929124521",
+  "coins": [
+    "BTC",
+    "ETH",
+    "HYPE",
+    "xyz:SP500",
+    "xyz:XYZ100"
+  ],
+  "start": "2026-09-29T12:45:21.974324Z",
+  "end": "2026-09-29T14:04:14.627161Z",
+  "deployed_sha": "6a3ef1a7fb78a45adb79d478aedfa81d60d2e4f2",
+  "gaps": [
+    {
+      "coin": "BTC",
+      "start": "2026-09-29T13:32:06.659000Z",
+      "end": "2026-09-29T13:33:05.807000Z",
+      "healed": true
+    },
+    {
+      "coin": "ETH",
+      "start": "2026-09-29T13:32:07.198000Z",
+      "end": "2026-09-29T13:33:05.807000Z",
+      "healed": true
+    },
+    {
+      "coin": "HYPE",
+      "start": "2026-09-29T13:32:07.033000Z",
+      "end": "2026-09-29T13:33:05.462000Z",
+      "healed": true
+    },
+    {
+      "coin": "xyz:SP500",
+      "start": "2026-09-29T13:32:06.065000Z",
+      "end": "2026-09-29T13:32:42.482000Z",
+      "healed": true
+    },
+    {
+      "coin": "xyz:XYZ100",
+      "start": "2026-09-29T13:32:06.659000Z",
+      "end": "2026-09-29T13:32:39.726000Z",
+      "healed": true
+    }
+  ],
+  "recon": {
+    "ws_only": 0,
+    "backfill_only": 1614,
+    "both": 48640,
+    "window": "2026-09-29T13:00:00+00:00/2026-09-29T14:00:00+00:00"
+  },
+  "dbt_runs": [
+    {
+      "run_key": "session-down-qnt-480-20260929124521",
+      "url": "https://github.com/noahwins-ng/hyperlake/actions/runs/36580057397",
+      "status": "success"
+    },
+    {
+      "run_key": "heal-qnt-480-20260929124521-1790694728",
+      "url": "https://github.com/noahwins-ng/hyperlake/actions/runs/36588377906",
+      "status": "success"
+    },
+    {
+      "run_key": "heal-qnt-480-20260929124521-1790695341",
+      "url": "https://github.com/noahwins-ng/hyperlake/actions/runs/36589683740",
+      "status": "success"
+    }
+  ],
+  "cost_estimate_usd": 0.44,
+  "cost_actual_usd": null,
+  "reaped": false
+}

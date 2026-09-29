@@ -39,7 +39,17 @@ def test_writes_the_named_sessions_gaps_into_the_seed(tmp_path):
     _manifest(
         sessions_dir,
         "qnt-460-verify",
-        [{"start": "2026-09-08T13:10:00Z", "end": "2026-09-08T13:15:00Z", "healed": False}],
+        [
+            {
+                "coin": "BTC",
+                "start": "2026-09-08T13:10:00Z",
+                "end": "2026-09-08T13:15:00Z",
+                "healed": False,
+            },
+            # pre-QNT-480 manifests carry no coin: an empty cell loads as null in dbt,
+            # which assert_backfill_only_within_gaps treats as covering every coin
+            {"start": "2026-09-08T13:20:00Z", "end": "2026-09-08T13:25:00Z", "healed": False},
+        ],
     )
     dbt_vars = json.dumps({"recon_session_id": "qnt-460-verify"})
 
@@ -50,9 +60,16 @@ def test_writes_the_named_sessions_gaps_into_the_seed(tmp_path):
     assert rows == [
         {
             "session_id": "qnt-460-verify",
+            "coin": "BTC",
             "gap_start": "2026-09-08T13:10:00Z",
             "gap_end": "2026-09-08T13:15:00Z",
-        }
+        },
+        {
+            "session_id": "qnt-460-verify",
+            "coin": "",
+            "gap_start": "2026-09-08T13:20:00Z",
+            "gap_end": "2026-09-08T13:25:00Z",
+        },
     ]
 
 
@@ -100,3 +117,27 @@ def test_no_gaps_writes_header_only(tmp_path):
 
     assert result == "qnt-460-verify"
     assert list(csv.DictReader(seed_path.open())) == []
+
+
+def test_hip3_gap_coin_is_written_as_its_partition_value(tmp_path):
+    # Athena's bronze.trades_raw has `coin` only as the Hive partition key, so recon_trades
+    # sees `xyz_SP500`; a seed row keeping the manifest's `xyz:SP500` matched nothing
+    # (2026-09-29 live session: 108 HIP-3 archive-only trades inside their gap flagged).
+    sessions_dir = tmp_path / "sessions"
+    seed_path = tmp_path / "session_gaps.csv"
+    _manifest(
+        sessions_dir,
+        "qnt-480-verify",
+        [
+            {
+                "coin": "xyz:SP500",
+                "start": "2026-09-29T13:32:06Z",
+                "end": "2026-09-29T13:32:42Z",
+                "healed": False,
+            }
+        ],
+    )
+
+    regenerate_seed(json.dumps({"recon_session_id": "qnt-480-verify"}), sessions_dir, seed_path)
+
+    assert [r["coin"] for r in csv.DictReader(seed_path.open())] == ["xyz_SP500"]
