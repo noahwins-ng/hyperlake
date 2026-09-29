@@ -154,6 +154,9 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
   - Silver takes `coin` from `raw_payload` via a `json_string` helper (ADR-002 amended); fixtures
     now mirror Athena's bronze shape; guard `assert_hip3_coin_exact_name` on silver + every gold
     model; silver rebuilt (60-day lookback), still exactly-once at 29,200,254 trades
+- [x] QNT-484: test(dbt): pin drop_seam_schema's prefix guard; run seam-pr when its own wiring changes
+  - **Triggered by:** QNT-481's review advisories
+  - `tests/test_drop_seam_schema_guard.py` (offline, in `make check`); `seam-pr.yml` also runs when it or `infra/bootstrap/oidc.tf` changes
 
 ## Parking lot (no tickets: reopen the PRD before building)
 

@@ -40,7 +40,8 @@ precedence: backfill wins), and row counts. It runs inside the `dbt-run` workflo
 cents (a few KB scanned).
 
 *Amended 2026-09-24, QNT-481, seam test on pull requests:* the seam test also runs on every
-same-repo pull request that touches `dbt/**`, in a separate `seam-pr` workflow, so a merge
+same-repo pull request that touches `dbt/**` or the seam wiring (`seam-pr.yml`,
+`infra/bootstrap/oidc.tf`), in a separate `seam-pr` workflow, so a merge
 regression fails before it lands instead of after. Each PR gets its own `seam_test_pr<N>`
 schema, dropped after the run, and a per-PR `concurrency:` group, so parallel PRs cannot
 race on one table. The OIDC role trusts the repo's `pull_request` subject; fork PRs
