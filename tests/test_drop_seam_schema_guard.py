@@ -12,9 +12,8 @@ import pytest
 DBT_DIR = Path(__file__).resolve().parents[1] / "dbt"
 
 
-@pytest.mark.parametrize("schema", ["silver", "seam_test", "gold"])
-def test_drop_seam_schema_refuses_non_pr_schema(schema: str) -> None:
-    result = subprocess.run(
+def _run_drop(schema: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
         [
             "uv",
             "run",
@@ -35,5 +34,20 @@ def test_drop_seam_schema_refuses_non_pr_schema(schema: str) -> None:
         text=True,
         cwd=DBT_DIR,
     )
+
+
+@pytest.mark.parametrize(
+    "schema", ["silver", "seam_test", "gold", "seam_test_prod", "seam_test_pr"]
+)
+def test_drop_seam_schema_refuses_non_pr_schema(schema: str) -> None:
+    result = _run_drop(schema)
     assert result.returncode != 0
     assert f"refusing to drop '{schema}'" in result.stdout + result.stderr
+
+
+def test_drop_seam_schema_accepts_pr_schema() -> None:
+    # Positive control: a guard that refused everything would pass the cases above. The schema
+    # does not exist on duckdb, so the macro passes the guard and stops at its no-op branch.
+    result = _run_drop("seam_test_pr76")
+    assert result.returncode == 0
+    assert "refusing to drop" not in result.stdout + result.stderr

@@ -2,13 +2,13 @@
   Teardown for seam-pr.yml's per-PR schema (ADR-002 amendment): drops every table in
   `schema` through adapter.drop_relation (Glue entry and its S3 files under warehouse/),
   then the schema itself. A plain `drop schema ... cascade` would remove only the Glue
-  entries and leave the Iceberg files behind. Refuses anything outside the seam_test_pr
-  prefix so it can never be pointed at silver/gold; a missing schema (a run cancelled
-  before the seed step) is a no-op.
+  entries and leave the Iceberg files behind. Refuses anything but seam_test_pr<N>
+  (digits only, so seam_test_prod is refused too) so it can never be pointed at
+  silver/gold; a missing schema (a run cancelled before the seed step) is a no-op.
 #}
 {% macro drop_seam_schema(schema) %}
-  {% if not schema.startswith('seam_test_pr') %}
-    {{ exceptions.raise_compiler_error("drop_seam_schema: refusing to drop '" ~ schema ~ "', only seam_test_pr* schemas") }}
+  {% if not modules.re.fullmatch('seam_test_pr[0-9]+', schema) %}
+    {{ exceptions.raise_compiler_error("drop_seam_schema: refusing to drop '" ~ schema ~ "', only seam_test_pr<N> schemas") }}
   {% endif %}
   {% if not adapter.check_schema_exists(target.database, schema) %}
     {{ log("drop_seam_schema: " ~ schema ~ " does not exist, nothing to drop", info=true) }}
