@@ -157,6 +157,7 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
 - [x] QNT-484: test(dbt): pin drop_seam_schema's prefix guard; run seam-pr when its own wiring changes
   - **Triggered by:** QNT-481's review advisories
   - `tests/test_drop_seam_schema_guard.py` (offline, in `make check`); `seam-pr.yml` also runs when it or `infra/bootstrap/oidc.tf` changes
+  - Review follow-up: guard tightened to `seam_test_pr<digits>` (refuses `seam_test_prod`)
 
 ## Parking lot (no tickets: reopen the PRD before building)
 
