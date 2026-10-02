@@ -341,7 +341,7 @@ wheels = [
 
 [[package]]
 name = "dbt-athena"
-version = "1.11.0"
+version = "1.11.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
@@ -354,21 +354,21 @@ dependencies = [
     { name = "pydantic" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/8d/eeb52a43d4a3528cda40cea7928aa0c3ab641f7c05fa27f0d73fd75721b0/dbt_athena-1.11.0.tar.gz", hash = "sha256:3191a38cfddcb5af96f6cf95b424ff64be0be1cc7f72b958e0b39ce39aed43ee", size = 157563, upload-time = "2026-07-16T15:56:26.587Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c7/e9/d29d78d9294fb6f1299e274770f28ef7da38ed136f3811df1f0854f7c95c/dbt_athena-1.11.1.tar.gz", hash = "sha256:6eebf322665af918c4a3f7b621ed115d54df0617eaed14cbacf4ed9de761502c", size = 162531, upload-time = "2026-09-07T10:51:34.169Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/e4/f10d884725ee5017aaba2a801ef39f2239bd3001608dd068fd926d0a753c/dbt_athena-1.11.0-py3-none-any.whl", hash = "sha256:647e710ca4aca9e649519cd9e6cac26f586cd8018cd148dad76efbb445a29db8", size = 102629, upload-time = "2026-07-16T15:56:24.393Z" },
+    { url = "https://files.pythonhosted.org/packages/07/9e/d123100f7a489d49a1ecbc85dacbec3e76cadb1409e1c0e78eb7c28be968/dbt_athena-1.11.1-py3-none-any.whl", hash = "sha256:382506f6e85ca36f40d0f5d9392f4f53b8befaeeeb102c0a4e3abc70a818ee4c", size = 105160, upload-time = "2026-09-07T10:51:32.922Z" },
 ]
 
 [[package]]
 name = "dbt-athena-community"
-version = "1.11.0"
+version = "1.11.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dbt-athena" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/01/16/3d3aba6ddea6daede92635586b389a61e465394ef4c9fde74b6043b17f2a/dbt_athena_community-1.11.0.tar.gz", hash = "sha256:e0c73cfd98cdc85fd62047f9ada9f7cec816c9d981171b2739d4c7e2dc557e0c", size = 28919, upload-time = "2026-07-16T15:56:58.465Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/1c/618ececdc7c7d8d5d5e727d1d41fc9b81dd6d7cf664cc618666606c33c75/dbt_athena_community-1.11.1.tar.gz", hash = "sha256:8584d1c7e8cf3fb29ca53ab28b324a663464f789273d12bb512d7c8d746926f9", size = 28920, upload-time = "2026-09-07T10:52:17.574Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/83/20/40dd56f2c36f9d3273901d9c8c2df63c044f2b7d4d6ca045b5c506107526/dbt_athena_community-1.11.0-py3-none-any.whl", hash = "sha256:7ea74526abfb05a113503f62a06a4ca561d67d595a2e75bbc4c030c901eb1d66", size = 17123, upload-time = "2026-07-16T15:56:57.055Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/18/d61adfe134d0f63764f9793b14771fbbb15b119b660ed55d485991ca7208/dbt_athena_community-1.11.1-py3-none-any.whl", hash = "sha256:8297bda9ce5e16f9d304bd3fd00b1a5e2646eaaf7e06f41c185380fb5b42a804", size = 17122, upload-time = "2026-09-07T10:52:16.299Z" },
 ]
 
 [[package]]
@@ -591,7 +591,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dbt = [
-    { name = "dbt-athena-community", specifier = ">=1.11.0,<1.12" },
+    { name = "dbt-athena-community", specifier = ">=1.11.1,<1.12" },
     { name = "dbt-duckdb", specifier = ">=1.11.0,<1.12" },
 ]
 dev = [
