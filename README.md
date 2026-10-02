@@ -9,6 +9,15 @@ Streaming lakehouse for Hyperliquid market data: live WebSocket trades and S3 ar
 backfill converging into the same Iceberg tables on AWS serverless, reproducible from zero
 with one `terraform apply` and torn down after every session.
 
+| Claim | Measured | Evidence |
+|---|---|---|
+| Reproducible by a stranger | 8m 53s from `terraform apply` to a queryable Athena result | [Proof](#proof-it-works) |
+| Nothing lost, nothing double-counted | `ws_only = 0` on a live-vs-archive reconciliation | [How exactly-once works](#how-exactly-once-works) |
+| Near-zero cost | $0.14 average session, about $0.25/month idle | [Cost](#cost) |
+| Tested without a cloud account | 76 dbt models, seeds and tests plus pytest, zero AWS credentials in CI | [Testing and CI](#testing-and-ci) |
+
+Market data only. No trading, signals, or execution anywhere.
+
 ## Why this exists
 
 Hyperliquid publishes the same trades twice. A WebSocket feed delivers them live but loses
@@ -16,16 +25,12 @@ whatever happens during a disconnect; an S3 archive delivers them complete but a
 late. A system that wants both freshness and completeness has to take both, land them in
 one table, and show that nothing was lost and nothing was counted twice.
 
-That is the problem Hyperlake solves, and the proof is the point. A reconciliation over the
-raw layer names every trade one path saw and the other did not, so exactly-once is measured
-after every run rather than assumed from the design. The feed is real volume, about 17
-trades/s across five markets, enough that the storage and merge choices actually matter.
-
-The second constraint is that it must cost almost nothing when nobody is looking. Nothing
-runs 24/7: a session is `terraform apply`, work, `destroy`, with a dead-man's-switch reaper
-if the teardown is forgotten. Sessions average $0.14; idle is about $0.25/month.
-
-Market data only. No trading, signals, or execution anywhere.
+The proof is the point. A reconciliation over the raw layer names every trade one path saw
+and the other did not, so exactly-once is measured after every run rather than assumed from
+the design. The feed is real volume, about 17 trades/s across five markets, enough that the
+storage and merge choices matter. The second constraint is cost: nothing runs 24/7. A session
+is `terraform apply`, work, `destroy`, with a dead-man's-switch reaper if the teardown is
+forgotten.
 
 ## Architecture
 
@@ -61,12 +66,23 @@ flowchart LR
 
 **Data scope.** The `trades` WebSocket channel only (no order book, no candles), for the five
 markets in [`config/watchlist.yaml`](config/watchlist.yaml): BTC, ETH, HYPE, and the HIP-3
-markets `xyz:SP500` and `xyz:XYZ100`, about 17 trades/s in total. Backfill reads the official
-`hl-mainnet-node-data` hourly archive. Widening to more of Hyperliquid's ~440 markets is a
-config change, not a code change.
-
-Component-by-component detail of what is deployed today is in
+markets `xyz:SP500` and `xyz:XYZ100`. Backfill reads the official `hl-mainnet-node-data`
+hourly archive. Widening to more of Hyperliquid's ~440 markets is a config change, not a code
+change. Component detail is in
 [`docs/architecture/system-overview.md`](docs/architecture/system-overview.md).
+
+## How exactly-once works
+
+1. **Bronze is append-only plain Parquet** and at-least-once: the live feed and the archive
+   both write, duplicates allowed, nothing is ever pruned for a window under reconciliation.
+2. **Silver is the single Iceberg merge**, keyed on the trade id `tid`. The archive row
+   outranks the feed row on update, and `first_seen_source` records which path saw it first.
+3. **Convergence is proven at bronze, not silver**, because silver keeps one row per trade and
+   so cannot show which sources saw it. `recon_trades` classifies every trade as `ws_only`,
+   `backfill_only` or `both`; any `backfill_only` row must fall inside a recorded WebSocket
+   gap, and `ws_only` must be zero.
+4. **Event time everywhere.** Partitions and every gold window derive from the exchange's
+   event time, never arrival time, so a late archive row lands in the right day.
 
 ## Proof it works
 
@@ -104,27 +120,20 @@ Full per-layer query sets: [`bronze.sql`](docs/queries/bronze.sql) ·
 
 ## Design decisions
 
-One line each; the reasoning lives in the linked ADR.
+Each row names what was rejected; the reasoning lives in the linked ADR.
 
-- **dbt runs from GitHub Actions, not from AWS.** No always-on runtime, no container to
-  host; Step Functions only fans out the backfill.
-  [ADR-001](docs/decisions/ADR-001-dbt-runtime-github-actions.md).
-- **Two dbt targets, one macro owning the seam.** DuckDB proves the logic offline in CI;
-  the Iceberg merge is proven on Athena by a seam test on every `dbt/` PR and push to `main`.
-  [ADR-002](docs/decisions/ADR-002-two-target-dbt-project.md).
-- **Convergence is proven at bronze, not silver.** Silver's merge keeps one row per trade,
-  so only the append-only raw layer can still show which sources saw it.
-  [ADR-003](docs/decisions/ADR-003-g3-reconciliation-at-bronze.md).
-- **Kinesis + Firehose over a direct Fargate → S3 write.** Firehose owns buffering, Parquet
-  conversion, and partitioning; the ingester stays a thin WebSocket client.
-  [ADR-004](docs/decisions/ADR-004-kinesis-firehose-over-direct-write.md).
-- **Official node archive as backfill source, `tid` as trade identity.** The identity gate
-  passed 1,986/1,986 between feed and archive before the schema was frozen.
-  [ADR-005](docs/decisions/ADR-005-backfill-source-and-trade-identity.md).
-- **Guardrails.** One Iceberg writer (bronze is plain Parquet; only dbt-athena writes
-  Iceberg). Event time everywhere, never arrival time. No NAT Gateway, MWAA, MSK, OpenSearch,
-  or QuickSight; Fargate runs with a public IP and an egress-only security group. No
-  long-lived AWS keys; GitHub Actions assumes a role over OIDC, CI runs with none.
+| Decision | Instead of | Why | ADR |
+|---|---|---|---|
+| dbt runs from GitHub Actions | A dbt host or MWAA in AWS | No always-on runtime; Step Functions only fans out the backfill | [001](docs/decisions/ADR-001-dbt-runtime-github-actions.md) |
+| Two dbt targets, one macro owns the seam | One engine, or a Trino container in CI | DuckDB proves logic offline; the real Iceberg merge is proven on Athena by the seam test | [002](docs/decisions/ADR-002-two-target-dbt-project.md) |
+| Convergence proven at bronze | Proving it at silver | Silver keeps one row per trade, so only the raw layer shows which sources saw it | [003](docs/decisions/ADR-003-g3-reconciliation-at-bronze.md) |
+| Kinesis + Firehose | Direct Fargate to S3 | Firehose owns buffering, Parquet conversion and partitioning; the ingester stays thin | [004](docs/decisions/ADR-004-kinesis-firehose-over-direct-write.md) |
+| Official node archive, `tid` as identity | Third-party archive as primary | The identity gate passed 1,986/1,986 between feed and archive before the schema froze | [005](docs/decisions/ADR-005-backfill-source-and-trade-identity.md) |
+
+**Guardrails.** One Iceberg writer (bronze is plain Parquet; only dbt-athena writes Iceberg).
+Backfill is plain-Python Lambda, no Glue Spark. No NAT Gateway, MWAA, MSK, OpenSearch, or
+QuickSight; Fargate runs with a public IP and an egress-only security group. No long-lived
+AWS keys; GitHub Actions assumes a role over OIDC, and CI runs with none.
 
 ## Stack
 
@@ -139,50 +148,6 @@ One line each; the reasoning lives in the linked ADR.
 | Infrastructure | Terraform (bootstrap · persistent · ephemeral roots) | Everything tagged `project=hyperlake`; nothing hand-created |
 | CI/CD | GitHub Actions, OIDC role | Offline CI on every PR; `dbt-run` and the seam test over OIDC |
 | Cost guard | EventBridge Scheduler reaper, AWS Budgets | Forgotten sessions die at 6 h; Budgets is only the lagging backstop |
-
-## Repo layout
-
-| Path | What lives there |
-|---|---|
-| `src/hyperlake/` | Envelope, watchlist loader, partition helper, WebSocket ingester, backfill readers, session lifecycle, reaper, heal logic |
-| `dbt/` | Models (`silver`, `gold`, `recon`, `seam`), macros, contract tests, fixtures |
-| `infra/` | Terraform: `bootstrap/` (state, OIDC, budgets), `main/persistent/` (S3, Glue, Athena), `main/ephemeral/` (compute, streams) |
-| `scripts/` | `session_up`/`session_down`, `heal`, `recon`, `backfill`, `bronze_query`, cost tooling, doc checks |
-| `config/watchlist.yaml` | The market list; the only place markets are named |
-| `sessions/` · `costs/` | One committed manifest per demo session; `sessions.csv` with estimate vs. next-day actual |
-| `docs/` · `tests/` | PRD, ADRs, architecture overview, runbooks, spikes, retros; the pytest suite |
-| `.github/workflows/` | `ci.yml`, `dbt-run.yml`, `ingester-image.yml`, `tf-drift-check.yml`, `verify-oidc.yml` |
-
-## Run it yourself
-
-**Prerequisites.** An AWS account with an admin-ish identity for the one-time bootstrap,
-Terraform ≥ 1.9, AWS CLI v2, `uv` (Terraform itself shells out to it for the Glue schema), and
-`gh`. Region is `ap-northeast-1` (both archive buckets live there). Full walkthrough: [`docs/guides/bootstrap.md`](docs/guides/bootstrap.md).
-
-**Run.** Bootstrap once per account, then apply and backfill one day:
-
-```
-cd infra/bootstrap && terraform init && terraform apply   # one-time per AWS account
-# wire infra/main/backend.hcl from the bootstrap outputs (see the bootstrap guide)
-make tf-apply-persistent
-make tf-apply-ephemeral
-make backfill FROM=<day> TO=<day>                         # e.g. 2026-09-10; <N> below = days from <day> to today, plus 1
-make dbt-run ARGS="-f vars='{\"silver_lookback_days\": <N>, \"freshness_window_start\": \"<day> 00:00:00\", \"freshness_window_end\": \"<day+1> 01:00:00\"}'"
-```
-
-**Verify.** `make bronze-query DT_FROM=<day>` for the day's bronze rows, then the
-exactly-once check from [`silver.sql`](docs/queries/silver.sql): row count equals distinct
-`tid` count. For the streaming path (`session-up` → stream → `heal` → `recon` → query)
-follow [`docs/demo-runbook.md`](docs/demo-runbook.md).
-
-**Tear down.** The ephemeral stack is the only thing that costs money while idle:
-
-```
-make tf-destroy-ephemeral          # after a backfill; `make session-down` does this for sessions
-make tf-destroy-persistent         # optional: also removes the data bucket, catalog, and workgroup
-```
-
-A one-day backfill costs on the order of $0.10; the persistent layer idles below $1/month.
 
 ## Cost
 
@@ -215,16 +180,49 @@ whether or not a trade arrives, which is exactly why the stream is torn down bet
 ## Testing and CI
 
 - **Offline CI on every PR** (`make check` mirrors it exactly): ruff, pyright, pytest,
-  pip-audit, `dbt build --target duckdb` (75 models and tests), `terraform fmt`/`validate`,
+  pip-audit, `dbt build --target duckdb` (76 models, seeds and tests), `terraform fmt`/`validate`,
   and a grep that fails on any long-lived AWS key. Zero cloud credentials.
-- **Athena seam test on every `dbt/` PR and push to `main`**: three merge-ordering cases run
-  against a real Iceberg table over OIDC, because DuckDB cannot prove `MERGE` semantics.
+- **Athena seam test on every PR that touches `dbt/`, the seam wiring or the dependency
+  pins, and on every push to `main`**: three merge-ordering cases run against a real Iceberg
+  table over OIDC, in a per-PR schema that is dropped afterwards, because DuckDB cannot prove
+  `MERGE` semantics.
 - **dbt contract tests gate gold**: schema, freshness, and volume tests on silver must pass
   before any gold mart builds; convergence tests run over bronze; OHLCV invariants on gold.
   `make dbt-demo-fail` shows a deliberate failure and the downstream skips.
 - **Daily Terraform drift check** flags anything in the Glue catalog that Terraform did not create.
 - **Docs checks**: `make docs-check` fails on any broken relative link;
   `make demo-runbook-check` fails if the runbook names a `make` target that does not exist.
+
+## Run it yourself
+
+**Prerequisites.** An AWS account with an admin-ish identity for the one-time bootstrap,
+Terraform ≥ 1.9, AWS CLI v2, `uv` (Terraform itself shells out to it for the Glue schema), and
+`gh`. Region is `ap-northeast-1` (both archive buckets live there). Full walkthrough: [`docs/guides/bootstrap.md`](docs/guides/bootstrap.md).
+
+**Run.** Bootstrap once per account, then apply and backfill one day:
+
+```
+cd infra/bootstrap && terraform init && terraform apply   # one-time per AWS account
+# wire infra/main/backend.hcl from the bootstrap outputs (see the bootstrap guide)
+make tf-apply-persistent
+make tf-apply-ephemeral
+make backfill FROM=<day> TO=<day>                         # e.g. 2026-09-10; <N> below = days from <day> to today, plus 1
+make dbt-run ARGS="-f vars='{\"silver_lookback_days\": <N>, \"freshness_window_start\": \"<day> 00:00:00\", \"freshness_window_end\": \"<day+1> 01:00:00\"}'"
+```
+
+**Verify.** `make bronze-query DT_FROM=<day>` for the day's bronze rows, then the
+exactly-once check from [`silver.sql`](docs/queries/silver.sql): row count equals distinct
+`tid` count. For the streaming path (`session-up` → stream → `heal` → `recon` → query)
+follow [`docs/demo-runbook.md`](docs/demo-runbook.md).
+
+**Tear down.** The ephemeral stack is the only thing that costs money while idle:
+
+```
+make tf-destroy-ephemeral          # after a backfill; `make session-down` does this for sessions
+make tf-destroy-persistent         # optional: also removes the data bucket, catalog, and workgroup
+```
+
+A one-day backfill costs on the order of $0.10; the persistent layer idles below $1/month.
 
 ## What I would do differently
 
@@ -240,12 +238,22 @@ whether or not a trade arrives, which is exactly why the stream is torn down bet
 - **Short demo sessions cannot reconcile.** The archive lands ~1 h after a clock hour closes,
   so the demo should have been designed around a session that spans one from the start.
 
-## Further reading
+## Repo layout and further reading
 
-- [PRD](docs/prd.md): scope, goals, cost model, and the frozen decisions
-- [System overview](docs/architecture/system-overview.md): how it works now, component by component
-- [Demo runbook](docs/demo-runbook.md): the streaming path with real timings and a data-quality failure demo
-- [ADR index](docs/INDEX.md#decisions-adrs): every significant decision and its reasoning
+| Path | What lives there |
+|---|---|
+| `src/hyperlake/` | Envelope, watchlist loader, partition helper, WebSocket ingester, backfill readers, session lifecycle, reaper, heal logic |
+| `dbt/` | Models (`silver`, `gold`, `recon`, `seam`), macros, contract tests, fixtures |
+| `infra/` | Terraform: `bootstrap/` (state, OIDC, budgets), `main/persistent/` (S3, Glue, Athena), `main/ephemeral/` (compute, streams) |
+| `scripts/` | `session_up`/`session_down`, `heal`, `recon`, `backfill`, `bronze_query`, cost tooling, doc checks |
+| `config/watchlist.yaml` | The market list; the only place markets are named |
+| `sessions/` · `costs/` | One committed manifest per demo session; `sessions.csv` with estimate vs. next-day actual |
+| `.github/workflows/` | `ci.yml`, `dbt-run.yml`, `seam-pr.yml`, `ingester-image.yml`, `tf-drift-check.yml`, `verify-oidc.yml` |
+
+[PRD](docs/prd.md) (scope, goals, cost model, frozen decisions) ·
+[System overview](docs/architecture/system-overview.md) ·
+[Demo runbook](docs/demo-runbook.md) ·
+[ADR index](docs/INDEX.md#decisions-adrs)
 
 ## License
 
