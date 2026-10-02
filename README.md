@@ -137,11 +137,17 @@ AWS keys; GitHub Actions assumes a role over OIDC, and CI runs with none.
 
 ## Stack
 
-ECS Fargate (Python, `websockets`) · Kinesis on-demand into Firehose · Lambda + Step Functions
-Map + EventBridge · S3 (Parquet bronze, Iceberg silver/gold) · Glue, Athena and DuckDB · dbt
-(`dbt-athena`, `dbt-duckdb`) · Terraform (bootstrap, persistent, ephemeral roots, all tagged
-`project=hyperlake`) · GitHub Actions over OIDC · an EventBridge Scheduler reaper that kills
-forgotten sessions at 6 h, with AWS Budgets only as the lagging backstop.
+| Layer | Service | Why |
+|---|---|---|
+| Live ingest | ECS Fargate (Python, `websockets`) | Only compute that exists during a session; no VPC plumbing of its own |
+| Streaming | Kinesis Data Streams (on-demand) → Firehose | Managed buffering + Parquet conversion; ~17 trades/s never needs a shard plan |
+| Batch backfill | Lambda + Step Functions Map + EventBridge | Plain-Python per archive hour; no Spark cluster to size or pay for |
+| Storage | S3: Parquet (bronze), Iceberg (silver/gold) | Hive partitions where append-only is enough; Iceberg where merge semantics are needed |
+| Catalog + query | Glue Data Catalog, Athena (cloud) · DuckDB (local, CI) | Serverless per-query billing; same dbt models run offline |
+| Transform + tests | dbt (`dbt-athena`, `dbt-duckdb`) | Contract, freshness, reconciliation, and OHLCV-invariant tests gate gold |
+| Infrastructure | Terraform (bootstrap · persistent · ephemeral roots) | Everything tagged `project=hyperlake`; nothing hand-created |
+| CI/CD | GitHub Actions, OIDC role | Offline CI on every PR; `dbt-run` and the seam test over OIDC |
+| Cost guard | EventBridge Scheduler reaper, AWS Budgets | Forgotten sessions die at 6 h; Budgets is only the lagging backstop |
 
 ## Cost
 
@@ -239,6 +245,10 @@ A one-day backfill costs on the order of $0.10; the persistent layer idles below
 | `src/hyperlake/` | Envelope, watchlist loader, partition helper, WebSocket ingester, backfill readers, session lifecycle, reaper, heal logic |
 | `dbt/` | Models (`silver`, `gold`, `recon`, `seam`), macros, contract tests, fixtures |
 | `infra/` | Terraform: `bootstrap/` (state, OIDC, budgets), `main/persistent/` (S3, Glue, Athena), `main/ephemeral/` (compute, streams) |
+| `scripts/` | `session_up`/`session_down`, `heal`, `recon`, `backfill`, `bronze_query`, cost tooling, doc checks |
+| `config/watchlist.yaml` | The market list; the only place markets are named |
+| `sessions/` · `costs/` | One committed manifest per demo session; `sessions.csv` with estimate vs. next-day actual |
+| `.github/workflows/` | `ci.yml`, `dbt-run.yml`, `seam-pr.yml`, `ingester-image.yml`, `tf-drift-check.yml`, `verify-oidc.yml` |
 
 [PRD](docs/prd.md) (scope, goals, cost model, frozen decisions) ·
 [System overview](docs/architecture/system-overview.md) ·
