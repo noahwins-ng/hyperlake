@@ -217,7 +217,7 @@ make tf-destroy-persistent         # optional: also removes the data bucket, cat
 
 A one-day backfill costs on the order of $0.10; the persistent layer idles below $1/month.
 
-## What I would do differently
+## Lessons learned
 
 - **Bronze partition projection was a cost trap.** ~4,000 virtual partitions and no persisted
   metadata means one unbounded query triggers an S3 LIST per partition; that was most of the
