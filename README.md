@@ -9,13 +9,6 @@ Streaming lakehouse for Hyperliquid market data: live WebSocket trades and S3 ar
 backfill converging into the same Iceberg tables on AWS serverless, reproducible from zero
 with one `terraform apply` and torn down after every session.
 
-| Claim | Measured | Evidence |
-|---|---|---|
-| Reproducible by a stranger | 8m 53s from `terraform apply` to a queryable Athena result | [Proof](#proof-it-works) |
-| Nothing lost, nothing double-counted | `ws_only = 0` on a live-vs-archive reconciliation | [How exactly-once works](#how-exactly-once-works) |
-| Near-zero cost | $0.14 average session, about $0.25/month idle | [Cost](#cost) |
-| Tested without a cloud account | 76 dbt models, seeds and tests plus pytest, zero AWS credentials in CI | [Testing and CI](#testing-and-ci) |
-
 Market data only. No trading, signals, or execution anywhere.
 
 ## Why this exists
