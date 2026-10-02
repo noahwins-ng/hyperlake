@@ -27,6 +27,12 @@ forgotten.
 
 ## Architecture
 
+The data lands in three layers. **Bronze** is the raw, append-only record of everything either
+source delivered, duplicates included. **Silver** is the cleaned table with exactly one row per
+trade. **Gold** holds the ready-to-query summaries, such as one-minute candles and daily volume.
+Together they form a lakehouse: warehouse-style tables kept as plain files in S3 and queried in
+place.
+
 Both paths write the same ingester-owned envelope into one bronze table. dbt, run from
 GitHub Actions over OIDC rather than from AWS, is the only writer for silver and gold. Step
 Functions orchestrates the backfill fan-out only.
