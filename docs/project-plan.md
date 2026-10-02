@@ -158,6 +158,8 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
   - **Triggered by:** QNT-481's review advisories
   - `tests/test_drop_seam_schema_guard.py` (offline, in `make check`); `seam-pr.yml` also runs when it or `infra/bootstrap/oidc.tf` changes
   - Review follow-up: guard tightened to `seam_test_pr<digits>` (refuses `seam_test_prod`)
+- [x] QNT-486: fix(deps): bump urllib3 to 2.8.0, pip-audit fails on PYSEC-2026-4175/4176/4177
+  - **Triggered by:** `make audit` failing the Dependabot PRs #79/#80 on 2026-10-02; `main`'s lock pinned 2.7.0, so every new PR would fail `checks`
 
 ## Parking lot (no tickets: reopen the PRD before building)
 
