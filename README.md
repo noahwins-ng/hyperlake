@@ -97,8 +97,8 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
   [`silver.sql`](docs/queries/silver.sql) · [`gold.sql`](docs/queries/gold.sql).
 - **Daily data quality is reported**, not just tested: `gold.dq_daily` for 2026-09-10 counts
   867,681 backfill rows across five coins, matching silver exactly, with no duplicates and no
-  gap minutes (no live session that day). The roughly 28-hour median archive lag (Athena's approximate
-  median) is when that day was backfilled, not archive delay.
+  gap minutes (no live session that day). The roughly 28-hour median archive lag (Athena's
+  approximate median) is when that day was backfilled, not archive delay.
 
   | coin | ws_rows | backfill_rows | duplicate_rate | gap_minutes | median_archive_lag_seconds |
   |---|---|---|---|---|---|
