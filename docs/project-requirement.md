@@ -73,6 +73,17 @@ The spec: *what* we're building and *why*, organized by phase. This is the sourc
 - **Cost report**: `make cost-report` renders `costs/sessions.csv`, asserts per-session and idle spend stay under the PRD G4 ceiling, and reconciles the Cost Explorer all-time total (`project=hyperlake` tag) against `sum(cost_actual)` in `costs/sessions.csv`, explaining any gap. *Why:* G4 evidence. The reconciliation guards against `costs/sessions.csv` looking clean while non-session-scoped spend (e.g. the ad-hoc Athena query cost QNT-476 found and fixed) goes unreported.
 - **dbt docs generated in CI, lineage graph in the README**: `dbt docs generate --target duckdb` on every push to `main` keeps the manifest/catalog current; the lineage graph is captured as a static screenshot for the README rather than hosted on GitHub Pages (scope change 2026-09-16, QNT-470 amended), GitHub Pages could not serve from a private repository on the GitHub Free plan; the repo went public 2026-09-17 and the static screenshot stayed. *Why:* G6; the presentation layer without a BI product.
 
+## Phase 5: Production readiness
+
+**Goal:** The pipeline measures and reports its own quality and is shown to recover from loss, at
+this project's scale and with no new AWS services (scope change 2026-10-03).
+
+- **Data-quality mart**: `dq_daily` per `(dt, coin)` with duplicate rate, gap minutes and archive arrival lag, plus a stated freshness target. *Why:* quality is tested pass/fail but never reported.
+- **Correction handling made visible**: count archive-vs-feed corrections and prove a late correction reaches gold. *Why:* late-arriving data is the core of the design (ADR-005) and is only described in prose.
+- **Reconciliation visual and a "not in scope at this scale" list in the README**. *Why:* G6; the headline result needs a visual, and deliberately skipped practices should read as choices.
+- **Failure issues for unattended workflows**: a failed `tf-drift-check` or `dbt-run` opens a GitHub issue. *Why:* scheduled runs have no triggering human to receive GitHub's default failure email.
+- **Recovery drill**: rebuild silver and gold from bronze once, measured, and documented. *Why:* bronze-as-source-of-truth (ADR-003) was used under pressure in QNT-482 but never drilled.
+
 ## Ops & Reliability (perpetual)
 
 - **Post-destroy audit**: script listing any live `project=hyperlake` billable ephemeral resources; fails loudly; last step of `session-down`. *Why:* FR-6; a checklist is not a guard.
