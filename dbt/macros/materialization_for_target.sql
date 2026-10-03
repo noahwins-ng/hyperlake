@@ -47,3 +47,16 @@
     {{ exceptions.raise_compiler_error('json_string: unsupported target.type ' ~ target.type) }}
   {% endif %}
 {% endmacro %}
+
+{#
+  A median as a double: duckdb has an exact `median`, Trino only `approx_percentile`.
+#}
+{% macro median_of(expr) %}
+  {% if target.type == 'duckdb' %}
+    cast(median({{ expr }}) as double)
+  {% elif target.type == 'athena' %}
+    cast(approx_percentile({{ expr }}, 0.5) as double)
+  {% else %}
+    {{ exceptions.raise_compiler_error('median_of: unsupported target.type ' ~ target.type) }}
+  {% endif %}
+{% endmacro %}

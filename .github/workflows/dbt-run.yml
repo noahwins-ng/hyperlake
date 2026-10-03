@@ -98,8 +98,9 @@ jobs:
 
       # QNT-460: regenerate dbt/seeds/session_gaps.csv from the real session's manifest
       # (already committed by session-down) before the build reads it -- must run on
-      # this checkout, not the dispatching machine, which this runner never sees.
-      - name: Regenerate session_gaps seed for a real recon session
+      # this checkout, not the dispatching machine, which this runner never sees. A
+      # non-recon dispatch appends every committed session's gaps instead (dq_daily).
+      - name: Regenerate session_gaps seed from session manifests
         env:
           DBT_VARS: ${{ inputs.vars }}
         run: uv run python scripts/regen_recon_seed.py

@@ -56,6 +56,12 @@ models:
       # from creation, not auto-created-then-imported like seam_test/silver were.
       +schema: "gold"
       +tags: ["gold"]
+    quality:
+      # Reported data-quality metrics (dq_daily), materialized in the gold database but kept
+      # out of models/gold/: it reads bronze and measures `ingested_at`, which gold's
+      # event-time guard (tests/test_gold_event_time.py) bans from gold windows.
+      +schema: "gold"
+      +tags: ["quality"]
     seam:
       # ADR-002: merge behaviour has no duckdb equivalent -- the seam model is
       # meaningless there (and would fail on duckdb, which doesn't support

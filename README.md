@@ -95,6 +95,19 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
   for one coin and day; silver held 2,157 rows with 2,157 distinct `tid`, the 40 duplicates
   resolved by the merge. Queries: [`bronze.sql`](docs/queries/bronze.sql) ·
   [`silver.sql`](docs/queries/silver.sql) · [`gold.sql`](docs/queries/gold.sql).
+- **Daily data quality is reported**, not just tested: `gold.dq_daily` for 2026-09-10 counts
+  867,681 backfill rows across five coins, matching silver exactly, with no duplicates and no
+  gap minutes (no live session that day). The roughly 28-hour median archive lag (Athena's
+  approximate median) is when that day was backfilled, not archive delay. On the 2026-09-29
+  session day it reports each coin's recorded WebSocket gap, 0.55 to 0.99 minutes.
+
+  | coin | ws_rows | backfill_rows | duplicate_rate | gap_minutes | median_archive_lag_seconds |
+  |---|---|---|---|---|---|
+  | BTC | 0 | 309,250 | 0.0 | 0.0 | 105,035 |
+  | ETH | 0 | 140,830 | 0.0 | 0.0 | 104,101 |
+  | HYPE | 0 | 330,967 | 0.0 | 0.0 | 101,629 |
+  | xyz_SP500 | 0 | 45,111 | 0.0 | 0.0 | 100,286 |
+  | xyz_XYZ100 | 0 | 41,523 | 0.0 | 0.0 | 102,598 |
 - **$0.18 average session cost** over 13 finalized sessions, against a $2 ceiling
   ([Cost](#cost)).
 
@@ -105,7 +118,7 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
 
 </details>
 
-Every silver, gold and recon column is described, enforced by
+Every silver, gold, recon and quality column is described, enforced by
 [a pytest over `manifest.json`](tests/test_dbt_docs_columns_described.py).
 
 ## Design decisions
@@ -147,13 +160,14 @@ torn down between sessions ([model](costs/README.md#what-247-would-cost), never 
 ## Testing and CI
 
 - **Offline CI on every PR** (`make check` mirrors it): ruff, pyright, pytest, pip-audit,
-  `dbt build --target duckdb` (76 models, seeds and tests), `terraform validate`, and a scan for
+  `dbt build --target duckdb` (85 models, seeds and tests), `terraform validate`, and a scan for
   long-lived AWS keys. Zero cloud credentials.
 - **Athena seam test** on every PR that touches `dbt/`, the seam wiring or the dependency pins,
   and on every push to `main`: three merge-ordering cases against a real Iceberg table, in a
   per-PR schema that is dropped afterwards. DuckDB cannot prove `MERGE` semantics.
 - **dbt contract tests gate gold:** schema, freshness and volume checks on silver must pass
   before any gold mart builds (`make dbt-demo-fail` shows a deliberate failure).
+- **Freshness target:** silver's latest event `time` is within 5 minutes of the run's window end.
 
 ## Run it yourself
 

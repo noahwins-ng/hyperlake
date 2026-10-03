@@ -10,17 +10,19 @@ never reach this runner. `sessions/<id>.json` is already committed and pushed by
 time `make recon` can run at all (its manifest must have an `end`, which session-down
 sets and commits), so reading it here needs no extra sync step.
 
-A no-op (leaves the committed seed content as-is) when `DBT_VARS` carries no
-`recon_session_id` or that session has no manifest -- covers every non-recon
-dbt-run.yml dispatch and the AC1 fixture scenarios (`recon-fixture-*`, which have no
-`sessions/<id>.json` and rely on the committed fixture rows instead).
+Leaves the seed as-is when `DBT_VARS` names a `recon_session_id` with no manifest (the
+AC1 fixture scenarios, `recon-fixture-*`, which rely on the committed fixture rows). Every
+other dispatch (no `recon_session_id`) appends every committed session's gaps to the
+committed fixture rows, so `dq_daily`'s gap minutes see real sessions; recon filters the
+seed by `session_id`, so the extra rows never reach it.
 """
 
+import csv
 import json
 import os
 from pathlib import Path
 
-from hyperlake.recon import write_session_gaps_seed
+from hyperlake.recon import session_gap_rows, write_session_gaps_seed
 from hyperlake.session import load_manifest
 
 SEED_PATH = Path("dbt/seeds/session_gaps.csv")
@@ -45,10 +47,26 @@ def regenerate_seed(dbt_vars_raw: str, sessions_dir: Path, seed_path: Path) -> s
     return session_id
 
 
+def append_all_session_gaps(sessions_dir: Path, seed_path: Path) -> int:
+    """Appends every `sessions_dir/*.json` manifest's gaps to `seed_path` (session_id =
+    the manifest's file stem, as `make recon` names it). Returns the rows appended."""
+    rows = []
+    for manifest_path in sorted(sessions_dir.glob("*.json")):
+        manifest = load_manifest(manifest_path)
+        rows += session_gap_rows(manifest.get("gaps", []), manifest_path.stem)
+    with seed_path.open("a", newline="") as f:
+        csv.writer(f).writerows(rows)
+    return len(rows)
+
+
 def main() -> None:
-    session_id = regenerate_seed(os.environ.get("DBT_VARS", ""), SESSIONS_DIR, SEED_PATH)
+    dbt_vars_raw = os.environ.get("DBT_VARS", "")
+    session_id = regenerate_seed(dbt_vars_raw, SESSIONS_DIR, SEED_PATH)
     if session_id:
         print(f"regen_recon_seed: wrote {SEED_PATH} for {session_id}")
+    elif not (dbt_vars_raw and json.loads(dbt_vars_raw).get("recon_session_id")):
+        appended = append_all_session_gaps(SESSIONS_DIR, SEED_PATH)
+        print(f"regen_recon_seed: appended {appended} session gap row(s) to {SEED_PATH}")
 
 
 if __name__ == "__main__":
