@@ -156,6 +156,42 @@ models:
       - unique:
           column_name: "coin || '|' || cast(day as varchar)"
 
+  - name: dq_daily
+    description: >
+      Daily data-quality report per event day and coin, read from bronze so both acquisition
+      paths stay visible. Reported, not alerted on. On athena each run recomputes the whole
+      days inside `var('silver_lookback_days')` and merges them on (dt, coin).
+    columns:
+      - name: dt
+        description: Event day (UTC) of the bronze rows, from exchange `time`, never arrival.
+        tests:
+          - not_null
+      - name: coin
+        description: Bronze's `coin`, the partition value on athena (`xyz_SP500`), the same key `session_gaps` uses.
+        tests:
+          - not_null
+      - name: ws_rows
+        description: Bronze rows written by the live feed (`source = 'ws'`), duplicates included.
+        tests:
+          - not_null
+      - name: backfill_rows
+        description: Bronze rows written by the archive backfill (`source = 'backfill'`).
+        tests:
+          - not_null
+      - name: duplicate_rate
+        description: Share of bronze rows that repeat a `tid` already held by the same source, `(rows - distinct (source, tid)) / rows`. A trade held once by each source is overlap, measured by recon, not duplication.
+        tests:
+          - not_null
+      - name: gap_minutes
+        description: Minutes of recorded WebSocket gap overlapping the day for this coin, from `session_gaps` (a null-coin gap counts for every coin). On athena the seed holds only the most recently reconciled session's gaps.
+        tests:
+          - not_null
+      - name: median_archive_lag_seconds
+        description: Median seconds from exchange `time` to `ingested_at` over the day's backfill rows; null with no backfill rows. For a day backfilled after the fact this measures when the backfill ran, not the archive's own delay.
+    tests:
+      - unique:
+          column_name: "coin || '|' || cast(dt as varchar)"
+
 unit_tests:
   # Pins dq_daily's arithmetic on fixed rows (duckdb only: the merge config and the median
   # function are the athena side of the seam, proven by the real dbt-run). BTC 2026-02-01:
@@ -169,18 +205,23 @@ unit_tests:
     config:
       enabled: "{{ target.type == 'duckdb' }}"
     given:
+      # format: sql, the duckdb source is an external Parquet path dbt cannot introspect
       - input: source('bronze', 'trades_raw')
-        rows:
-          - {tid: 1, coin: BTC, source: ws, time: "2026-02-01 10:00:00+00", ingested_at: "2026-02-01 10:00:01+00"}
-          - {tid: 1, coin: BTC, source: ws, time: "2026-02-01 10:00:00+00", ingested_at: "2026-02-01 10:00:02+00"}
-          - {tid: 2, coin: BTC, source: ws, time: "2026-02-01 11:00:00+00", ingested_at: "2026-02-01 11:00:01+00"}
-          - {tid: 3, coin: BTC, source: ws, time: "2026-02-01 12:00:00+00", ingested_at: "2026-02-01 12:00:01+00"}
-          - {tid: 4, coin: BTC, source: ws, time: "2026-02-01 13:00:00+00", ingested_at: "2026-02-01 13:00:01+00"}
-          - {tid: 1, coin: BTC, source: backfill, time: "2026-02-01 10:00:00+00", ingested_at: "2026-02-01 10:01:00+00"}
-          - {tid: 2, coin: BTC, source: backfill, time: "2026-02-01 11:00:00+00", ingested_at: "2026-02-01 11:02:00+00"}
-          - {tid: 3, coin: BTC, source: backfill, time: "2026-02-01 12:00:00+00", ingested_at: "2026-02-01 12:10:00+00"}
-          - {tid: 5, coin: BTC, source: backfill, time: "2026-01-31 23:59:00+00", ingested_at: "2026-01-31 23:59:30+00"}
-          - {tid: 10, coin: ETH, source: ws, time: "2026-02-01 12:00:00+00", ingested_at: "2026-02-01 12:00:01+00"}
+        format: sql
+        rows: |
+          select *
+          from (values
+              (1, 'BTC', 'ws', timestamptz '2026-02-01 10:00:00+00', timestamptz '2026-02-01 10:00:01+00'),
+              (1, 'BTC', 'ws', timestamptz '2026-02-01 10:00:00+00', timestamptz '2026-02-01 10:00:02+00'),
+              (2, 'BTC', 'ws', timestamptz '2026-02-01 11:00:00+00', timestamptz '2026-02-01 11:00:01+00'),
+              (3, 'BTC', 'ws', timestamptz '2026-02-01 12:00:00+00', timestamptz '2026-02-01 12:00:01+00'),
+              (4, 'BTC', 'ws', timestamptz '2026-02-01 13:00:00+00', timestamptz '2026-02-01 13:00:01+00'),
+              (1, 'BTC', 'backfill', timestamptz '2026-02-01 10:00:00+00', timestamptz '2026-02-01 10:01:00+00'),
+              (2, 'BTC', 'backfill', timestamptz '2026-02-01 11:00:00+00', timestamptz '2026-02-01 11:02:00+00'),
+              (3, 'BTC', 'backfill', timestamptz '2026-02-01 12:00:00+00', timestamptz '2026-02-01 12:10:00+00'),
+              (5, 'BTC', 'backfill', timestamptz '2026-01-31 23:59:00+00', timestamptz '2026-01-31 23:59:30+00'),
+              (10, 'ETH', 'ws', timestamptz '2026-02-01 12:00:00+00', timestamptz '2026-02-01 12:00:01+00')
+          ) as t (tid, coin, source, time, ingested_at)
       - input: ref('session_gaps')
         rows:
           - {session_id: s1, coin: BTC, gap_start: "2026-02-01 10:00:00", gap_end: "2026-02-01 10:05:00"}
