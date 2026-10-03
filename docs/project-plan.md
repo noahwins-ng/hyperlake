@@ -117,7 +117,7 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
 Goal: the pipeline measures and reports its own quality and is shown to recover from loss, at this
 scale and with no new AWS services. Added by scope change 2026-10-03.
 
-- [ ] QNT-487: feat(dbt): daily data-quality mart with a stated freshness target
+- [x] QNT-487: feat(dbt): daily data-quality mart with a stated freshness target
 - [ ] QNT-488: feat(dbt): measure archive-vs-feed corrections and prove a late correction reaches gold
 - [ ] QNT-489: docs(readme): reconciliation result visual and a "not in scope at this scale" list
 - [ ] QNT-491: chore(ops): measured recovery drill, rebuild silver and gold from bronze
