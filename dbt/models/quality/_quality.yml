@@ -5,7 +5,8 @@ models:
     description: >
       Daily data-quality report per event day and coin, read from bronze so both acquisition
       paths stay visible. Reported, not alerted on. On athena each run recomputes the whole
-      days inside `var('silver_lookback_days')` and merges them on (dt, coin).
+      days inside `var('silver_lookback_days')` and merges them on (dt, coin). A coin and day
+      with no bronze rows at all has no row.
     columns:
       - name: dt
         description: Event day (UTC) of the bronze rows, from exchange `time`, never arrival.
@@ -28,7 +29,7 @@ models:
         tests:
           - not_null
       - name: gap_minutes
-        description: Minutes of recorded WebSocket gap overlapping the day for this coin, from `session_gaps` (a null-coin gap counts for every coin). On athena the seed holds only the most recently reconciled session's gaps.
+        description: Minutes of recorded WebSocket gap overlapping the day for this coin, from `session_gaps` (a null-coin gap counts for every coin), which a dbt-run.yml dispatch loads from every committed session manifest. Overlapping gaps are summed, not merged.
         tests:
           - not_null
       - name: median_archive_lag_seconds

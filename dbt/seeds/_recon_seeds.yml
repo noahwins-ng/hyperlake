@@ -4,7 +4,9 @@ seeds:
   - name: session_gaps
     description: >
       Session gap intervals (ADR-003) -- overwritten by `make recon`'s
-      pre-step with the real session's manifest gaps before each real run; the
+      pre-step with the real session's manifest gaps before each real run, and
+      extended with every committed session's gaps on any other dbt-run.yml dispatch
+      (scripts/regen_recon_seed.py, for dq_daily); the
       committed content here is the AC1 fixture scenarios (recon-fixture-clean has
       no gaps, recon-fixture-gap has one covering its legitimate backfill_only trade,
       recon-fixture-miss has none, making its backfill_only trade a real miss;

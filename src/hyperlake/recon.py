@@ -58,6 +58,18 @@ def write_session_gaps_seed(gaps: list[dict], session_id: str, seed_path: Path) 
     with seed_path.open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["session_id", "coin", "gap_start", "gap_end"])
-        for gap in gaps:
-            coin = coin_partition_value(gap["coin"]) if gap.get("coin") else ""
-            writer.writerow([session_id, coin, gap["start"], gap["end"]])
+        writer.writerows(session_gap_rows(gaps, session_id))
+
+
+def session_gap_rows(gaps: list[dict], session_id: str) -> list[list[str]]:
+    """One `session_gaps` seed row per manifest gap, `coin` as its partition value (empty
+    for a coin-less gap, which loads as null)."""
+    return [
+        [
+            session_id,
+            coin_partition_value(gap["coin"]) if gap.get("coin") else "",
+            gap["start"],
+            gap["end"],
+        ]
+        for gap in gaps
+    ]

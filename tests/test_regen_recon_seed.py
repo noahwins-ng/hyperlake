@@ -154,7 +154,9 @@ def test_non_recon_build_appends_every_sessions_gaps_to_the_fixture_seed(tmp_pat
         "s-a",
         [{"coin": "xyz:SP500", "start": "2026-09-29T13:32:06Z", "end": "2026-09-29T13:32:42Z"}],
     )
-    _manifest(sessions_dir, "s-b", [{"start": "2026-09-11T10:00:00Z", "end": "2026-09-11T10:05:00Z"}])
+    _manifest(
+        sessions_dir, "s-b", [{"start": "2026-09-11T10:00:00Z", "end": "2026-09-11T10:05:00Z"}]
+    )
     _manifest(sessions_dir, "s-c", [])
 
     appended = append_all_session_gaps(sessions_dir, seed_path)
