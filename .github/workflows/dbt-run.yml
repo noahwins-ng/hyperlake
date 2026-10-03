@@ -31,7 +31,8 @@ on:
       full_refresh:
         description: "true adds --full-refresh: incremental models are dropped and rebuilt from bronze (QNT-491 recovery drill) -- build job only"
         required: false
-        default: "false"
+        type: boolean
+        default: false
       job:
         description: "Which job to run: build (default) or seam"
         required: false
@@ -118,7 +119,7 @@ jobs:
           TARGET: ${{ inputs.target }}
           SELECT: ${{ inputs.select }}
           DBT_VARS: ${{ inputs.vars }}
-          FULL_REFRESH: ${{ inputs.full_refresh == 'true' && '--full-refresh' || '' }}
+          FULL_REFRESH: ${{ inputs.full_refresh && '--full-refresh' || '' }}
         run: |
           if [ "$TARGET" = athena ]; then ../scripts/check_athena_data_dir.sh; fi
           uv run --group dbt dbt build --profiles-dir . --target "$TARGET" ${SELECT:+--select "$SELECT"} ${DBT_VARS:+--vars "$DBT_VARS"} ${FULL_REFRESH:+"$FULL_REFRESH"}

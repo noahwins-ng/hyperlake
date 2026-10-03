@@ -295,7 +295,8 @@ already gone), then rebuild silver and gold from bronze (next entry).
 - **When:** silver or gold is lost or suspect (the `ICEBERG_MISSING_METADATA` case above, a bad
   merge, a model change that needs a clean rebuild). Bronze is never pruned, so it can always
   regenerate both. Restoring bronze itself is a re-backfill (`make backfill`), not this.
-- **Command:** a full-refresh build of silver and everything downstream of it:
+- **Command:** a full-refresh build of silver and everything downstream of it (the var values
+  are the 2026-10-03 drill's; recompute both as below before each run):
 
   ```
   make dbt-run ARGS="-f select=trades+ -f full_refresh=true -f 'vars={\"silver_lookback_days\": 90, \"freshness_window_start\": \"2026-09-29 00:00:00\", \"freshness_window_end\": \"2026-09-29 15:00:00\"}'"
@@ -303,8 +304,8 @@ already gone), then rebuild silver and gold from bronze (next entry).
 
   - `full_refresh=true` adds `--full-refresh`: silver is dropped and recreated (CTAS) from
     bronze, not merged into. Gold marts are plain tables and rebuild on every run anyway.
-  - `silver_lookback_days` must reach bronze's oldest `dt`: silver's bronze read is bounded by
-    it even on a full refresh, so a short lookback silently rebuilds a truncated silver.
+  - `silver_lookback_days` must reach bronze's oldest `dt` (days from it to today, plus margin):
+    silver's bronze read is bounded by it even on a full refresh, so a short lookback silently rebuilds a truncated silver.
     Check first with `SELECT min(dt), max(dt) FROM bronze.trades_raw WHERE dt >= DATE
     '2026-01-01' AND dt < <tomorrow>`.
   - The freshness window must end at silver's real latest event (`max(time)`, rounded up), or
