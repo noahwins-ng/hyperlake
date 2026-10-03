@@ -302,10 +302,12 @@ already gone), then rebuild silver and gold from bronze (next entry).
   make dbt-run ARGS="-f select=trades+ -f full_refresh=true -f 'vars={\"silver_lookback_days\": 90, \"freshness_window_start\": \"2026-09-29 00:00:00\", \"freshness_window_end\": \"2026-09-29 15:00:00\"}'"
   ```
 
-  - `full_refresh=true` adds `--full-refresh`: silver is dropped and recreated (CTAS) from
+  - `full_refresh=true` (a boolean input; any other value is rejected at dispatch) adds
+    `--full-refresh`: silver is dropped and recreated (CTAS) from
     bronze, not merged into. Gold marts are plain tables and rebuild on every run anyway.
   - `silver_lookback_days` must reach bronze's oldest `dt` (days from it to today, plus margin):
-    silver's bronze read is bounded by it even on a full refresh, so a short lookback silently rebuilds a truncated silver.
+    silver's bronze read is bounded by it even on a full refresh, so a short lookback silently
+    rebuilds a truncated silver.
     Check first with `SELECT min(dt), max(dt) FROM bronze.trades_raw WHERE dt >= DATE
     '2026-01-01' AND dt < <tomorrow>`.
   - The freshness window must end at silver's real latest event (`max(time)`, rounded up), or
