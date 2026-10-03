@@ -202,7 +202,7 @@ def render_markdown(
     return "\n".join(lines) + "\n"
 
 
-def render_readme_block(rows: list[dict], idle_report: list[dict], reconciliation: dict) -> str:
+def render_readme_block(rows: list[dict], idle_report: list[dict]) -> str:
     finals = [float(row["cost_actual_usd"]) for row in rows if row["cost_actual_usd"]]
     avg = sum(finals) / len(finals) if finals else 0.0
     highest = max(finals) if finals else 0.0
@@ -214,17 +214,14 @@ def render_readme_block(rows: list[dict], idle_report: list[dict], reconciliatio
         idle_cell = "$0.00/month (Cost Explorer still catching up on the latest session)"
     else:
         idle_cell = f"${worst_idle:.2f}/month"
-    gap = reconciliation["gap"]
-    gap_cell = f"${gap:.2f}" if gap >= 0 else f"-${-gap:.2f} (double-attributed cost)"
+    # No reconciliation-gap row: the gap is the summed idle, so docs/costs.md carries it.
     lines = [
         "| | |",
         "|---|---|",
         f"| Average session cost | ${avg:.2f} |",
         f"| Highest session cost | ${highest:.2f} |",
-        f"| Idle cost (highest month, Cost Explorer) | {idle_cell} |",
+        f"| Idle, highest month (includes development days) | {idle_cell} |",
         "| Target ceiling | < $2/session, < $2/month idle |",
-        f"| Cost Explorer reconciliation gap | {gap_cell} (full detail: "
-        "[docs/costs.md](docs/costs.md)) |",
     ]
     return "\n".join(lines)
 
@@ -282,7 +279,7 @@ def main() -> None:
         )
 
     Path(a.out).write_text(render_markdown(rows, idle_report, reconciliation, now))
-    patch_readme(a.readme, render_readme_block(rows, idle_report, reconciliation))
+    patch_readme(a.readme, render_readme_block(rows, idle_report))
 
     print(f"wrote {a.out}; reconciliation gap ${reconciliation['gap']:.2f}")
 

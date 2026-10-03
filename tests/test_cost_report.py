@@ -136,12 +136,26 @@ def test_render_readme_block_includes_average_and_gap() -> None:
         _row("s1", "2026-09-01T00:00:00Z", "2026-09-01T00:10:00Z", actual="0.30", status="final")
     ]
     idle_report = [{"month": "2026-09", "ce_total": 1.00, "session_total": 0.30, "idle": 0.70}]
-    reconciliation = {"ce_total": 1.00, "session_sum": 0.30, "gap": 0.70}
 
-    block = render_readme_block(rows, idle_report, reconciliation)
+    block = render_readme_block(rows, idle_report)
 
     assert "$0.30" in block
     assert "$0.70" in block
+
+
+def test_render_readme_block_labels_idle_and_leaves_the_gap_to_docs_costs() -> None:
+    # The README's prose quotes steady-state idle; the generated row must say it is the
+    # highest month including development days, or the two read as contradicting each other.
+    # The reconciliation gap equals the summed idle, so repeating it in the README is noise.
+    rows = [
+        _row("s1", "2026-09-01T00:00:00Z", "2026-09-01T00:10:00Z", actual="0.30", status="final")
+    ]
+    idle_report = [{"month": "2026-09", "ce_total": 1.00, "session_total": 0.30, "idle": 0.70}]
+
+    block = render_readme_block(rows, idle_report)
+
+    assert "includes development days" in block
+    assert "reconciliation gap" not in block.lower()
 
 
 def test_render_readme_block_never_shows_a_negative_headline_number() -> None:
@@ -149,10 +163,8 @@ def test_render_readme_block_never_shows_a_negative_headline_number() -> None:
         _row("s1", "2026-09-01T00:00:00Z", "2026-09-01T00:10:00Z", actual="0.30", status="final")
     ]
     idle_report = [{"month": "2026-09", "ce_total": 0.10, "session_total": 0.30, "idle": -0.20}]
-    reconciliation = {"ce_total": 0.10, "session_sum": 0.30, "gap": -0.20}
 
-    block = render_readme_block(rows, idle_report, reconciliation)
+    block = render_readme_block(rows, idle_report)
 
     assert "$-" not in block
     assert "$0.00/month" in block
-    assert "-$0.20" in block
