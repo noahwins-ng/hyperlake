@@ -288,8 +288,50 @@ first.
 `DBT_ATHENA_S3_DATA_DIR` repo variable is unset or under `athena-results/`.
 
 **Recover:** delete the orphaned Glue table entries (`aws glue delete-table`; their files are
-already gone), then `make dbt-run` with `silver_lookback_days` covering bronze's oldest `dt`, so
-silver rebuilds from bronze and gold rebuilds from silver.
+already gone), then rebuild silver and gold from bronze (next entry).
+
+## Rebuild silver and gold from bronze (measured drill, QNT-491)
+
+- **When:** silver or gold is lost or suspect (the `ICEBERG_MISSING_METADATA` case above, a bad
+  merge, a model change that needs a clean rebuild). Bronze is never pruned, so it can always
+  regenerate both. Restoring bronze itself is a re-backfill (`make backfill`), not this.
+- **Command:** a full-refresh build of silver and everything downstream of it:
+
+  ```
+  make dbt-run ARGS="-f select=trades+ -f full_refresh=true -f 'vars={\"silver_lookback_days\": 90, \"freshness_window_start\": \"2026-09-29 00:00:00\", \"freshness_window_end\": \"2026-09-29 15:00:00\"}'"
+  ```
+
+  - `full_refresh=true` adds `--full-refresh`: silver is dropped and recreated (CTAS) from
+    bronze, not merged into. Gold marts are plain tables and rebuild on every run anyway.
+  - `silver_lookback_days` must reach bronze's oldest `dt`: silver's bronze read is bounded by
+    it even on a full refresh, so a short lookback silently rebuilds a truncated silver.
+    Check first with `SELECT min(dt), max(dt) FROM bronze.trades_raw WHERE dt >= DATE
+    '2026-01-01' AND dt < <tomorrow>`.
+  - The freshness window must end at silver's real latest event (`max(time)`, rounded up), or
+    `assert_silver_freshness` checks the fixture defaults, fails, and every gold model is
+    skipped (silver rebuilt, gold left at its old contents).
+  - `-f vars=...` needs the inner single quotes shown, or make's shell strips the JSON quotes
+    and `regen_recon_seed.py` fails to parse it.
+- **Verify:** compare against counts taken before the rebuild:
+  `SELECT count(*), count(DISTINCT tid) FROM silver.trades` (must be equal, exactly-once) and
+  `SELECT count(*) FROM gold.<mart>` for each of the five marts.
+- **Measured 2026-10-03** (bronze `dt` 2026-08-04..2026-09-29, 29,465,062 rows),
+  [run 37136309898](https://github.com/noahwins-ng/hyperlake/actions/runs/37136309898):
+
+  | Table | Before | After |
+  |---|---|---|
+  | `silver.trades` rows / distinct `tid` | 29,200,254 / 29,200,254 | 29,200,254 / 29,200,254 |
+  | `gold.ohlcv_1m` | 231,427 | 231,427 |
+  | `gold.ohlcv_1h` | 3,887 | 3,887 |
+  | `gold.ohlcv_1d` | 192 | 192 |
+  | `gold.volume_daily` | 192 | 192 |
+  | `gold.liquidations_daily` | 10 | 10 |
+
+  - **Wall time:** 2 min 12 s dispatch to completion; `dbt build` 99.9 s (silver CTAS 38.0 s,
+    55/55 nodes PASS).
+  - **Cost:** 75 Athena queries in the run window scanned 5.87 GB → **≈ $0.03** at $5/TB
+    (10 MB per-query minimum applied), from `batch-get-query-execution`
+    `DataScannedInBytes`; S3 request cost negligible. Well under the $2/session ceiling.
 
 ## `tf-drift-check` flags a `seam_test_pr<N>` database
 
