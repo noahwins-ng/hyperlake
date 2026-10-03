@@ -70,6 +70,8 @@ STREAMING (session-scoped, make session-up ... make session-down)               
                        manifest gaps seeded in), proves G3 (ADR-003), QNT-460
       silver → GOLD   ohlcv_1m/1h/1d · volume_daily · liquidations_daily (backfill-only), OHLCV
                        invariant tests; built only if silver's contract tests pass, QNT-463
+      bronze → GOLD   dq_daily (per dt/coin: rows per source, within-source duplicate rate,
+                       gap minutes, median archive lag), QNT-487
       make heal SESSION=<id>  gap → covering hour list (+H+1) → not-landed check → re-run backfill
                        Map over just those hours → re-run dbt-run → re-run recon → flip healed:true
                        → commit manifest (QNT-461); QNT-466 proved the full stream→heal→recon cycle
@@ -175,12 +177,15 @@ costs/            sessions.csv log (cost_estimate_usd / cost_actual_usd / cost_s
 - **silver** (Glue db `silver`, table `trades`, Iceberg), merge on `tid`, `source_rank` picks
   `backfill` over `ws` on conflict, `first_seen_source` insert-only. Written only by `dbt-run.yml`
   over the OIDC role. Gated by contract tests (schema/freshness/volume, QNT-464) before gold builds.
+  Freshness target: silver's latest event `time` is within 5 minutes of the run's window end.
 - **recon** (`recon_trades`, over bronze), `ws_only`/`backfill_only`/`both` per `tid` per source
   over the reconcilable window (manifest gaps seeded in); proves G3 (`ws_only = 0`, every
   `backfill_only` inside a gap). Written by `dbt-run.yml`; re-run by `session-down` and `make heal`.
 - **gold** (Glue db `gold`, Iceberg on athena / table on duckdb), `ohlcv_1m/1h/1d`, `volume_daily`,
   `liquidations_daily` (backfill-only by construction), derived from silver, windowed on event
   `time`. OHLCV invariant tests (`low ≤ open, close ≤ high`; candle volume = sum of trade `sz`).
+  `dq_daily` reads bronze instead: per event day and coin, rows per source, within-source
+  duplicate rate, gap minutes from `session_gaps`, median archive arrival lag (QNT-487).
 - **seam_test** (Glue db, declared in Terraform + imported, QNT-477), dbt-athena fixture schema for
   the seam test; a handful of rows proving the silver merge behaviour on real Athena, not duckdb.
 

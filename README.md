@@ -154,6 +154,7 @@ torn down between sessions ([model](costs/README.md#what-247-would-cost), never 
   per-PR schema that is dropped afterwards. DuckDB cannot prove `MERGE` semantics.
 - **dbt contract tests gate gold:** schema, freshness and volume checks on silver must pass
   before any gold mart builds (`make dbt-demo-fail` shows a deliberate failure).
+- **Freshness target:** silver's latest event `time` is within 5 minutes of the run's window end.
 
 ## Run it yourself
 
