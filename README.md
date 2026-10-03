@@ -20,6 +20,13 @@ Hyperliquid publishes the same trades twice:
 - **Hyperlake takes both**, lands them in one table, and proves nothing was lost and nothing
   counted twice. A reconciliation over the raw layer measures this after every run.
 
+![Reconciliation of one live hour on 2026-09-11: the WebSocket feed's timeline with a 9m 35s recorded gap shaded, then trade counts by bucket: both 132,823, backfill_only inside the gap 13,576, backfill_only outside it 1, ws_only 0](docs/img/recon-2026-09-11.svg)
+
+One live hour, reconciled: every trade the feed saw is in the archive (`ws_only = 0`), and
+the archive-only trades sit inside the recorded disconnect, bar one 534 ms past its end
+([spike report](docs/spikes/2026-09-11-qnt466-g3-live-replay.md), chart by
+[`scripts/recon_chart.py`](scripts/recon_chart.py)).
+
 The feed is real volume (about 17 trades/s across five markets). Nothing runs 24/7: a session
 is `terraform apply`, work, `destroy`, with a reaper that kills forgotten sessions.
 
@@ -91,10 +98,12 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
   `ws_only = 0`, `both = 132,823`, `backfill_only = 13,577`, all but one inside the recorded
   disconnect gap. The residual is a trade 534 ms past the gap end, documented in the
   [spike report](docs/spikes/2026-09-11-qnt466-g3-live-replay.md).
-- **Exactly-once on a real day.** In the 2026-09-12 demo session, bronze held 2,197 feed rows
-  for one coin and day; silver held 2,157 rows with 2,157 distinct `tid`, the 40 duplicates
-  resolved by the merge. Queries: [`bronze.sql`](docs/queries/bronze.sql) ·
-  [`silver.sql`](docs/queries/silver.sql) · [`gold.sql`](docs/queries/gold.sql).
+- **Exactly-once on a real day.** On the 2026-09-29 session day, bronze holds 58,926 BTC rows
+  but only 40,297 distinct `tid`: 18,629 trades arrived from both the feed and the archive.
+  Silver holds 40,297 rows, one per trade. Neither source repeated a `tid` on its own that
+  day, so every duplicate the merge removes is a feed/archive overlap. Queries:
+  [`bronze.sql`](docs/queries/bronze.sql) · [`silver.sql`](docs/queries/silver.sql) ·
+  [`gold.sql`](docs/queries/gold.sql).
 - **Daily data quality is reported**, not just tested: `gold.dq_daily` for 2026-09-10 counts
   867,681 backfill rows across five coins, matching silver exactly, with no duplicates and no
   gap minutes (no live session that day). The roughly 28-hour median archive lag (Athena's
@@ -141,6 +150,21 @@ Every silver, gold, recon and quality column is described, enforced by
 - Backfill is plain-Python Lambda, no Glue Spark.
 - No NAT Gateway, MWAA, MSK, OpenSearch or QuickSight.
 - No long-lived AWS keys: GitHub Actions assumes a role over OIDC, and CI runs with none.
+
+## Not in scope at this scale
+
+Left out on purpose, not overlooked:
+
+- **Separate dev and prod environments.** Sessions are ephemeral and rebuilt from Terraform,
+  so a second always-present environment would double idle cost for no isolation gain.
+- **Lake Formation and column-level access.** The data is public market data with one reader;
+  bucket and role IAM is the whole access model.
+- **Capacity planning.** About 17 trades/s sits far inside on-demand Kinesis, Firehose and
+  Lambda limits; nothing is provisioned to size.
+- **A schema registry.** One producer owns one envelope, and upstream drift lands as nulls
+  with the raw payload kept, so there is no consumer contract to negotiate.
+- **Paging and alert routing.** Nothing runs 24/7, so there is no service to page for; GitHub's
+  default failure emails reach the owner when a workflow fails.
 
 ## Cost
 
