@@ -1,4 +1,4 @@
-.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check portfolio-lint dbt-build dbt-docs dbt-demo-fail cost-backfill cost-report tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down audit-teardown recon heal bronze-query
+.PHONY: check lint format types test audit tf-check docs-check demo-runbook-check portfolio-lint dbt-build dbt-docs dbt-demo-fail cost-backfill cost-report tf-apply-persistent tf-destroy-persistent build-backfill-lambda tf-apply-ephemeral tf-destroy-ephemeral backfill-hour backfill-fallback backfill dbt-run dbt-run-day iceberg-maintain tf-drift-check ingester-start ingester-stop session-up session-down audit-teardown recon heal bronze-query
 
 # Everything ci.yml runs, in order, the local sanity gate (workflow-profile.yaml verify.*).
 check: lint format types test audit dbt-build tf-check portfolio-lint
@@ -101,6 +101,10 @@ backfill:
 # ARGS forwards extra workflow_dispatch inputs, e.g. `make dbt-run ARGS="-f select=trades"`.
 dbt-run:
 	./scripts/gh_run.sh "dbt-run-$$(date +%s)-$$$$" $(ARGS)
+
+# dbt-run for one backfilled day: computes silver_lookback_days and the freshness window.
+dbt-run-day:
+	uv run python -m scripts.dbt_run_day $(DAY)
 
 # QNT-454: Athena OPTIMIZE + VACUUM on every Iceberg table (silver, and gold once it exists).
 iceberg-maintain:

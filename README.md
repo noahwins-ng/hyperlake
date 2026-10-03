@@ -135,9 +135,8 @@ the next day ([`costs/sessions.csv`](costs/sessions.csv)). The table below is ge
 |---|---|
 | Average session cost | $0.14 |
 | Highest session cost | $0.76 |
-| Idle cost (highest month, Cost Explorer) | $1.16/month |
+| Idle, highest month (includes development days) | $1.16/month |
 | Target ceiling | < $2/session, < $2/month idle |
-| Cost Explorer reconciliation gap | $1.16 (full detail: [docs/costs.md](docs/costs.md)) |
 <!-- COST_REPORT:END -->
 
 Idle costs about $0.25/month in steady state; September's $1.16 is mostly development on days
@@ -166,8 +165,8 @@ cd infra/bootstrap && terraform init && terraform apply   # one-time per AWS acc
 # wire infra/main/backend.hcl from the bootstrap outputs (see the bootstrap guide)
 make tf-apply-persistent
 make tf-apply-ephemeral
-make backfill FROM=<day> TO=<day>                         # e.g. 2026-09-10; <N> below = days from <day> to today, plus 1
-make dbt-run ARGS="-f vars='{\"silver_lookback_days\": <N>, \"freshness_window_start\": \"<day> 00:00:00\", \"freshness_window_end\": \"<day+1> 01:00:00\"}'"
+make backfill FROM=<day> TO=<day>                         # e.g. 2026-09-10
+make dbt-run-day DAY=<day>                                # builds silver/gold for that day
 ```
 
 **Verify.** `make bronze-query DT_FROM=<day>` for the day's bronze rows, then the exactly-once
