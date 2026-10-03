@@ -13,24 +13,29 @@ Market data only. No trading, signals, or execution anywhere.
 
 ## Why this exists
 
-Hyperliquid publishes the same trades twice. A WebSocket feed is live but loses whatever
-happens during a disconnect; an S3 archive is complete but about an hour late. Taking both
-means landing them in one table and proving that nothing was lost and nothing counted twice.
+Hyperliquid publishes the same trades twice:
 
-**The proof is the point.** A reconciliation over the raw layer names every trade one path saw
-and the other did not, so exactly-once is measured after every run, not assumed. The feed is
-real volume (about 17 trades/s across five markets), and nothing runs 24/7: a session is
-`terraform apply`, work, `destroy`, with a reaper that kills forgotten sessions.
+- **The WebSocket feed** is live, but loses whatever happens during a disconnect.
+- **The S3 archive** is complete, but lands about an hour late.
+- **Hyperlake takes both**, lands them in one table, and proves nothing was lost and nothing
+  counted twice. A reconciliation over the raw layer measures this after every run.
+
+The feed is real volume (about 17 trades/s across five markets). Nothing runs 24/7: a session
+is `terraform apply`, work, `destroy`, with a reaper that kills forgotten sessions.
 
 ## Architecture
 
-**Bronze** is the raw, append-only record of everything either source delivered, duplicates
-included. **Silver** is the cleaned table with one row per trade. **Gold** holds ready-to-query
-summaries such as one-minute candles and daily volume. Together they form a lakehouse:
-warehouse-style tables kept as plain files in S3 and queried in place.
+Data lands in three layers:
 
-Both paths write the same envelope into one bronze table. dbt, run from GitHub Actions over
-OIDC rather than from AWS, is the only writer for silver and gold.
+- **Bronze:** the raw, append-only record of everything either source delivered, duplicates
+  included.
+- **Silver:** the cleaned table with one row per trade.
+- **Gold:** ready-to-query summaries such as one-minute candles and daily volume.
+
+Together they form a lakehouse: warehouse-style tables kept as plain files in S3 and queried
+in place.
+
+dbt, run from GitHub Actions rather than from AWS, is the only writer for silver and gold.
 
 ```mermaid
 flowchart LR
@@ -93,7 +98,12 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
 - **$0.14 average session cost** over 12 finalized sessions, against a $2 ceiling
   ([Cost](#cost)).
 
+<details>
+<summary>dbt lineage graph</summary>
+
 ![dbt docs lineage graph: bronze.trades_raw feeding silver trades, which feeds the gold OHLCV/volume/liquidations marts and their tests, and bronze.trades_raw feeding recon_trades](docs/img/dbt-lineage.png)
+
+</details>
 
 Every silver, gold and recon column is described, enforced by
 [a pytest over `manifest.json`](tests/test_dbt_docs_columns_described.py).
@@ -108,9 +118,12 @@ Every silver, gold and recon column is described, enforced by
 | Kinesis + Firehose | Direct Fargate to S3 | Firehose owns buffering and Parquet conversion | [004](docs/decisions/ADR-004-kinesis-firehose-over-direct-write.md) |
 | Official node archive, `tid` as identity | Third-party archive as primary | Identity gate passed 1,986/1,986 before the schema froze | [005](docs/decisions/ADR-005-backfill-source-and-trade-identity.md) |
 
-**Guardrails.** One Iceberg writer (only dbt-athena). Backfill is plain-Python Lambda, no Glue
-Spark. No NAT Gateway, MWAA, MSK, OpenSearch or QuickSight. No long-lived AWS keys: GitHub
-Actions assumes a role over OIDC, and CI runs with none.
+**Guardrails:**
+
+- One Iceberg writer: only dbt-athena.
+- Backfill is plain-Python Lambda, no Glue Spark.
+- No NAT Gateway, MWAA, MSK, OpenSearch or QuickSight.
+- No long-lived AWS keys: GitHub Actions assumes a role over OIDC, and CI runs with none.
 
 ## Cost
 
