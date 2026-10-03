@@ -120,7 +120,7 @@ scale and with no new AWS services. Added by scope change 2026-10-03.
 - [x] QNT-487: feat(dbt): daily data-quality mart with a stated freshness target
 - [x] QNT-488: feat(dbt): measure archive-vs-feed corrections and prove a late correction reaches gold
 - [x] QNT-489: docs(readme): reconciliation result visual and a "not in scope at this scale" list
-- [ ] QNT-491: chore(ops): measured recovery drill, rebuild silver and gold from bronze
+- [x] QNT-491: chore(ops): measured recovery drill, rebuild silver and gold from bronze
 
 ### Ops & Reliability  <!-- perpetual milestone: hardening that cuts across phases -->
 
