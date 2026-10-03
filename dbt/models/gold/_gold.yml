@@ -155,3 +155,39 @@ models:
     tests:
       - unique:
           column_name: "coin || '|' || cast(day as varchar)"
+
+unit_tests:
+  # Pins dq_daily's arithmetic on fixed rows (duckdb only: the merge config and the median
+  # function are the athena side of the seam, proven by the real dbt-run). BTC 2026-02-01:
+  # 5 ws rows (tid 1 twice) + 3 backfill rows = 8 rows, 7 distinct (source, tid), so
+  # duplicate_rate 1/8; tid 1 in both sources is overlap, not duplication. Backfill lags
+  # 60/120/600 s, median 120. Gap minutes: BTC's own 5-minute gap plus the 10 minutes of the
+  # coin-less gap that fall after midnight; the other 10 count toward 2026-01-31, and ETH's
+  # 30-minute gap counts only toward ETH.
+  - name: dq_daily_metric_arithmetic
+    model: dq_daily
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    given:
+      - input: source('bronze', 'trades_raw')
+        rows:
+          - {tid: 1, coin: BTC, source: ws, time: "2026-02-01 10:00:00+00", ingested_at: "2026-02-01 10:00:01+00"}
+          - {tid: 1, coin: BTC, source: ws, time: "2026-02-01 10:00:00+00", ingested_at: "2026-02-01 10:00:02+00"}
+          - {tid: 2, coin: BTC, source: ws, time: "2026-02-01 11:00:00+00", ingested_at: "2026-02-01 11:00:01+00"}
+          - {tid: 3, coin: BTC, source: ws, time: "2026-02-01 12:00:00+00", ingested_at: "2026-02-01 12:00:01+00"}
+          - {tid: 4, coin: BTC, source: ws, time: "2026-02-01 13:00:00+00", ingested_at: "2026-02-01 13:00:01+00"}
+          - {tid: 1, coin: BTC, source: backfill, time: "2026-02-01 10:00:00+00", ingested_at: "2026-02-01 10:01:00+00"}
+          - {tid: 2, coin: BTC, source: backfill, time: "2026-02-01 11:00:00+00", ingested_at: "2026-02-01 11:02:00+00"}
+          - {tid: 3, coin: BTC, source: backfill, time: "2026-02-01 12:00:00+00", ingested_at: "2026-02-01 12:10:00+00"}
+          - {tid: 5, coin: BTC, source: backfill, time: "2026-01-31 23:59:00+00", ingested_at: "2026-01-31 23:59:30+00"}
+          - {tid: 10, coin: ETH, source: ws, time: "2026-02-01 12:00:00+00", ingested_at: "2026-02-01 12:00:01+00"}
+      - input: ref('session_gaps')
+        rows:
+          - {session_id: s1, coin: BTC, gap_start: "2026-02-01 10:00:00", gap_end: "2026-02-01 10:05:00"}
+          - {session_id: s1, coin: null, gap_start: "2026-01-31 23:50:00", gap_end: "2026-02-01 00:10:00"}
+          - {session_id: s1, coin: ETH, gap_start: "2026-02-01 12:00:00", gap_end: "2026-02-01 12:30:00"}
+    expect:
+      rows:
+        - {dt: "2026-01-31", coin: BTC, ws_rows: 0, backfill_rows: 1, duplicate_rate: 0.0, gap_minutes: 10.0, median_archive_lag_seconds: 30.0}
+        - {dt: "2026-02-01", coin: BTC, ws_rows: 5, backfill_rows: 3, duplicate_rate: 0.125, gap_minutes: 15.0, median_archive_lag_seconds: 120.0}
+        - {dt: "2026-02-01", coin: ETH, ws_rows: 1, backfill_rows: 0, duplicate_rate: 0.0, gap_minutes: 40.0, median_archive_lag_seconds: null}
