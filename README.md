@@ -95,7 +95,7 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
   for one coin and day; silver held 2,157 rows with 2,157 distinct `tid`, the 40 duplicates
   resolved by the merge. Queries: [`bronze.sql`](docs/queries/bronze.sql) ·
   [`silver.sql`](docs/queries/silver.sql) · [`gold.sql`](docs/queries/gold.sql).
-- **$0.14 average session cost** over 12 finalized sessions, against a $2 ceiling
+- **$0.18 average session cost** over 13 finalized sessions, against a $2 ceiling
   ([Cost](#cost)).
 
 <details>
@@ -133,13 +133,13 @@ the next day ([`costs/sessions.csv`](costs/sessions.csv)). The table below is ge
 <!-- COST_REPORT:START -->
 | | |
 |---|---|
-| Average session cost | $0.14 |
+| Average session cost | $0.18 |
 | Highest session cost | $0.76 |
-| Idle, highest month (includes development days) | $1.16/month |
+| Idle, highest month (includes development days) | $1.39/month |
 | Target ceiling | < $2/session, < $2/month idle |
 <!-- COST_REPORT:END -->
 
-Idle costs about $0.25/month in steady state; September's $1.16 is mostly development on days
+Idle costs about $0.25/month in steady state; September's $1.39 is mostly development on days
 with no session. A one-day backfill is under $0.01 of Lambda compute. Running the stream 24×7
 would cost an estimated $50 to $100/month, mostly Kinesis's hourly charge, which is why it is
 torn down between sessions ([model](costs/README.md#what-247-would-cost), never run).
