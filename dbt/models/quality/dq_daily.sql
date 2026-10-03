@@ -48,11 +48,11 @@ gaps as (
         p.coin,
         sum(
             date_diff(
-                'second',
+                'millisecond',
                 greatest(g.gap_start, cast(p.dt as timestamp)),
                 least(g.gap_end, cast(p.dt as timestamp) + interval '1' day)
             )
-        ) as gap_seconds
+        ) as gap_ms
     from per_day as p
     inner join {{ ref('session_gaps') }} as g
         on
@@ -69,7 +69,7 @@ select
     p.ws_rows,
     p.backfill_rows,
     cast(p.bronze_rows - p.distinct_source_tids as double) / p.bronze_rows as duplicate_rate,
-    cast(coalesce(g.gap_seconds, 0) as double) / 60 as gap_minutes,
+    cast(coalesce(g.gap_ms, 0) as double) / 60000 as gap_minutes,
     p.median_archive_lag_seconds
 from per_day as p
 left join gaps as g on p.dt = g.dt and p.coin = g.coin

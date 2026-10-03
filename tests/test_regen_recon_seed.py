@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 from hyperlake.session import write_manifest
-from scripts.regen_recon_seed import regenerate_seed
+from scripts.regen_recon_seed import append_all_session_gaps, regenerate_seed
 
 
 def _manifest(sessions_dir: Path, session_id: str, gaps: list[dict]) -> None:
@@ -141,3 +141,28 @@ def test_hip3_gap_coin_is_written_as_its_partition_value(tmp_path):
     regenerate_seed(json.dumps({"recon_session_id": "qnt-480-verify"}), sessions_dir, seed_path)
 
     assert [r["coin"] for r in csv.DictReader(seed_path.open())] == ["xyz_SP500"]
+
+
+def test_non_recon_build_appends_every_sessions_gaps_to_the_fixture_seed(tmp_path):
+    # dq_daily reports gap minutes for every session day, so a plain dbt-run must load every
+    # committed manifest's gaps, not only the fixture rows a recon dispatch would replace.
+    sessions_dir = tmp_path / "sessions"
+    seed_path = tmp_path / "session_gaps.csv"
+    seed_path.write_text("session_id,coin,gap_start,gap_end\nrecon-fixture-gap,,x,y\n")
+    _manifest(
+        sessions_dir,
+        "s-a",
+        [{"coin": "xyz:SP500", "start": "2026-09-29T13:32:06Z", "end": "2026-09-29T13:32:42Z"}],
+    )
+    _manifest(sessions_dir, "s-b", [{"start": "2026-09-11T10:00:00Z", "end": "2026-09-11T10:05:00Z"}])
+    _manifest(sessions_dir, "s-c", [])
+
+    appended = append_all_session_gaps(sessions_dir, seed_path)
+
+    assert appended == 2
+    rows = list(csv.DictReader(seed_path.open()))
+    assert [(r["session_id"], r["coin"], r["gap_start"]) for r in rows] == [
+        ("recon-fixture-gap", "", "x"),
+        ("s-a", "xyz_SP500", "2026-09-29T13:32:06Z"),
+        ("s-b", "", "2026-09-11T10:00:00Z"),
+    ]
