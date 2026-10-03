@@ -80,8 +80,7 @@ this project's scale and with no new AWS services (scope change 2026-10-03).
 
 - **Data-quality mart**: `dq_daily` per `(dt, coin)` with duplicate rate, gap minutes and archive arrival lag, plus a stated freshness target. *Why:* quality is tested pass/fail but never reported.
 - **Correction handling made visible**: count archive-vs-feed corrections and prove a late correction reaches gold. *Why:* late-arriving data is the core of the design (ADR-005) and is only described in prose.
-- **Reconciliation visual and a "not in scope at this scale" list in the README**. *Why:* G6; the headline result needs a visual, and deliberately skipped practices should read as choices.
-- **Failure issues for unattended workflows**: a failed `tf-drift-check` or `dbt-run` opens a GitHub issue. *Why:* scheduled runs have no triggering human to receive GitHub's default failure email.
+- **Reconciliation visual and a "not in scope at this scale" list in the README**, including paging and alert routing (a failure-issue ticket, QNT-490, was dropped 2026-10-03: GitHub already emails the owner on failure, and no 24x7 service exists). *Why:* G6; the headline result needs a visual, and deliberately skipped practices should read as choices.
 - **Recovery drill**: rebuild silver and gold from bronze once, measured, and documented. *Why:* bronze-as-source-of-truth (ADR-003) was used under pressure in QNT-482 but never drilled.
 
 ## Ops & Reliability (perpetual)
