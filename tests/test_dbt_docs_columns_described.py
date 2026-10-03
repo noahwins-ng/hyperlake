@@ -1,4 +1,4 @@
-"""QNT-470 AC2: every silver/gold/recon column carries a non-empty description --
+"""QNT-470 AC2: every silver/gold/recon/quality column carries a non-empty description --
 proven over `dbt docs generate`'s manifest.json output (ci.yml's "dbt docs generate
 (duckdb)" step runs the same command on every push to main).
 """
@@ -10,7 +10,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DBT_DIR = REPO_ROOT / "dbt"
 
-_DESCRIBED_PATH_PREFIXES = ("silver/", "gold/", "recon/")
+_DESCRIBED_PATH_PREFIXES = ("silver/", "gold/", "recon/", "quality/")
 
 
 def _manifest() -> dict:

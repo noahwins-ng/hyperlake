@@ -117,7 +117,7 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
 
 </details>
 
-Every silver, gold and recon column is described, enforced by
+Every silver, gold, recon and quality column is described, enforced by
 [a pytest over `manifest.json`](tests/test_dbt_docs_columns_described.py).
 
 ## Design decisions

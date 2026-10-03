@@ -70,7 +70,7 @@ STREAMING (session-scoped, make session-up ... make session-down)               
                        manifest gaps seeded in), proves G3 (ADR-003), QNT-460
       silver → GOLD   ohlcv_1m/1h/1d · volume_daily · liquidations_daily (backfill-only), OHLCV
                        invariant tests; built only if silver's contract tests pass, QNT-463
-      bronze → GOLD   dq_daily (per dt/coin: rows per source, within-source duplicate rate,
+      bronze → GOLD   models/quality/dq_daily (per dt/coin: rows per source, within-source duplicate rate,
                        gap minutes, median archive lag), QNT-487
       make heal SESSION=<id>  gap → covering hour list (+H+1) → not-landed check → re-run backfill
                        Map over just those hours → re-run dbt-run → re-run recon → flip healed:true
