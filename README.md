@@ -24,10 +24,15 @@ real volume (about 17 trades/s across five markets), and nothing runs 24/7: a se
 
 ## Architecture
 
-**Bronze** is the raw, append-only record of everything either source delivered, duplicates
-included. **Silver** is the cleaned table with one row per trade. **Gold** holds ready-to-query
-summaries such as one-minute candles and daily volume. Together they form a lakehouse:
-warehouse-style tables kept as plain files in S3 and queried in place.
+Data lands in three layers:
+
+- **Bronze:** the raw, append-only record of everything either source delivered, duplicates
+  included.
+- **Silver:** the cleaned table with one row per trade.
+- **Gold:** ready-to-query summaries such as one-minute candles and daily volume.
+
+Together they form a lakehouse: warehouse-style tables kept as plain files in S3 and queried
+in place.
 
 Both paths write the same envelope into one bronze table. dbt, run from GitHub Actions over
 OIDC rather than from AWS, is the only writer for silver and gold.
