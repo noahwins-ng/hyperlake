@@ -97,16 +97,16 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
   [`silver.sql`](docs/queries/silver.sql) · [`gold.sql`](docs/queries/gold.sql).
 - **Daily data quality is reported**, not just tested: `gold.dq_daily` for 2026-09-10 counts
   867,681 backfill rows across five coins, matching silver exactly, with no duplicates and no
-  gap minutes (no live session that day). The 28-hour median archive lag is when that day was
-  backfilled, not archive delay.
+  gap minutes (no live session that day). The roughly 28-hour median archive lag (Athena's approximate
+  median) is when that day was backfilled, not archive delay.
 
   | coin | ws_rows | backfill_rows | duplicate_rate | gap_minutes | median_archive_lag_seconds |
   |---|---|---|---|---|---|
-  | BTC | 0 | 309,250 | 0.0 | 0.0 | 105,206 |
-  | ETH | 0 | 140,830 | 0.0 | 0.0 | 104,112 |
-  | HYPE | 0 | 330,967 | 0.0 | 0.0 | 101,545 |
-  | xyz_SP500 | 0 | 45,111 | 0.0 | 0.0 | 100,349 |
-  | xyz_XYZ100 | 0 | 41,523 | 0.0 | 0.0 | 102,635 |
+  | BTC | 0 | 309,250 | 0.0 | 0.0 | 105,075 |
+  | ETH | 0 | 140,830 | 0.0 | 0.0 | 104,029 |
+  | HYPE | 0 | 330,967 | 0.0 | 0.0 | 101,544 |
+  | xyz_SP500 | 0 | 45,111 | 0.0 | 0.0 | 100,171 |
+  | xyz_XYZ100 | 0 | 41,523 | 0.0 | 0.0 | 102,720 |
 - **$0.18 average session cost** over 13 finalized sessions, against a $2 ceiling
   ([Cost](#cost)).
 
