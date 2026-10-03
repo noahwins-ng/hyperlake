@@ -12,9 +12,10 @@ sources:
           duplicate `tid`s across `ws`/`backfill` sources to prove the dedup.
           `make dbt-demo-fail` points this at
           bronze_trades_demo_fail.parquet instead -- the same fixture plus one row with an
-          invalid `side` ('X'), to show the red test + gold SKIP live.
+          invalid `side` ('X'), to show the red test + gold SKIP live. `var('bronze_fixture')`
+          overrides the path outright (tests/test_late_correction.py).
         meta:
-          external_location: "{{ 'fixtures/bronze_trades_demo_fail.parquet' if var('dbt_demo_fail', false) else 'fixtures/bronze_trades_sample.parquet' }}"
+          external_location: "{{ var('bronze_fixture', 'fixtures/bronze_trades_demo_fail.parquet' if var('dbt_demo_fail', false) else 'fixtures/bronze_trades_sample.parquet') }}"
 
 models:
   - name: trades

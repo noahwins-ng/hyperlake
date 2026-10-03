@@ -34,6 +34,10 @@ models:
           - not_null
       - name: median_archive_lag_seconds
         description: Median seconds from exchange `time` to `ingested_at` over the day's backfill rows; null with no backfill rows. For a day backfilled after the fact this measures when the backfill ran, not the archive's own delay.
+      - name: corrected_trades
+        description: Trades held by both sources whose archive row differs from a feed row on `px`, `sz` or `side` (ADR-005), so silver's merge replaced the feed value. Counted on the archive row's day and coin; 0 when the day has no such pair.
+        tests:
+          - not_null
     tests:
       - unique:
           column_name: "coin || '|' || cast(dt as varchar)"
@@ -45,7 +49,8 @@ unit_tests:
   # duplicate_rate 1/8; tid 1 in both sources is overlap, not duplication. Backfill lags
   # 60/120/600 s, median 120. Gap minutes: BTC's own 5-minute gap plus the 10 minutes of the
   # coin-less gap that fall after midnight; the other 10 count toward 2026-01-31, and ETH's
-  # 30-minute gap counts only toward ETH.
+  # 30-minute gap counts only toward ETH. Corrections: tid 1 is an identical pair (the ws
+  # duplicate included), tid 2 differs on px and tid 3 on sz, so BTC 2026-02-01 has 2.
   - name: dq_daily_metric_arithmetic
     model: dq_daily
     config:
@@ -57,17 +62,17 @@ unit_tests:
         rows: |
           select *
           from (values
-              (1, 'BTC', 'ws', timestamptz '2026-02-01 10:00:00+00', timestamptz '2026-02-01 10:00:01+00'),
-              (1, 'BTC', 'ws', timestamptz '2026-02-01 10:00:00+00', timestamptz '2026-02-01 10:00:02+00'),
-              (2, 'BTC', 'ws', timestamptz '2026-02-01 11:00:00+00', timestamptz '2026-02-01 11:00:01+00'),
-              (3, 'BTC', 'ws', timestamptz '2026-02-01 12:00:00+00', timestamptz '2026-02-01 12:00:01+00'),
-              (4, 'BTC', 'ws', timestamptz '2026-02-01 13:00:00+00', timestamptz '2026-02-01 13:00:01+00'),
-              (1, 'BTC', 'backfill', timestamptz '2026-02-01 10:00:00+00', timestamptz '2026-02-01 10:01:00+00'),
-              (2, 'BTC', 'backfill', timestamptz '2026-02-01 11:00:00+00', timestamptz '2026-02-01 11:02:00+00'),
-              (3, 'BTC', 'backfill', timestamptz '2026-02-01 12:00:00+00', timestamptz '2026-02-01 12:10:00+00'),
-              (5, 'BTC', 'backfill', timestamptz '2026-01-31 23:59:00+00', timestamptz '2026-01-31 23:59:30+00'),
-              (10, 'ETH', 'ws', timestamptz '2026-02-01 12:00:00+00', timestamptz '2026-02-01 12:00:01+00')
-          ) as t (tid, coin, source, time, ingested_at)
+              (1, 'BTC', 'ws', timestamptz '2026-02-01 10:00:00+00', timestamptz '2026-02-01 10:00:01+00', 100.0, 1.0, 'B'),
+              (1, 'BTC', 'ws', timestamptz '2026-02-01 10:00:00+00', timestamptz '2026-02-01 10:00:02+00', 100.0, 1.0, 'B'),
+              (2, 'BTC', 'ws', timestamptz '2026-02-01 11:00:00+00', timestamptz '2026-02-01 11:00:01+00', 101.0, 1.0, 'A'),
+              (3, 'BTC', 'ws', timestamptz '2026-02-01 12:00:00+00', timestamptz '2026-02-01 12:00:01+00', 102.0, 1.0, 'B'),
+              (4, 'BTC', 'ws', timestamptz '2026-02-01 13:00:00+00', timestamptz '2026-02-01 13:00:01+00', 103.0, 1.0, 'A'),
+              (1, 'BTC', 'backfill', timestamptz '2026-02-01 10:00:00+00', timestamptz '2026-02-01 10:01:00+00', 100.0, 1.0, 'B'),
+              (2, 'BTC', 'backfill', timestamptz '2026-02-01 11:00:00+00', timestamptz '2026-02-01 11:02:00+00', 101.5, 1.0, 'A'),
+              (3, 'BTC', 'backfill', timestamptz '2026-02-01 12:00:00+00', timestamptz '2026-02-01 12:10:00+00', 102.0, 2.0, 'B'),
+              (5, 'BTC', 'backfill', timestamptz '2026-01-31 23:59:00+00', timestamptz '2026-01-31 23:59:30+00', 99.0, 1.0, 'A'),
+              (10, 'ETH', 'ws', timestamptz '2026-02-01 12:00:00+00', timestamptz '2026-02-01 12:00:01+00', 50.0, 1.0, 'B')
+          ) as t (tid, coin, source, time, ingested_at, px, sz, side)
       - input: ref('session_gaps')
         rows:
           - {session_id: s1, coin: BTC, gap_start: "2026-02-01 10:00:00", gap_end: "2026-02-01 10:05:00"}
@@ -75,6 +80,6 @@ unit_tests:
           - {session_id: s1, coin: ETH, gap_start: "2026-02-01 12:00:00", gap_end: "2026-02-01 12:30:00"}
     expect:
       rows:
-        - {dt: "2026-01-31", coin: BTC, ws_rows: 0, backfill_rows: 1, duplicate_rate: 0.0, gap_minutes: 10.0, median_archive_lag_seconds: 30.0}
-        - {dt: "2026-02-01", coin: BTC, ws_rows: 5, backfill_rows: 3, duplicate_rate: 0.125, gap_minutes: 15.0, median_archive_lag_seconds: 120.0}
-        - {dt: "2026-02-01", coin: ETH, ws_rows: 1, backfill_rows: 0, duplicate_rate: 0.0, gap_minutes: 40.0, median_archive_lag_seconds: null}
+        - {dt: "2026-01-31", coin: BTC, ws_rows: 0, backfill_rows: 1, duplicate_rate: 0.0, gap_minutes: 10.0, median_archive_lag_seconds: 30.0, corrected_trades: 0}
+        - {dt: "2026-02-01", coin: BTC, ws_rows: 5, backfill_rows: 3, duplicate_rate: 0.125, gap_minutes: 15.0, median_archive_lag_seconds: 120.0, corrected_trades: 2}
+        - {dt: "2026-02-01", coin: ETH, ws_rows: 1, backfill_rows: 0, duplicate_rate: 0.0, gap_minutes: 40.0, median_archive_lag_seconds: null, corrected_trades: 0}

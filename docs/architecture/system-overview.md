@@ -71,7 +71,7 @@ STREAMING (session-scoped, make session-up ... make session-down)               
       silver → GOLD   ohlcv_1m/1h/1d · volume_daily · liquidations_daily (backfill-only), OHLCV
                        invariant tests; built only if silver's contract tests pass, QNT-463
       bronze → GOLD   models/quality/dq_daily (per dt/coin: rows per source, within-source duplicate rate,
-                       gap minutes, median archive lag), QNT-487
+                       gap minutes, median archive lag, archive-vs-feed corrections), QNT-487/488
       make heal SESSION=<id>  gap → covering hour list (+H+1) → not-landed check → re-run backfill
                        Map over just those hours → re-run dbt-run → re-run recon → flip healed:true
                        → commit manifest (QNT-461); QNT-466 proved the full stream→heal→recon cycle
@@ -185,7 +185,9 @@ costs/            sessions.csv log (cost_estimate_usd / cost_actual_usd / cost_s
   `liquidations_daily` (backfill-only by construction), derived from silver, windowed on event
   `time`. OHLCV invariant tests (`low ≤ open, close ≤ high`; candle volume = sum of trade `sz`).
   `dq_daily` reads bronze instead: per event day and coin, rows per source, within-source
-  duplicate rate, gap minutes from `session_gaps`, median archive arrival lag (QNT-487).
+  duplicate rate, gap minutes from `session_gaps`, median archive arrival lag (QNT-487), and
+  `corrected_trades`, trades whose archive row differs from the feed row on price, size or side
+  (QNT-488; `tests/test_late_correction.py` proves such a correction reaches `ohlcv_1m`).
 - **seam_test** (Glue db, declared in Terraform + imported, QNT-477), dbt-athena fixture schema for
   the seam test; a handful of rows proving the silver merge behaviour on real Athena, not duckdb.
 

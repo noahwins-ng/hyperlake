@@ -100,6 +100,10 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
   gap minutes (no live session that day). The roughly 28-hour median archive lag (Athena's
   approximate median) is when that day was backfilled, not archive delay. On the 2026-09-29
   session day it reports each coin's recorded WebSocket gap, 0.55 to 0.99 minutes.
+  `corrected_trades` counts trades whose archive row changed the feed's price, size or side:
+  0 on all three session days with both sources (51,886 shared trades on 2026-09-29 alone),
+  so the merge's archive precedence has never had to fix a feed value. A fixture test proves
+  that if it did, the archive price would reach silver and the `ohlcv_1m` candle.
 
   | coin | ws_rows | backfill_rows | duplicate_rate | gap_minutes | median_archive_lag_seconds |
   |---|---|---|---|---|---|
