@@ -112,6 +112,17 @@ Goal: a hiring manager can absorb the project in ten minutes; a stranger can rep
   - proof image replaced by the runbook's measured bronze/silver/gold outputs (qnt-468, 2026-09-12);
     cost report regenerated with qnt-468's actual (12/12 sessions final, avg $0.30)
 
+### Phase 5: Production readiness
+
+Goal: the pipeline measures and reports its own quality and is shown to recover from loss, at this
+scale and with no new AWS services. Added by scope change 2026-10-03.
+
+- [ ] QNT-487: feat(dbt): daily data-quality mart with a stated freshness target
+- [ ] QNT-488: feat(dbt): measure archive-vs-feed corrections and prove a late correction reaches gold
+- [ ] QNT-489: docs(readme): reconciliation result visual and a "not in scope at this scale" list
+- [ ] QNT-490: feat(ci): open a GitHub issue when a scheduled or dbt-run workflow fails
+- [ ] QNT-491: chore(ops): measured recovery drill, rebuild silver and gold from bronze
+
 ### Ops & Reliability  <!-- perpetual milestone: hardening that cuts across phases -->
 
 - [x] QNT-471: chore(ops): post-destroy audit, list any live project=hyperlake billable resources and fail loudly
