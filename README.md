@@ -64,8 +64,9 @@ flowchart LR
     DBT --> SILVER[("silver.trades<br/>Iceberg, merge on tid")]
     DBT --> RECON[("recon_trades<br/>convergence check")]
     SILVER --> GOLD[("gold marts<br/>ohlcv_1m/1h/1d, volume_daily,<br/>liquidations_daily")]
+    DBT --> DQ[("dq_daily<br/>data-quality report")]
 
-    BRONZE --> ATHENA{{"Athena (cloud) /<br/>DuckDB (local + CI)"}}
+    BRONZE --> ATHENA{{"Athena"}}
     SILVER --> ATHENA
     GOLD --> ATHENA
 ```
@@ -91,43 +92,24 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
 
 ## Proof it works
 
-- **8m 53s from `terraform apply` to a queryable Athena result**, on a real 1-day backfill of
-  867,681 trades (2026-09-11, target 15 minutes;
-  [ops runbook](docs/guides/ops-runbook.md#g1-stranger-path-timing-bootstrap--backfill--athena-query-qnt-467-ac1)).
-- **Convergence.** One live clock hour was streamed, then backfilled from the archive:
-  `ws_only = 0`, `both = 132,823`, `backfill_only = 13,577`, all but one inside the recorded
-  disconnect gap. The residual is a trade 534 ms past the gap end, documented in the
-  [spike report](docs/spikes/2026-09-11-qnt466-g3-live-replay.md).
-- **Exactly-once on a real day.** On the 2026-09-29 session day, bronze holds 58,926 BTC rows
-  but only 40,297 distinct `tid`: 18,629 trades arrived from both the feed and the archive.
-  Silver holds 40,297 rows, one per trade. Neither source repeated a `tid` on its own that
-  day, so every duplicate the merge removes is a feed/archive overlap. Queries:
-  [`bronze.sql`](docs/queries/bronze.sql) · [`silver.sql`](docs/queries/silver.sql) ·
-  [`gold.sql`](docs/queries/gold.sql).
-- **Silver and gold rebuild from bronze.** A recovery drill on 2026-10-03 dropped silver and
-  recreated it from 29.5M bronze rows (2026-08-04 to 2026-09-29), then rebuilt all five gold
-  marts. Row counts matched before and after: 29,200,254 trades in silver, one per `tid`. It
-  took 2 min 12 s end to end and about $0.03 of Athena scan
-  ([runbook](docs/guides/ops-runbook.md#rebuild-silver-and-gold-from-bronze-measured-drill-qnt-491)).
-- **Daily data quality is reported**, not just tested: `gold.dq_daily` for 2026-09-10 counts
-  867,681 backfill rows across five coins, matching silver exactly, with no duplicates and no
-  gap minutes (no live session that day). The roughly 28-hour median archive lag (Athena's
-  approximate median) is when that day was backfilled, not archive delay. On the 2026-09-29
-  session day it reports each coin's recorded WebSocket gap, 0.55 to 0.99 minutes.
-  `corrected_trades` counts trades whose archive row changed the feed's price, size or side:
-  0 on all three session days with both sources (51,886 shared trades on 2026-09-29 alone),
-  so the merge's archive precedence has never had to fix a feed value. A fixture test proves
-  that if it did, the archive price would reach silver and the `ohlcv_1m` candle.
+Each claim links to the query, run or report behind it.
 
-  | coin | ws_rows | backfill_rows | duplicate_rate | gap_minutes | median_archive_lag_seconds |
-  |---|---|---|---|---|---|
-  | BTC | 0 | 309,250 | 0.0 | 0.0 | 105,035 |
-  | ETH | 0 | 140,830 | 0.0 | 0.0 | 104,101 |
-  | HYPE | 0 | 330,967 | 0.0 | 0.0 | 101,629 |
-  | xyz_SP500 | 0 | 45,111 | 0.0 | 0.0 | 100,286 |
-  | xyz_XYZ100 | 0 | 41,523 | 0.0 | 0.0 | 102,598 |
-- **$0.18 average session cost** over 13 finalized sessions, against a $2 ceiling
-  ([Cost](#cost)).
+- **Fresh account to a queryable Athena result in 8m 53s** (target 15 minutes), on a one-day
+  backfill of 867,681 trades
+  ([ops runbook](docs/guides/ops-runbook.md#g1-stranger-path-timing-bootstrap--backfill--athena-query-qnt-467-ac1)).
+- **Nothing lost:** the live hour charted above reconciles with `ws_only = 0`
+  ([spike report](docs/spikes/2026-09-11-qnt466-g3-live-replay.md)).
+- **Nothing counted twice:** on 2026-09-29, bronze holds 58,926 BTC rows for 40,297 distinct
+  `tid`; the 18,629 extra rows are trades both paths delivered. Silver holds exactly 40,297
+  ([`bronze.sql`](docs/queries/bronze.sql) · [`silver.sql`](docs/queries/silver.sql) ·
+  [`gold.sql`](docs/queries/gold.sql)).
+- **Rebuildable from bronze:** a drill dropped silver and rebuilt it and all five gold marts
+  from 29.5M bronze rows, with identical row counts, in 2 min 12 s for about $0.03
+  ([runbook](docs/guides/ops-runbook.md#rebuild-silver-and-gold-from-bronze-measured-drill-qnt-491)).
+- **Quality is measured daily:** `gold.dq_daily` reports rows per source, duplicate rate,
+  WebSocket gap minutes and archive lag for each coin. The archive has corrected a feed value
+  0 times across three session days; a fixture test proves a correction would reach the candles.
+- **$0.18 average session cost** over 13 sessions, against a $2 ceiling ([Cost](#cost)).
 
 <details>
 <summary>dbt lineage graph</summary>
