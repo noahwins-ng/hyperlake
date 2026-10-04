@@ -66,7 +66,7 @@ flowchart LR
     SILVER --> GOLD[("gold marts<br/>ohlcv_1m/1h/1d, volume_daily,<br/>liquidations_daily")]
     DBT --> DQ[("dq_daily<br/>data-quality report")]
 
-    BRONZE --> ATHENA{{"Athena"}}
+    BRONZE --> ATHENA{{"Athena (cloud)<br/>DuckDB in CI, on fixtures"}}
     SILVER --> ATHENA
     GOLD --> ATHENA
 ```
