@@ -188,7 +188,7 @@ torn down between sessions ([model](costs/README.md#what-247-would-cost), never 
 ## Testing and CI
 
 - **Offline CI on every PR** (`make check` mirrors it): ruff, pyright, pytest, pip-audit,
-  `dbt build --target duckdb` (86 models, seeds and tests), `terraform validate`, and a scan for
+  `dbt build --target duckdb` (every model, seed and test), `terraform validate`, and a scan for
   long-lived AWS keys. Zero cloud credentials.
 - **Athena seam test** on every PR that touches `dbt/`, the seam wiring or the dependency pins,
   and on every push to `main`: three merge-ordering cases against a real Iceberg table, in a
