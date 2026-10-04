@@ -104,6 +104,11 @@ Iceberg) · Glue, Athena, DuckDB · dbt · Terraform · GitHub Actions over OIDC
   day, so every duplicate the merge removes is a feed/archive overlap. Queries:
   [`bronze.sql`](docs/queries/bronze.sql) · [`silver.sql`](docs/queries/silver.sql) ·
   [`gold.sql`](docs/queries/gold.sql).
+- **Silver and gold rebuild from bronze.** A recovery drill on 2026-10-03 dropped silver and
+  recreated it from 29.5M bronze rows (2026-08-04 to 2026-09-29), then rebuilt all five gold
+  marts. Row counts matched before and after: 29,200,254 trades in silver, one per `tid`. It
+  took 2 min 12 s end to end and about $0.03 of Athena scan
+  ([runbook](docs/guides/ops-runbook.md#rebuild-silver-and-gold-from-bronze-measured-drill-qnt-491)).
 - **Daily data quality is reported**, not just tested: `gold.dq_daily` for 2026-09-10 counts
   867,681 backfill rows across five coins, matching silver exactly, with no duplicates and no
   gap minutes (no live session that day). The roughly 28-hour median archive lag (Athena's
