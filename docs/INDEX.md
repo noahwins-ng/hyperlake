@@ -22,3 +22,9 @@
 
 ## Retrospectives
 <!-- One per completed milestone; retro appends here. -->
+- [Phase 0, Scaffold](retros/phase-0-scaffold.md)
+- [Phase 1, Lakehouse](retros/phase-1-lakehouse.md)
+- [Phase 2, Streaming](retros/phase-2-streaming.md)
+- [Phase 3, Convergence](retros/phase-3-convergence.md)
+- [Phase 4, Presentation](retros/phase-4-presentation.md)
+- [Phase 5, Production readiness](retros/phase-5-production-readiness.md)

@@ -3,7 +3,7 @@
 How the system actually works *now*. Kept current by `change-scope` (on scope changes) and `retro`
 (against what actually shipped). If this drifts from reality it is worse than nothing.
 
-> **As of 2026-09-17 (Phase 4 complete, QNT-467..470/478 shipped, all five PRD phases now done):**
+> **As of 2026-10-04 (Phase 5 complete, QNT-487/488/489/491 shipped; phases 0-5 all done):**
 > both paths are live and converge. Batch, archive hour file → Lambda backfill (official reader,
 > Reservoir fallback on drift) → bronze Parquet → silver Iceberg via `dbt-run` over OIDC, queryable
 > in Athena. Streaming, Fargate ingester → Kinesis → Firehose → the same bronze table, under a
@@ -19,7 +19,11 @@ How the system actually works *now*. Kept current by `change-scope` (on scope ch
 > `docs/costs.md` + `costs/README.md` carry the cost reconciliation, and `dbt docs generate` runs in
 > CI with the lineage graph captured as a static screenshot (GitHub Pages from a private repo wasn't
 > available at the time; the repo is public as of 2026-09-17 but the static-screenshot approach
-> stuck). Remaining work is reactive only, the perpetual Ops & Reliability milestone.
+> stuck). Production readiness shipped: `dq_daily` reports per-day data quality (rows per source,
+> duplicate rate, gap minutes, archive lag, `corrected_trades`) against a stated 5-minute silver
+> freshness target, and silver plus gold were rebuilt from bronze in a measured drill (2 min 12 s,
+> about $0.03) through `dbt-run.yml`'s `full_refresh` input. Remaining work is reactive only, the
+> perpetual Ops & Reliability milestone.
 > The target design is in [`docs/prd.md`](../prd.md) §5; this file describes only what is deployed
 > or runnable today.
 
@@ -100,7 +104,7 @@ GitHub Actions
   ci.yml            on PR + push main, ZERO AWS creds: ruff · pyright · pytest · pip-audit
                      · dbt build --target duckdb · terraform fmt/validate · grep for long-lived AWS keys
                      (`make check` mirrors this exact step order for local runs)
-  dbt-run.yml        `build` job: workflow_dispatch (run_key, select, target), OIDC creds, 20-min
+  dbt-run.yml        `build` job: workflow_dispatch (run_key, select, target, full_refresh), OIDC creds, 20-min
                       timeout, uploads run_results.json, invoked by session-down, make heal, and
                       by hand (QNT-454). `seam` job: automatic on every push to main (also
                       dispatchable pre-merge via `-f job=seam`), runs the Athena seam test over
