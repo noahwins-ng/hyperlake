@@ -334,7 +334,10 @@ already gone), then rebuild silver and gold from bronze (next entry).
     55/55 nodes PASS).
   - **Cost:** 75 Athena queries in the run window scanned 5.87 GB → **≈ $0.03** at $5/TB
     (10 MB per-query minimum applied), from `batch-get-query-execution`
-    `DataScannedInBytes`; S3 request cost negligible. Well under the $2/session ceiling.
+    `DataScannedInBytes`. S3 requests are not split out: Cost Explorer is daily-only here, and
+    2026-10-03 also carried the rest of Phase 5's runs. By object count the drill wrote about 150
+    objects and read about 5,500 bronze files, under $0.01 in PUT and GET charges; partition
+    LIST calls are unmeasured. Well under the $2/session ceiling.
 
 ## `tf-drift-check` flags a `seam_test_pr<N>` database
 
