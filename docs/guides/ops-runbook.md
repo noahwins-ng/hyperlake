@@ -334,8 +334,8 @@ already gone), then rebuild silver and gold from bronze (next entry).
     55/55 nodes PASS).
   - **Cost:** 75 Athena queries in the run window scanned 5.87 GB → **≈ $0.03** at $5/TB
     (10 MB per-query minimum applied), from `batch-get-query-execution`
-    `DataScannedInBytes`. S3 requests were not measured separately; by object count, PUTs and GETs are
-    under $0.01.
+    `DataScannedInBytes`. S3 requests were not measured separately; by object count, PUTs
+    and GETs are under $0.01.
 
 ## `tf-drift-check` flags a `seam_test_pr<N>` database
 
