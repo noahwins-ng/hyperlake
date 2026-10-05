@@ -5,9 +5,9 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB.svg)](pyproject.toml)
 [![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.9-7B42BC.svg)](infra)
 
-Streaming lakehouse for Hyperliquid market data: live WebSocket trades and S3 archive
-backfill converging into the same Iceberg tables on AWS serverless, reproducible from zero
-with one `terraform apply` and torn down after every session.
+A streaming lakehouse on AWS that combines Hyperliquid's live trade feed and its hourly
+archive into one deduplicated table, and proves no trade is lost or counted twice. One
+`terraform apply` builds it from zero, and it is torn down after every session.
 
 Market data only. No trading, signals, or execution anywhere.
 
@@ -104,7 +104,7 @@ Each claim links to the query, run or report behind it.
   ([`bronze.sql`](docs/queries/bronze.sql) · [`silver.sql`](docs/queries/silver.sql) ·
   [`gold.sql`](docs/queries/gold.sql)).
 - **Rebuildable from bronze:** a drill dropped silver and rebuilt it and all five gold marts
-  from 29.5M bronze rows, with identical row counts, in 2 min 12 s for about $0.03
+  from 29.5M bronze rows, with identical row counts, in 2 min 12 s for about $0.03 of Athena scan
   ([runbook](docs/guides/ops-runbook.md#rebuild-silver-and-gold-from-bronze-measured-drill-qnt-491)).
 - **Quality is measured daily:** `gold.dq_daily` reports rows per source, duplicate rate,
   WebSocket gap minutes and archive lag for each coin. The archive has corrected a feed value
