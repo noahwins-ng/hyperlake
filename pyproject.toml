@@ -5,7 +5,7 @@ description = "Streaming lakehouse for Hyperliquid market data, market data engi
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "websockets>=13",
+    "websockets>=17.2",
     "boto3>=1.43.104",
     "lz4>=4.3",
     "pyarrow>=17",
