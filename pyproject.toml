@@ -20,7 +20,7 @@ dbt = [
 dev = [
     "ruff>=0.16.9",
     "pyright>=1.1.414",
-    "pytest>=8",
+    "pytest>=9.2.0",
     "pip-audit>=2.10.1",
 ]
 
